@@ -1,22 +1,22 @@
 .PHONY: build fmt lint dev web-dev web-build proto
 
-build: proto web-build
+build: web-build
 	go build ./cmd/server
 
-fmt: proto
+fmt:
 	gofumpt -w ./
 
-lint: proto
+lint:
 	golangci-lint run ./...
 
-dev: proto web-build
+dev: web-build
 	@DB_PATH=$${DB_PATH:-./data/website-rating.db} \
 	go run ./cmd/server
 
 web-dev:
 	cd web && bun install && bun run dev
 
-web-build: proto
+web-build:
 	cd web && bun install && bun run build
 
 proto:
