@@ -1,0 +1,434 @@
+{{define "content"}}
+<section class="detail">
+  <div class="detail-hero">
+    <div
+      class="detail-poster-wrap"
+      style="view-transition-name: poster-{{.Show.MediaType}}-{{.Show.TMDBID}}"
+    >
+      {{if .Show.PosterPath.Valid}}
+      <img
+        class="detail-poster"
+        src="{{.ImageBase}}{{.Show.PosterPath.String}}"
+        alt="{{.Show.Title}}"
+      />
+      {{else}}
+      <div class="poster-placeholder">No poster</div>
+      {{end}}
+    </div>
+    <div class="detail-hero-body">
+      <div class="detail-header">
+        <h1 style="view-transition-name: title-{{.Show.MediaType}}-{{.Show.TMDBID}}">
+          {{.Show.Title}}
+        </h1>
+        {{if .Show.Year.Valid}}
+        <div class="detail-year">{{.Show.Year.Int64}}</div>
+        {{end}}
+        <div class="detail-meta">
+          <form method="post" class="status-toggle-form">
+            <input type="hidden" name="action" value="toggle-status" />
+            <input type="hidden" name="status" value="{{.Show.Status}}" />
+            <button
+              type="submit"
+              class="status status-button {{if .Show.Status}}{{.Show.Status}}{{else}}tbd{{end}}"
+            >
+              {{if .Show.Status}}{{.Show.Status}}{{else}}TBD{{end}}
+            </button>
+          </form>
+          <span class="rating-chip {{if not .Show.TMDBRating.Valid}}muted{{end}}">
+            {{if .Show.TMDBRating.Valid}}
+              {{formatScore .Show.TMDBRating.Float64}}
+              {{if .Show.TMDBVotes.Valid}}
+              <span class="votes">({{formatVotes .Show.TMDBVotes.Int64}})</span>
+              {{end}}
+            {{else}}
+              —
+            {{end}}
+          </span>
+          {{if .Show.Genres.Valid}}<span class="no-sep">{{.Show.Genres.String}}</span>{{end}}
+        </div>
+      </div>
+      <div class="detail-links">
+        {{ $imdb := imdbURL .Show.IMDbID }}
+        {{if $imdb}}
+          <a class="imdb-link" href="{{$imdb}}" target="_blank" rel="noopener">IMDb</a>
+        {{end}}
+        <form method="post" action="/show/{{.Show.ID}}" class="refresh-form">
+          <input type="hidden" name="action" value="refresh-tmdb" />
+          <button type="submit" class="refresh-button">Refresh TMDB</button>
+        </form>
+        <form method="post" action="/show/{{.Show.ID}}" class="refresh-form">
+          <input type="hidden" name="action" value="clear-ratings" />
+          <button type="submit" class="clear-ratings-button">Clear ratings</button>
+        </form>
+      </div>
+      {{if .Show.Overview.Valid}}
+      <p class="overview">{{.Show.Overview.String}}</p>
+      {{end}}
+    </div>
+  </div>
+
+  <form
+    method="post"
+    class="rating-form detail-panel"
+    data-rating-form
+    data-init-bf-rating="{{if .Show.BfRating.Valid}}{{.Show.BfRating.Int64}}{{end}}"
+    data-init-gf-rating="{{if .Show.GfRating.Valid}}{{.Show.GfRating.Int64}}{{end}}"
+    data-init-bf-comment="{{if .Show.BfComment.Valid}}{{.Show.BfComment.String}}{{end}}"
+    data-init-gf-comment="{{if .Show.GfComment.Valid}}{{.Show.GfComment.String}}{{end}}"
+  >
+    <input type="hidden" name="id" value="{{.Show.ID}}" />
+    <div class="ratings-header">
+      <div class="ratings-title">
+        <h2>Ratings</h2>
+        <span class="muted">1–10, add a note if you want</span>
+      </div>
+      <div class="rating-pill avg">
+        <span class="rating-label">Avg</span>
+        <strong>{{combinedRating .Show.BfRating .Show.GfRating}}</strong>
+      </div>
+    </div>
+    <div class="rating-grid">
+      <div class="rating-card bf">
+        <div class="rating-title">
+          <span class="tag bf">BF</span>
+          <span>{{.BfName}}</span>
+        </div>
+        <label>Rating</label>
+        <div class="star-rating bf">
+          <input
+            type="radio"
+            id="bf10"
+            name="bf_rating"
+            value="10"
+            {{if
+            and
+            .Show.BfRating.Valid
+            (eq
+            .Show.BfRating.Int64
+            10)}}checked{{end}}
+          />
+          <label for="bf10" title="10"></label>
+          <input
+            type="radio"
+            id="bf9"
+            name="bf_rating"
+            value="9"
+            {{if
+            and
+            .Show.BfRating.Valid
+            (eq
+            .Show.BfRating.Int64
+            9)}}checked{{end}}
+          />
+          <label for="bf9" title="9"></label>
+          <input
+            type="radio"
+            id="bf8"
+            name="bf_rating"
+            value="8"
+            {{if
+            and
+            .Show.BfRating.Valid
+            (eq
+            .Show.BfRating.Int64
+            8)}}checked{{end}}
+          />
+          <label for="bf8" title="8"></label>
+          <input
+            type="radio"
+            id="bf7"
+            name="bf_rating"
+            value="7"
+            {{if
+            and
+            .Show.BfRating.Valid
+            (eq
+            .Show.BfRating.Int64
+            7)}}checked{{end}}
+          />
+          <label for="bf7" title="7"></label>
+          <input
+            type="radio"
+            id="bf6"
+            name="bf_rating"
+            value="6"
+            {{if
+            and
+            .Show.BfRating.Valid
+            (eq
+            .Show.BfRating.Int64
+            6)}}checked{{end}}
+          />
+          <label for="bf6" title="6"></label>
+          <input
+            type="radio"
+            id="bf5"
+            name="bf_rating"
+            value="5"
+            {{if
+            and
+            .Show.BfRating.Valid
+            (eq
+            .Show.BfRating.Int64
+            5)}}checked{{end}}
+          />
+          <label for="bf5" title="5"></label>
+          <input
+            type="radio"
+            id="bf4"
+            name="bf_rating"
+            value="4"
+            {{if
+            and
+            .Show.BfRating.Valid
+            (eq
+            .Show.BfRating.Int64
+            4)}}checked{{end}}
+          />
+          <label for="bf4" title="4"></label>
+          <input
+            type="radio"
+            id="bf3"
+            name="bf_rating"
+            value="3"
+            {{if
+            and
+            .Show.BfRating.Valid
+            (eq
+            .Show.BfRating.Int64
+            3)}}checked{{end}}
+          />
+          <label for="bf3" title="3"></label>
+          <input
+            type="radio"
+            id="bf2"
+            name="bf_rating"
+            value="2"
+            {{if
+            and
+            .Show.BfRating.Valid
+            (eq
+            .Show.BfRating.Int64
+            2)}}checked{{end}}
+          />
+          <label for="bf2" title="2"></label>
+          <input
+            type="radio"
+            id="bf1"
+            name="bf_rating"
+            value="1"
+            {{if
+            and
+            .Show.BfRating.Valid
+            (eq
+            .Show.BfRating.Int64
+            1)}}checked{{end}}
+          />
+          <label for="bf1" title="1"></label>
+        </div>
+        <label>Comment</label>
+        {{if .Show.BfComment.Valid}}
+          <div class="comment-display" data-comment-display>
+            <p>{{.Show.BfComment.String}}</p>
+            <button type="button" class="comment-edit" data-comment-edit aria-label="Edit comment">
+              <span class="edit-icon" aria-hidden="true"></span>
+            </button>
+          </div>
+          <textarea
+            name="bf_comment"
+            rows="3"
+            class="comment-editor is-hidden"
+            data-comment-editor
+          >{{.Show.BfComment.String}}</textarea>
+        {{else}}
+          <textarea name="bf_comment" rows="3" class="comment-editor" data-comment-editor></textarea>
+        {{end}}
+      </div>
+      <div class="rating-card gf">
+        <div class="rating-title">
+          <span class="tag gf">GF</span>
+          <span>{{.GfName}}</span>
+        </div>
+        <label>Rating</label>
+        <div class="star-rating gf">
+          <input
+            type="radio"
+            id="gf10"
+            name="gf_rating"
+            value="10"
+            {{if
+            and
+            .Show.GfRating.Valid
+            (eq
+            .Show.GfRating.Int64
+            10)}}checked{{end}}
+          />
+          <label for="gf10" title="10"></label>
+          <input
+            type="radio"
+            id="gf9"
+            name="gf_rating"
+            value="9"
+            {{if
+            and
+            .Show.GfRating.Valid
+            (eq
+            .Show.GfRating.Int64
+            9)}}checked{{end}}
+          />
+          <label for="gf9" title="9"></label>
+          <input
+            type="radio"
+            id="gf8"
+            name="gf_rating"
+            value="8"
+            {{if
+            and
+            .Show.GfRating.Valid
+            (eq
+            .Show.GfRating.Int64
+            8)}}checked{{end}}
+          />
+          <label for="gf8" title="8"></label>
+          <input
+            type="radio"
+            id="gf7"
+            name="gf_rating"
+            value="7"
+            {{if
+            and
+            .Show.GfRating.Valid
+            (eq
+            .Show.GfRating.Int64
+            7)}}checked{{end}}
+          />
+          <label for="gf7" title="7"></label>
+          <input
+            type="radio"
+            id="gf6"
+            name="gf_rating"
+            value="6"
+            {{if
+            and
+            .Show.GfRating.Valid
+            (eq
+            .Show.GfRating.Int64
+            6)}}checked{{end}}
+          />
+          <label for="gf6" title="6"></label>
+          <input
+            type="radio"
+            id="gf5"
+            name="gf_rating"
+            value="5"
+            {{if
+            and
+            .Show.GfRating.Valid
+            (eq
+            .Show.GfRating.Int64
+            5)}}checked{{end}}
+          />
+          <label for="gf5" title="5"></label>
+          <input
+            type="radio"
+            id="gf4"
+            name="gf_rating"
+            value="4"
+            {{if
+            and
+            .Show.GfRating.Valid
+            (eq
+            .Show.GfRating.Int64
+            4)}}checked{{end}}
+          />
+          <label for="gf4" title="4"></label>
+          <input
+            type="radio"
+            id="gf3"
+            name="gf_rating"
+            value="3"
+            {{if
+            and
+            .Show.GfRating.Valid
+            (eq
+            .Show.GfRating.Int64
+            3)}}checked{{end}}
+          />
+          <label for="gf3" title="3"></label>
+          <input
+            type="radio"
+            id="gf2"
+            name="gf_rating"
+            value="2"
+            {{if
+            and
+            .Show.GfRating.Valid
+            (eq
+            .Show.GfRating.Int64
+            2)}}checked{{end}}
+          />
+          <label for="gf2" title="2"></label>
+          <input
+            type="radio"
+            id="gf1"
+            name="gf_rating"
+            value="1"
+            {{if
+            and
+            .Show.GfRating.Valid
+            (eq
+            .Show.GfRating.Int64
+            1)}}checked{{end}}
+          />
+          <label for="gf1" title="1"></label>
+        </div>
+        <label>Comment</label>
+        {{if .Show.GfComment.Valid}}
+          <div class="comment-display" data-comment-display>
+            <p>{{.Show.GfComment.String}}</p>
+            <button type="button" class="comment-edit" data-comment-edit aria-label="Edit comment">
+              <span class="edit-icon" aria-hidden="true"></span>
+            </button>
+          </div>
+          <textarea
+            name="gf_comment"
+            rows="3"
+            class="comment-editor is-hidden"
+            data-comment-editor
+          >{{.Show.GfComment.String}}</textarea>
+        {{else}}
+          <textarea name="gf_comment" rows="3" class="comment-editor" data-comment-editor></textarea>
+        {{end}}
+      </div>
+    </div>
+    <div class="rating-actions">
+      <button
+        type="submit"
+        class="menu-item danger"
+        formmethod="post"
+        formaction="/delete"
+        data-delete-button
+      >
+        Delete
+      </button>
+      <button type="submit" class="save-rating" data-save-button>
+        Save ratings
+      </button>
+    </div>
+  </form>
+</section>
+
+<div class="modal-backdrop" data-confirm-backdrop style="display: none"></div>
+<div class="modal" data-confirm-modal style="display: none">
+  <div class="modal-card">
+    <h3>Delete show?</h3>
+    <p>This will remove it from your library.</p>
+    <div class="modal-actions">
+      <button type="button" class="button-ghost" data-confirm-cancel>Cancel</button>
+      <button type="button" class="button-ghost danger" data-confirm-delete>Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/detail.js?v=6" defer></script>
+{{end}}

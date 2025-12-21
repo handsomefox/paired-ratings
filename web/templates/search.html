@@ -1,0 +1,115 @@
+{{define "content"}}
+<section class="search-layout">
+  <aside class="filters" data-filters-panel>
+    <div class="filters-header">
+      <h3>Filters</h3>
+      <button type="button" class="filters-close" data-filter-close>Close</button>
+    </div>
+    <form class="filters-form" data-search-filters>
+      <label>
+        Type
+        <select name="media_type">
+          <option value="all" {{if or (eq .MediaType "") (eq .MediaType "all")}}selected{{end}}>All</option>
+          <option value="movie" {{if eq .MediaType "movie"}}selected{{end}}>Movie</option>
+          <option value="tv" {{if eq .MediaType "tv"}}selected{{end}}>TV</option>
+        </select>
+      </label>
+      <label>
+        Year from
+        <input type="number" name="year_from" min="1900" max="2100" value="{{.YearFrom}}" />
+      </label>
+      <label>
+        Year to
+        <input type="number" name="year_to" min="1900" max="2100" value="{{.YearTo}}" />
+      </label>
+      <label>
+        Min TMDB rating
+        <input type="number" name="min_rating" min="0" max="10" step="0.1" value="{{.MinRating}}" />
+      </label>
+      <label>
+        Min reviews
+        <input type="number" name="min_votes" min="0" max="1000000" step="1" value="{{.MinVotes}}" />
+      </label>
+      <label>
+        Sort
+        <select name="sort">
+          <option value="relevance" {{if or (eq .Sort "") (eq .Sort "relevance")}}selected{{end}}>Relevance</option>
+          <option value="rating" {{if eq .Sort "rating"}}selected{{end}}>TMDB rating</option>
+          <option value="votes" {{if eq .Sort "votes"}}selected{{end}}>TMDB votes</option>
+          <option value="year" {{if eq .Sort "year"}}selected{{end}}>Year</option>
+          <option value="title" {{if eq .Sort "title"}}selected{{end}}>Title</option>
+        </select>
+      </label>
+    </form>
+  </aside>
+
+  <div class="search-main">
+    <div class="search-header">
+      <form method="get" action="/search" class="search-form" data-live-search>
+        <input
+          type="text"
+          name="q"
+          placeholder="Search TMDB"
+          value="{{.Query}}"
+          autofocus
+        />
+      </form>
+      <button type="button" class="filter-toggle" data-filter-toggle>Filters</button>
+    </div>
+
+    <div class="results-count" data-results-count></div>
+
+    <div class="results" data-results data-image-base="{{.ImageBase}}">
+      {{range .Results}}
+      <div class="result-card">
+        <div class="poster">
+          {{if .PosterPath}}
+          <img src="{{$.ImageBase}}{{.PosterPath}}" alt="{{.Title}}" />
+          {{else}}
+          <div class="poster-placeholder">No poster</div>
+          {{end}}
+        </div>
+        <div class="result-body">
+          <div class="result-title">
+            <strong>{{.Title}}</strong>
+            {{if .Year}}<span class="year">{{.Year}}</span>{{end}}
+          </div>
+          <div class="result-meta">{{if eq .MediaType "movie"}}Movie{{else}}TV{{end}}</div>
+          {{if gt .VoteAverage 0.0}}
+          <div class="rating-chip">
+            TMDB {{formatScore .VoteAverage}}
+            {{if gt .VoteCount 0}}
+            <span class="votes">({{formatVotes .VoteCount}})</span>
+            {{end}}
+          </div>
+          {{end}}
+          {{if .Overview}}
+          <p>{{.Overview}}</p>
+          {{end}}
+          {{if .InLibrary}}
+          <div class="in-library">In library</div>
+          {{else}}
+          <div class="actions">
+            <form method="post" action="/add">
+              <input type="hidden" name="tmdb_id" value="{{.ID}}" />
+              <input type="hidden" name="media_type" value="{{.MediaType}}" />
+              <input type="hidden" name="status" value="planned" />
+              <button type="submit">Add planned</button>
+            </form>
+            <form method="post" action="/add">
+              <input type="hidden" name="tmdb_id" value="{{.ID}}" />
+              <input type="hidden" name="media_type" value="{{.MediaType}}" />
+              <input type="hidden" name="status" value="watched" />
+              <button type="submit" class="secondary">Add watched</button>
+            </form>
+          </div>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+    </div>
+    <div class="results-sentinel" data-results-sentinel></div>
+  </div>
+</section>
+<script src="/static/search.js?v=60" defer></script>
+{{end}}
