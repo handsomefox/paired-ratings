@@ -2,15 +2,22 @@
 
 root = "."
 testdata_dir = "testdata"
-tmp_dir = "tmp"
 
 [build]
 cmd = "true"
 delay = 1000
 entrypoint = ["make", "dev"]
 include_ext = ["go", "html", "css", "env", "tpl", "tmpl"]
-exclude_dir = ["assets", "tmp", "vendor", "data", "testdata"]
-exclude_regex = ["_test.go"]
+exclude_dir = [
+    "assets",
+    "tmp",
+    "vendor",
+    "data",
+    "testdata",
+    "internal/web/dist/",
+    "web/node_modules",
+]
+exclude_regex = ["_test.go", ".pb.go"]
 log = "build-errors.log"
 rerun_delay = 500
 

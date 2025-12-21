@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+coverage
+.next
+out
+.vite
+turbo
+*.min.*
+*.lock

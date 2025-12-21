@@ -40,3 +40,4 @@ AGENTS.md
 
 # Data
 /data
+/internal/web/dist/*

@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package pairedratings.v1;
+
+option go_package = "github.com/handsomefox/website-rating/internal/gen/pb";
+
+message SessionResponse {
+  optional bool authenticated = 1 [json_name = "authenticated"];
+  optional string image_base = 2 [json_name = "image_base"];
+  optional string bf_name = 3 [json_name = "bf_name"];
+  optional string gf_name = 4 [json_name = "gf_name"];
+}
+
+message ErrorResponse {
+  string error = 1 [json_name = "error"];
+}
+
+message Show {
+  int64 id = 1 [json_name = "id"];
+  int64 tmdb_id = 2 [json_name = "tmdb_id"];
+  string media_type = 3 [json_name = "media_type"];
+  string title = 4 [json_name = "title"];
+  optional int64 year = 5 [json_name = "year"];
+  optional string genres = 6 [json_name = "genres"];
+  optional string overview = 7 [json_name = "overview"];
+  optional string poster_path = 8 [json_name = "poster_path"];
+  optional string imdb_id = 9 [json_name = "imdb_id"];
+  optional double tmdb_rating = 10 [json_name = "tmdb_rating"];
+  optional int64 tmdb_votes = 11 [json_name = "tmdb_votes"];
+  string status = 12 [json_name = "status"];
+  optional int64 bf_rating = 13 [json_name = "bf_rating"];
+  optional int64 gf_rating = 14 [json_name = "gf_rating"];
+  optional string bf_comment = 15 [json_name = "bf_comment"];
+  optional string gf_comment = 16 [json_name = "gf_comment"];
+  string created_at = 17 [json_name = "created_at"];
+  string updated_at = 18 [json_name = "updated_at"];
+}
+
+message ShowDetail {
+  Show show = 1 [json_name = "show"];
+  optional string imdb_url = 2 [json_name = "imdb_url"];
+}
+
+message ListResponse {
+  repeated Show shows = 1 [json_name = "shows"];
+  repeated string genres = 2 [json_name = "genres"];
+}
+
+message GenresResponse {
+  repeated string genres = 1 [json_name = "genres"];
+}
+
+message SearchResult {
+  int64 id = 1 [json_name = "id"];
+  string media_type = 2 [json_name = "media_type"];
+  string title = 3 [json_name = "title"];
+  string year = 4 [json_name = "year"];
+  string poster_path = 5 [json_name = "poster_path"];
+  string overview = 6 [json_name = "overview"];
+  double vote_average = 7 [json_name = "vote_average"];
+  int32 vote_count = 8 [json_name = "vote_count"];
+  bool in_library = 9 [json_name = "in_library"];
+  repeated string genres = 10 [json_name = "genres"];
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1 [json_name = "results"];
+  int32 page = 2 [json_name = "page"];
+  int32 total_pages = 3 [json_name = "total_pages"];
+  int32 total_results = 4 [json_name = "total_results"];
+}
+
+message Genre {
+  int32 id = 1 [json_name = "id"];
+  string name = 2 [json_name = "name"];
+}
+
+message SearchGenresResponse {
+  repeated Genre movie_genres = 1 [json_name = "movie_genres"];
+  repeated Genre tv_genres = 2 [json_name = "tv_genres"];
+}
+
+message LoginRequest {
+  string password = 1 [json_name = "password"];
+}
+
+message AddShowRequest {
+  int64 tmdb_id = 1 [json_name = "tmdb_id"];
+  string media_type = 2 [json_name = "media_type"];
+  string status = 3 [json_name = "status"];
+}
+
+message RatingsRequest {
+  optional int32 bf_rating = 1 [json_name = "bf_rating"];
+  optional int32 gf_rating = 2 [json_name = "gf_rating"];
+  optional string bf_comment = 3 [json_name = "bf_comment"];
+  optional string gf_comment = 4 [json_name = "gf_comment"];
+}
+
+message RefreshResponse {
+  int32 updated = 1 [json_name = "updated"];
+}
+
+message ExportPayload {
+  string exported_at = 1 [json_name = "exported_at"];
+  repeated Show shows = 2 [json_name = "shows"];
+}

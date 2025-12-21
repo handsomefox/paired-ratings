@@ -1,23 +1,23 @@
-// Package handlers wires HTTP handlers for the app.
+// Package handlers wires HTTP routing and API handlers.
 package handlers
 
 import (
+	"bytes"
 	"cmp"
-	"crypto/sha256"
+	"context"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"html/template"
 	"log/slog"
 	"net/http"
-	"net/url"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/handsomefox/website-rating/internal/gen/pb"
 	"github.com/handsomefox/website-rating/internal/store"
 	"github.com/handsomefox/website-rating/internal/tmdb"
 )
@@ -30,7 +30,7 @@ type Handler struct {
 	imageBase string
 	bfName    string
 	gfName    string
-	templates map[string]*template.Template
+	genres    genreCache
 }
 
 type Config struct {
@@ -42,280 +42,13 @@ type Config struct {
 	GfName    string
 }
 
-type listPageData struct {
-	Shows         []store.Show
-	Filters       store.ListFilters
-	Genres        []string
-	Sort          string
-	Status        string
-	YearFrom      string
-	YearTo        string
-	Genre         string
-	Unrated       bool
-	ImageBase     string
-	BfName        string
-	GfName        string
-	HasResults    bool
-	Authenticated bool
-}
-
-type searchPageData struct {
-	Query         string
-	MediaType     string
-	YearFrom      string
-	YearTo        string
-	MinRating     string
-	MinVotes      string
-	Sort          string
-	Results       []searchPageResult
-	ImageBase     string
-	Authenticated bool
-}
-
-type detailPageData struct {
-	Show          store.Show
-	ImageBase     string
-	BfName        string
-	GfName        string
-	Authenticated bool
-}
-
-type loginPageData struct {
-	Error         string
-	Authenticated bool
-}
-
-func New(cfg Config) (*Handler, error) {
-	if cfg.Store == nil {
-		return nil, errors.New("store is required")
-	}
-	if cfg.TMDB == nil {
-		return nil, errors.New("tmdb client is required")
-	}
-	if strings.TrimSpace(cfg.Password) == "" {
-		return nil, errors.New("password is required")
-	}
-	tmpl, err := parseTemplates()
-	if err != nil {
-		return nil, err
-	}
-	bfName := strings.TrimSpace(cfg.BfName)
-	if bfName == "" {
-		bfName = "Boyfriend"
-	}
-	gfName := strings.TrimSpace(cfg.GfName)
-	if gfName == "" {
-		gfName = "Girlfriend"
-	}
-	return &Handler{
-		store:     cfg.Store,
-		tmdb:      cfg.TMDB,
-		password:  cfg.Password,
-		passHash:  hashPassword(cfg.Password),
-		imageBase: cfg.ImageBase,
-		bfName:    bfName,
-		gfName:    gfName,
-		templates: tmpl,
-	}, nil
-}
-
-func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/login", h.loginHandler)
-	mux.HandleFunc("/logout", h.logoutHandler)
-	mux.HandleFunc("/search", h.requireAuth(h.searchHandler))
-	mux.HandleFunc("/api/search", h.requireAuth(h.searchAPIHandler))
-	mux.HandleFunc("/add", h.requireAuth(h.addHandler))
-	mux.HandleFunc("/delete", h.requireAuth(h.deleteHandler))
-	mux.HandleFunc("/export", h.requireAuth(h.exportHandler))
-	mux.HandleFunc("/refresh-tmdb", h.requireAuth(h.refreshTMDBHandler))
-	mux.HandleFunc("/show/", h.requireAuth(h.showHandler))
-	mux.HandleFunc("/", h.requireAuth(h.listHandler))
-}
-
-func parseTemplates() (map[string]*template.Template, error) {
-	funcs := template.FuncMap{
-		"shortGenres":    shortGenres,
-		"ratingText":     ratingText,
-		"combinedRating": combinedRatingText,
-		"formatScore":    formatScore,
-		"formatVotes":    formatVotes,
-		"imdbURL":        imdbURL,
-	}
-	base, err := template.New("layout.html").Funcs(funcs).ParseFS(os.DirFS("web/templates"), "layout.html")
-	if err != nil {
-		return nil, err
-	}
-	pages := []string{
-		"list.html",
-		"search.html",
-		"detail.html",
-		"login.html",
-	}
-	out := make(map[string]*template.Template, len(pages))
-	for _, page := range pages {
-		tpl, err := base.Clone()
-		if err != nil {
-			return nil, err
-		}
-		if _, err := tpl.ParseFS(os.DirFS("web/templates"), page); err != nil {
-			return nil, err
-		}
-		out[page] = tpl
-	}
-	return out, nil
-}
-
-func (h *Handler) loginHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		h.render(w, "login.html", loginPageData{Authenticated: false})
-	case http.MethodPost:
-		if err := r.ParseForm(); err != nil {
-			slog.Warn("login: parse form failed", slog.Any("err", err))
-			http.Error(w, "bad form", http.StatusBadRequest)
-			return
-		}
-		if r.FormValue("password") != h.password {
-			slog.Warn("login: invalid password", slog.String("remote", r.RemoteAddr))
-			h.render(w, "login.html", loginPageData{
-				Error:         "Invalid password",
-				Authenticated: false,
-			})
-			return
-		}
-		setAuthCookie(w, r, h.passHash)
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	}
-}
-
-func (h *Handler) logoutHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	if !sameOrigin(r) {
-		slog.Warn("logout: forbidden origin", slog.String("remote", r.RemoteAddr))
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	clearAuthCookie(w, r)
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
-}
-
-func (h *Handler) listHandler(w http.ResponseWriter, r *http.Request) {
-	filters := store.ListFilters{
-		Status: r.URL.Query().Get("status"),
-		Genre:  r.URL.Query().Get("genre"),
-		Sort:   r.URL.Query().Get("sort"),
-	}
-	if r.URL.Query().Get("unrated") == "1" {
-		filters.Unrated = true
-	}
-	if val := r.URL.Query().Get("year_from"); val != "" {
-		if v, err := strconv.Atoi(val); err == nil {
-			filters.YearFrom = &v
-		}
-	}
-	if val := r.URL.Query().Get("year_to"); val != "" {
-		if v, err := strconv.Atoi(val); err == nil {
-			filters.YearTo = &v
-		}
-	}
-
-	shows, err := h.store.ListShows(filters)
-	if err != nil {
-		slog.Warn("list shows failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	genres, err := h.store.ListAllGenres()
-	if err != nil {
-		slog.Warn("list genres failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	data := listPageData{
-		Shows:         shows,
-		Filters:       filters,
-		Genres:        genres,
-		Sort:          filters.Sort,
-		Status:        filters.Status,
-		YearFrom:      r.URL.Query().Get("year_from"),
-		YearTo:        r.URL.Query().Get("year_to"),
-		Genre:         filters.Genre,
-		Unrated:       filters.Unrated,
-		ImageBase:     h.imageBase,
-		BfName:        h.bfName,
-		GfName:        h.gfName,
-		HasResults:    len(shows) > 0,
-		Authenticated: true,
-	}
-	if data.Status == "" {
-		data.Status = "all"
-	}
-	if data.Sort == "" {
-		data.Sort = "updated"
-	}
-	h.render(w, "list.html", data)
-}
-
-func (h *Handler) searchHandler(w http.ResponseWriter, r *http.Request) {
-	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	filters := parseSearchFilters(r)
-	pageData, err := h.searchTMDB(query, filters)
-	if err != nil {
-		slog.Warn("search tmdb failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusBadGateway)
-		return
-	}
-	inLibrary, err := h.lookupInLibrary(pageData.Results)
-	if err != nil {
-		slog.Warn("search lookup failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	pageResults := make([]searchPageResult, 0, len(pageData.Results))
-	for _, item := range pageData.Results {
-		pageResults = append(pageResults, searchPageResult{
-			SearchResult: item,
-			InLibrary:    inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
-		})
-	}
-	data := searchPageData{
-		Query:         query,
-		MediaType:     filters.MediaType,
-		YearFrom:      r.URL.Query().Get("year_from"),
-		YearTo:        r.URL.Query().Get("year_to"),
-		MinRating:     r.URL.Query().Get("min_rating"),
-		MinVotes:      r.URL.Query().Get("min_votes"),
-		Sort:          filters.Sort,
-		Results:       pageResults,
-		ImageBase:     h.imageBase,
-		Authenticated: true,
-	}
-	h.render(w, "search.html", data)
-}
-
-type searchAPIResult struct {
-	ID          int64   `json:"id"`
-	MediaType   string  `json:"media_type"`
-	Title       string  `json:"title"`
-	Year        string  `json:"year"`
-	PosterPath  string  `json:"poster_path"`
-	Overview    string  `json:"overview"`
-	VoteAverage float64 `json:"vote_average"`
-	VoteCount   int     `json:"vote_count"`
-	InLibrary   bool    `json:"in_library"`
-}
-
-type searchAPIResponse struct {
-	Results      []searchAPIResult `json:"results"`
-	Page         int               `json:"page"`
-	TotalPages   int               `json:"total_pages"`
-	TotalResults int               `json:"total_results"`
+type genreCache struct {
+	mu        sync.RWMutex
+	movie     map[int]string
+	tv        map[int]string
+	movieList []tmdb.Genre
+	tvList    []tmdb.Genre
+	fetchedAt time.Time
 }
 
 type searchFilters struct {
@@ -326,11 +59,9 @@ type searchFilters struct {
 	MinVotes  *int
 	Sort      string
 	Page      int
-}
-
-type searchPageResult struct {
-	tmdb.SearchResult
-	InLibrary bool
+	GenreIDs  []int
+	GenreMode string
+	GenreRaw  string
 }
 
 type searchPage struct {
@@ -340,137 +71,661 @@ type searchPage struct {
 	TotalResults int
 }
 
-func (h *Handler) searchAPIHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
+func New(cfg *Config) (*Handler, error) {
+	if cfg.Store == nil {
+		return nil, errors.New("store is required")
 	}
+	if cfg.TMDB == nil {
+		return nil, errors.New("tmdb client is required")
+	}
+	if strings.TrimSpace(cfg.Password) == "" {
+		return nil, errors.New("password is required")
+	}
+
+	bfName := strings.TrimSpace(cfg.BfName)
+	if bfName == "" {
+		bfName = "Boyfriend"
+	}
+	gfName := strings.TrimSpace(cfg.GfName)
+	if gfName == "" {
+		gfName = "Girlfriend"
+	}
+
+	return &Handler{
+		store:     cfg.Store,
+		tmdb:      cfg.TMDB,
+		password:  cfg.Password,
+		passHash:  hashPassword(cfg.Password),
+		imageBase: cfg.ImageBase,
+		bfName:    bfName,
+		gfName:    gfName,
+	}, nil
+}
+
+func (h *Handler) RegisterRoutes(r chi.Router) {
+	r.Method(http.MethodGet, "/session", Adapt(h.getSession))
+	r.Method(http.MethodPost, "/login", Adapt(h.postLogin))
+
+	r.Group(func(r chi.Router) {
+		r.Use(h.MiddlewareRequireAuth)
+
+		r.Method(http.MethodPost, "/logout", Adapt(h.postLogout))
+		r.Method(http.MethodGet, "/search", Adapt(h.getSearch))
+		r.Method(http.MethodGet, "/search/genres", Adapt(h.getSearchGenres))
+		r.Method(http.MethodGet, "/genres", Adapt(h.getGenres))
+
+		r.Route("/shows", func(r chi.Router) {
+			r.Method(http.MethodGet, "/", Adapt(h.getShows))
+			r.Method(http.MethodPost, "/", Adapt(h.postShows))
+
+			r.Route("/{id:[0-9]+}", func(r chi.Router) {
+				r.Method(http.MethodGet, "/", Adapt(h.getShow))
+				r.Method(http.MethodDelete, "/", Adapt(h.deleteShow))
+
+				r.Method(http.MethodPost, "/ratings", Adapt(h.postShowRatings))
+				r.Method(http.MethodPost, "/toggle-status", Adapt(h.postShowToggleStatus))
+				r.Method(http.MethodPost, "/clear-ratings", Adapt(h.postShowClearRatings))
+				r.Method(http.MethodPost, "/refresh-tmdb", Adapt(h.postShowRefreshTMDB))
+			})
+		})
+
+		r.Method(http.MethodPost, "/export", Adapt(h.postExport))
+		r.Method(http.MethodPost, "/refresh-tmdb", Adapt(h.postRefreshTMDBAll))
+	})
+}
+
+func (h *Handler) getSession(w http.ResponseWriter, r *http.Request) error {
+	authed := h.isAuthenticated(r)
+
+	resp := &pb.SessionResponse{Authenticated: ptr(authed)}
+	if authed {
+		resp.ImageBase = ptr(h.imageBase)
+		resp.BfName = ptr(h.bfName)
+		resp.GfName = ptr(h.gfName)
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+	return nil
+}
+
+func (h *Handler) postLogin(w http.ResponseWriter, r *http.Request) error {
+	var req pb.LoginRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return badRequest("bad request")
+	}
+
+	if req.Password != h.password {
+		slog.Warn("login: invalid password", slog.String("remote", r.RemoteAddr))
+		return unauthorized("invalid password")
+	}
+
+	setAuthCookie(w, r, h.passHash)
+	writeJSON(w, http.StatusOK, &pb.SessionResponse{
+		Authenticated: ptr(true),
+		ImageBase:     ptr(h.imageBase),
+		BfName:        ptr(h.bfName),
+		GfName:        ptr(h.gfName),
+	})
+	return nil
+}
+
+func (h *Handler) postLogout(w http.ResponseWriter, r *http.Request) error {
+	clearAuthCookie(w, r)
+	writeJSON(w, http.StatusOK, &pb.SessionResponse{Authenticated: ptr(false)})
+	return nil
+}
+
+func (h *Handler) getShows(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+	filters := parseListFilters(r)
+
+	shows, err := h.store.ListShows(ctx, filters)
+	if err != nil {
+		slog.Warn("list shows failed", slog.Any("err", err))
+		return internal(err)
+	}
+
+	genres, err := h.store.ListAllGenres(ctx)
+	if err != nil {
+		slog.Warn("list genres failed", slog.Any("err", err))
+		return internal(err)
+	}
+
+	writeJSON(w, http.StatusOK, &pb.ListResponse{
+		Shows:  toPBShows(shows),
+		Genres: genres,
+	})
+	return nil
+}
+
+func (h *Handler) postShows(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	var req pb.AddShowRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return badRequest("bad request")
+	}
+	if req.TmdbId == 0 {
+		return badRequest("tmdb_id required")
+	}
+
+	mediaType := strings.TrimSpace(req.MediaType)
+	if mediaType != "movie" && mediaType != "tv" {
+		return badRequest("invalid media_type")
+	}
+
+	status := strings.TrimSpace(req.Status)
+	if status != "planned" && status != "watched" {
+		status = "planned"
+	}
+
+	detail, err := h.tmdb.FetchDetails(ctx, req.TmdbId, mediaType)
+	if err != nil {
+		slog.Warn("add show: tmdb fetch failed", slog.Any("err", err))
+		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
+	}
+
+	show := showFromDetail(detail, status)
+	id, err := h.store.UpsertShow(ctx, &show)
+	if err != nil {
+		slog.Warn("add show: upsert failed", slog.Any("err", err))
+		return internal(err)
+	}
+
+	stored, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		stored = show
+		stored.ID = id
+	}
+
+	writeJSON(w, http.StatusOK, &pb.ShowDetail{
+		Show:    toPBShow(&stored),
+		ImdbUrl: optionalString(imdbURL(stored.IMDbID)),
+	})
+	return nil
+}
+
+func (h *Handler) getShow(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	id, err := idParam(r, "id")
+	if err != nil {
+		return notFound("not found")
+	}
+
+	show, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	writeJSON(w, http.StatusOK, &pb.ShowDetail{
+		Show:    toPBShow(&show),
+		ImdbUrl: optionalString(imdbURL(show.IMDbID)),
+	})
+	return nil
+}
+
+func (h *Handler) deleteShow(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	id, err := idParam(r, "id")
+	if err != nil {
+		return notFound("not found")
+	}
+
+	if err := h.store.DeleteShow(ctx, id); err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func (h *Handler) postShowRatings(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	id, err := idParam(r, "id")
+	if err != nil {
+		return notFound("not found")
+	}
+
+	var req pb.RatingsRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return badRequest("bad request")
+	}
+
+	update := store.RatingsUpdate{
+		BfRating:  nil,
+		GfRating:  nil,
+		BfComment: nil,
+		GfComment: nil,
+	}
+	if req.BfRating != nil {
+		bfRating := parseOptionalRating(req.BfRating)
+		update.BfRating = &bfRating
+	}
+	if req.GfRating != nil {
+		gfRating := parseOptionalRating(req.GfRating)
+		update.GfRating = &gfRating
+	}
+	if req.BfComment != nil {
+		update.BfComment = &sql.Null[string]{
+			V:     valueOrDefault(req.BfComment),
+			Valid: true,
+		}
+	}
+	if req.GfComment != nil {
+		update.GfComment = &sql.Null[string]{
+			V:     valueOrDefault(req.GfComment),
+			Valid: true,
+		}
+	}
+
+	if err := h.store.UpdateRatings(ctx, id, update); err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		slog.Warn("show: update ratings failed", slog.Any("err", err))
+		return internal(err)
+	}
+
+	show, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	writeJSON(w, http.StatusOK, &pb.ShowDetail{
+		Show:    toPBShow(&show),
+		ImdbUrl: optionalString(imdbURL(show.IMDbID)),
+	})
+	return nil
+}
+
+func (h *Handler) postShowToggleStatus(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	id, err := idParam(r, "id")
+	if err != nil {
+		return notFound("not found")
+	}
+
+	show, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	next := nextStatus(show.Status)
+	if err := h.store.UpdateStatus(ctx, id, next); err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	updated, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	writeJSON(w, http.StatusOK, &pb.ShowDetail{
+		Show:    toPBShow(&updated),
+		ImdbUrl: optionalString(imdbURL(updated.IMDbID)),
+	})
+	return nil
+}
+
+func (h *Handler) postShowClearRatings(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	id, err := idParam(r, "id")
+	if err != nil {
+		return notFound("not found")
+	}
+
+	if err := h.store.ClearRatings(ctx, id); err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	updated, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	writeJSON(w, http.StatusOK, &pb.ShowDetail{
+		Show:    toPBShow(&updated),
+		ImdbUrl: optionalString(imdbURL(updated.IMDbID)),
+	})
+	return nil
+}
+
+func (h *Handler) postShowRefreshTMDB(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	id, err := idParam(r, "id")
+	if err != nil {
+		return notFound("not found")
+	}
+
+	show, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	detail, err := h.tmdb.FetchDetails(ctx, show.TMDBID, show.MediaType)
+	if err != nil {
+		slog.Warn("show: tmdb refresh failed", slog.Any("err", err))
+		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
+	}
+
+	updated := showFromDetail(detail, show.Status)
+	updated.ID = show.ID
+
+	if _, err := h.store.UpsertShow(ctx, &updated); err != nil {
+		slog.Warn("show: tmdb upsert failed", slog.Any("err", err))
+		return internal(err)
+	}
+
+	stored, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		stored = updated
+	}
+
+	writeJSON(w, http.StatusOK, &pb.ShowDetail{
+		Show:    toPBShow(&stored),
+		ImdbUrl: optionalString(imdbURL(stored.IMDbID)),
+	})
+	return nil
+}
+
+func (h *Handler) getGenres(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	genres, err := h.store.ListAllGenres(ctx)
+	if err != nil {
+		return internal(err)
+	}
+	writeJSON(w, http.StatusOK, genres)
+	return nil
+}
+
+func (h *Handler) getSearchGenres(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	movieGenres, tvGenres, err := h.fetchGenreLists(ctx)
+	if err != nil {
+		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
+	}
+
+	resp := &pb.SearchGenresResponse{
+		MovieGenres: toPBGenres(movieGenres),
+		TvGenres:    toPBGenres(tvGenres),
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+	return nil
+}
+
+func (h *Handler) postExport(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	shows, err := h.store.ListShows(ctx, store.ListFilters{Status: "all"})
+	if err != nil {
+		return internal(err)
+	}
+
+	payload := &pb.ExportPayload{
+		ExportedAt: time.Now().UTC().Format(time.RFC3339),
+		Shows:      make([]*pb.Show, 0, len(shows)),
+	}
+	for i := range shows {
+		payload.Shows = append(payload.Shows, toPBShow(&shows[i]))
+	}
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(payload); err != nil {
+		return internal(err)
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=show-ratings.json")
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		slog.Warn("export write failed", slog.Any("err", err))
+	}
+	return nil
+}
+
+func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	items, err := h.store.ListTMDBMissing(ctx)
+	if err != nil {
+		return internal(err)
+	}
+
+	for _, item := range items {
+		detail, err := h.tmdb.FetchDetails(ctx, item.TMDBID, item.MediaType)
+		if err != nil {
+			return &Error{Status: http.StatusBadGateway, Message: err.Error()}
+		}
+
+		show := showFromDetail(detail, item.Status)
+		if _, err := h.store.UpsertShow(ctx, &show); err != nil {
+			return internal(err)
+		}
+	}
+
+	writeJSON(w, http.StatusOK, &pb.RefreshResponse{Updated: toInt32(len(items))})
+	return nil
+}
+
+func (h *Handler) getSearch(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	filters := parseSearchFilters(r)
-	results := []searchAPIResult{}
-	pageData, err := h.searchTMDB(query, filters)
+
+	pageData, err := h.searchTMDB(ctx, query, filters)
 	if err != nil {
-		slog.Warn("search api tmdb failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusBadGateway)
-		return
+		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
 	}
-	inLibrary, err := h.lookupInLibrary(pageData.Results)
+
+	inLibrary, err := h.lookupInLibrary(ctx, pageData.Results)
 	if err != nil {
-		slog.Warn("search api lookup failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return internal(err)
 	}
-	results = make([]searchAPIResult, 0, len(pageData.Results))
+
+	movieGenres, tvGenres := h.genreMaps(ctx)
+
+	results := make([]*pb.SearchResult, 0, len(pageData.Results))
 	for _, item := range pageData.Results {
-		results = append(results, searchAPIResult{
-			ID:          item.ID,
+		results = append(results, &pb.SearchResult{
+			Id:          item.ID,
 			MediaType:   item.MediaType,
 			Title:       item.Title,
 			Year:        item.Year,
 			PosterPath:  item.PosterPath,
 			Overview:    item.Overview,
 			VoteAverage: item.VoteAverage,
-			VoteCount:   item.VoteCount,
+			VoteCount:   toInt32(item.VoteCount),
 			InLibrary:   inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
+			Genres:      genreNamesFor(item, movieGenres, tvGenres),
 		})
 	}
-	response := searchAPIResponse{
+
+	writeJSON(w, http.StatusOK, &pb.SearchResponse{
 		Results:      results,
-		Page:         pageData.Page,
-		TotalPages:   pageData.TotalPages,
-		TotalResults: pageData.TotalResults,
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+		Page:         toInt32(pageData.Page),
+		TotalPages:   toInt32(pageData.TotalPages),
+		TotalResults: toInt32(pageData.TotalResults),
+	})
+	return nil
 }
 
-func (h *Handler) searchTMDB(query string, filters searchFilters) (searchPage, error) {
-	const perPage = 10
+func (h *Handler) searchTMDB(ctx context.Context, query string, filters searchFilters) (searchPage, error) {
+	const perPage = 20
 	const tmdbPageSize = 20
+
 	if filters.Page < 1 {
 		filters.Page = 1
 	}
-	index := (filters.Page - 1) * perPage
 
 	if query != "" {
-		tmdbPage := index/tmdbPageSize + 1
-		offset := index % tmdbPageSize
-		pageData, err := h.tmdb.SearchPage(query, tmdbPage)
-		if err != nil {
-			return searchPage{}, err
+		type pageFetcher func(page int) (tmdb.SearchPage, error)
+		fetch := func(page int) (tmdb.SearchPage, error) {
+			return h.tmdb.SearchPage(ctx, query, page)
 		}
-		filtered := applySearchFilters(pageData.Results, filters)
-		sorted := applySearchSort(filtered, filters.Sort, true)
-		pageData.Results = paginateSearchResults(sorted, offset, perPage)
-		totalPages := 1
-		if pageData.TotalResults > 0 {
-			totalPages = (pageData.TotalResults + perPage - 1) / perPage
-		}
-		return searchPage{
-			Results:      pageData.Results,
-			Page:         filters.Page,
-			TotalPages:   totalPages,
-			TotalResults: pageData.TotalResults,
-		}, nil
+		startFromFirst := !filters.isEmpty() || filters.Sort != "relevance"
+		return h.searchWithFilterPaging(ctx, fetch, filters, perPage, tmdbPageSize, startFromFirst, true)
 	}
+
 	if filters.isEmpty() {
 		return searchPage{}, nil
 	}
+
 	discoverFilters := tmdb.DiscoverFilters{
 		YearFrom:  filters.YearFrom,
 		YearTo:    filters.YearTo,
 		MinRating: filters.MinRating,
+		MinVotes:  filters.MinVotes,
+		Genres:    filters.GenreRaw,
 	}
+
 	switch filters.MediaType {
 	case "movie", "tv":
-		tmdbPage := index/tmdbPageSize + 1
-		offset := index % tmdbPageSize
-		pageData, err := h.tmdb.DiscoverPage(filters.MediaType, discoverFilters, tmdbPage)
+		discoverFilters.Sort = tmdbSort(filters.Sort, filters.MediaType)
+		pageData, err := h.tmdb.DiscoverPage(ctx, filters.MediaType, discoverFilters, filters.Page)
 		if err != nil {
 			return searchPage{}, err
-		}
-		filtered := applySearchFilters(pageData.Results, filters)
-		pageData.Results = paginateSearchResults(applySearchSort(filtered, filters.Sort, false), offset, perPage)
-		totalPages := 1
-		if pageData.TotalResults > 0 {
-			totalPages = (pageData.TotalResults + perPage - 1) / perPage
 		}
 		return searchPage{
 			Results:      pageData.Results,
 			Page:         filters.Page,
-			TotalPages:   totalPages,
+			TotalPages:   pageData.TotalPages,
 			TotalResults: pageData.TotalResults,
 		}, nil
 	default:
-		tmdbPageSizeAll := tmdbPageSize * 2
-		tmdbPage := index/tmdbPageSizeAll + 1
-		offset := index % tmdbPageSizeAll
-		movies, err := h.tmdb.DiscoverPage("movie", discoverFilters, tmdbPage)
+		discoverFilters.Sort = tmdbSort(filters.Sort, "movie")
+		movies, err := h.tmdb.DiscoverPage(ctx, "movie", discoverFilters, filters.Page)
 		if err != nil {
 			return searchPage{}, err
 		}
-		tv, err := h.tmdb.DiscoverPage("tv", discoverFilters, tmdbPage)
+		discoverFilters.Sort = tmdbSort(filters.Sort, "tv")
+		tv, err := h.tmdb.DiscoverPage(ctx, "tv", discoverFilters, filters.Page)
 		if err != nil {
 			return searchPage{}, err
 		}
-		found := append(movies.Results, tv.Results...)
-		filtered := applySearchFilters(found, filters)
-		sorted := applySearchSort(filtered, filters.Sort, false)
-		paged := paginateSearchResults(sorted, offset, perPage)
-		totalResults := movies.TotalResults + tv.TotalResults
-		totalPages := 1
+		found := make([]tmdb.SearchResult, 0, len(movies.Results)+len(tv.Results))
+		found = append(found, movies.Results...)
+		found = append(found, tv.Results...)
+
+		return searchPage{
+			Results:      found,
+			Page:         filters.Page,
+			TotalPages:   max(movies.TotalPages, tv.TotalPages),
+			TotalResults: movies.TotalResults + tv.TotalResults,
+		}, nil
+	}
+}
+
+func (h *Handler) searchWithFilterPaging(
+	ctx context.Context,
+	fetch func(page int) (tmdb.SearchPage, error),
+	filters searchFilters,
+	perPage int,
+	remotePageSize int,
+	startFromFirst bool,
+	applyFilters bool,
+) (searchPage, error) {
+	if filters.Page < 1 {
+		filters.Page = 1
+	}
+	offset := (filters.Page - 1) * perPage
+	tmdbPage := 1
+	if !startFromFirst {
+		offset = offset % remotePageSize
+		tmdbPage = (filters.Page-1)*perPage/remotePageSize + 1
+	}
+
+	collected := make([]tmdb.SearchResult, 0, perPage*2)
+	totalResults := 0
+	totalPages := 1
+	exhausted := false
+
+	for len(collected) < offset+perPage {
+		pageData, err := fetch(tmdbPage)
+		if err != nil {
+			return searchPage{}, err
+		}
+		if pageData.TotalPages > 0 {
+			totalPages = pageData.TotalPages
+		}
+		if pageData.TotalResults > 0 {
+			totalResults = pageData.TotalResults
+		}
+
+		if applyFilters {
+			filtered := applySearchFilters(pageData.Results, filters)
+			collected = append(collected, filtered...)
+		} else {
+			collected = append(collected, pageData.Results...)
+		}
+
+		if tmdbPage >= pageData.TotalPages || pageData.TotalPages == 0 {
+			exhausted = true
+			break
+		}
+		tmdbPage++
+	}
+
+	if applyFilters && filters.Sort != "relevance" {
+		collected = applySearchSort(collected, filters.Sort, false)
+	}
+	paged := paginateSearchResults(collected, offset, perPage)
+
+	if exhausted {
+		filteredTotal := len(collected)
+		if filters.Page > 1 {
+			filteredTotal = max(filteredTotal, (filters.Page-1)*perPage+len(paged))
+		}
+		totalResults = filteredTotal
+		totalPages = 1
 		if totalResults > 0 {
 			totalPages = (totalResults + perPage - 1) / perPage
 		}
-		return searchPage{
-			Results:      paged,
-			Page:         filters.Page,
-			TotalPages:   totalPages,
-			TotalResults: totalResults,
-		}, nil
 	}
+
+	return searchPage{
+		Results:      paged,
+		Page:         filters.Page,
+		TotalPages:   totalPages,
+		TotalResults: totalResults,
+	}, nil
 }
 
 func parseSearchFilters(r *http.Request) searchFilters {
@@ -478,42 +733,52 @@ func parseSearchFilters(r *http.Request) searchFilters {
 	if mediaType != "movie" && mediaType != "tv" {
 		mediaType = "all"
 	}
+
 	var yearFrom *int
 	if val := strings.TrimSpace(r.URL.Query().Get("year_from")); val != "" {
 		if parsed, err := strconv.Atoi(val); err == nil {
 			yearFrom = &parsed
 		}
 	}
+
 	var yearTo *int
 	if val := strings.TrimSpace(r.URL.Query().Get("year_to")); val != "" {
 		if parsed, err := strconv.Atoi(val); err == nil {
 			yearTo = &parsed
 		}
 	}
+
 	var minRating *float64
 	if val := strings.TrimSpace(r.URL.Query().Get("min_rating")); val != "" {
 		if parsed, err := strconv.ParseFloat(val, 64); err == nil && parsed > 0 {
 			minRating = &parsed
 		}
 	}
+
 	var minVotes *int
 	if val := strings.TrimSpace(r.URL.Query().Get("min_votes")); val != "" {
 		if parsed, err := strconv.Atoi(val); err == nil && parsed > 0 {
 			minVotes = &parsed
 		}
 	}
+
+	genreRaw := strings.TrimSpace(r.URL.Query().Get("genres"))
+	genreIDs, genreMode, genreQuery := parseGenreFilter(genreRaw)
+
 	page := 1
 	if val := strings.TrimSpace(r.URL.Query().Get("page")); val != "" {
 		if parsed, err := strconv.Atoi(val); err == nil && parsed > 0 {
 			page = parsed
 		}
 	}
+
 	sort := strings.TrimSpace(r.URL.Query().Get("sort"))
 	switch sort {
 	case "rating", "year", "title", "votes":
 	default:
 		sort = "relevance"
 	}
+
 	return searchFilters{
 		MediaType: mediaType,
 		YearFrom:  yearFrom,
@@ -522,17 +787,21 @@ func parseSearchFilters(r *http.Request) searchFilters {
 		MinVotes:  minVotes,
 		Sort:      sort,
 		Page:      page,
+		GenreIDs:  genreIDs,
+		GenreMode: genreMode,
+		GenreRaw:  genreQuery,
 	}
 }
 
 func (f searchFilters) isEmpty() bool {
-	return f.MediaType == "all" && f.YearFrom == nil && f.YearTo == nil && f.MinRating == nil
+	return f.MediaType == "all" && f.YearFrom == nil && f.YearTo == nil && f.MinRating == nil && f.MinVotes == nil && len(f.GenreIDs) == 0
 }
 
 func applySearchFilters(items []tmdb.SearchResult, filters searchFilters) []tmdb.SearchResult {
 	if len(items) == 0 {
 		return items
 	}
+
 	out := make([]tmdb.SearchResult, 0, len(items))
 	for _, item := range items {
 		if filters.MediaType != "all" && item.MediaType != filters.MediaType {
@@ -543,6 +812,11 @@ func applySearchFilters(items []tmdb.SearchResult, filters searchFilters) []tmdb
 		}
 		if filters.MinVotes != nil && item.VoteCount < *filters.MinVotes {
 			continue
+		}
+		if len(filters.GenreIDs) > 0 {
+			if !matchesGenres(item.GenreIDs, filters.GenreIDs, filters.GenreMode) {
+				continue
+			}
 		}
 		if filters.YearFrom != nil || filters.YearTo != nil {
 			yearPtr := tmdb.ParseYear(item.Year)
@@ -561,10 +835,78 @@ func applySearchFilters(items []tmdb.SearchResult, filters searchFilters) []tmdb
 	return out
 }
 
+func parseGenreFilter(raw string) ([]int, string, string) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, "and", ""
+	}
+
+	mode := "and"
+	separator := ","
+	if strings.Contains(raw, "|") {
+		mode = "or"
+		separator = "|"
+	}
+
+	parts := strings.Split(raw, separator)
+	ids := make([]int, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if val, err := strconv.Atoi(part); err == nil && val > 0 {
+			ids = append(ids, val)
+		}
+	}
+
+	if len(ids) == 0 {
+		return nil, "and", ""
+	}
+
+	rawParts := make([]string, 0, len(ids))
+	for _, id := range ids {
+		rawParts = append(rawParts, strconv.Itoa(id))
+	}
+
+	return ids, mode, strings.Join(rawParts, separator)
+}
+
+func matchesGenres(itemIDs []int, filterIDs []int, mode string) bool {
+	if len(filterIDs) == 0 {
+		return true
+	}
+	if len(itemIDs) == 0 {
+		return false
+	}
+
+	itemSet := make(map[int]struct{}, len(itemIDs))
+	for _, id := range itemIDs {
+		itemSet[id] = struct{}{}
+	}
+
+	if mode == "or" {
+		for _, id := range filterIDs {
+			if _, ok := itemSet[id]; ok {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, id := range filterIDs {
+		if _, ok := itemSet[id]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func applySearchSort(items []tmdb.SearchResult, sort string, keepRelevance bool) []tmdb.SearchResult {
 	if len(items) < 2 {
 		return items
 	}
+
 	switch sort {
 	case "rating":
 		slices.SortFunc(items, func(a, b tmdb.SearchResult) int {
@@ -621,7 +963,30 @@ func applySearchSort(items []tmdb.SearchResult, sort string, keepRelevance bool)
 			return strings.Compare(a.Title, b.Title)
 		})
 	}
+
 	return items
+}
+
+func tmdbSort(sort, mediaType string) string {
+	sort = strings.TrimSpace(sort)
+	switch sort {
+	case "rating":
+		return "vote_average.desc"
+	case "votes":
+		return "vote_count.desc"
+	case "year":
+		if mediaType == "tv" {
+			return "first_air_date.desc"
+		}
+		return "primary_release_date.desc"
+	case "title":
+		if mediaType == "tv" {
+			return "original_name.asc"
+		}
+		return "original_title.asc"
+	default:
+		return "popularity.desc"
+	}
 }
 
 func paginateSearchResults(items []tmdb.SearchResult, offset, limit int) []tmdb.SearchResult {
@@ -638,7 +1003,7 @@ func paginateSearchResults(items []tmdb.SearchResult, offset, limit int) []tmdb.
 	return items[offset:end]
 }
 
-func (h *Handler) lookupInLibrary(items []tmdb.SearchResult) (map[store.TMDBRef]bool, error) {
+func (h *Handler) lookupInLibrary(ctx context.Context, items []tmdb.SearchResult) (map[store.TMDBRef]bool, error) {
 	refs := make([]store.TMDBRef, 0, len(items))
 	for _, item := range items {
 		mediaType := strings.TrimSpace(item.MediaType)
@@ -647,439 +1012,159 @@ func (h *Handler) lookupInLibrary(items []tmdb.SearchResult) (map[store.TMDBRef]
 		}
 		refs = append(refs, store.TMDBRef{ID: item.ID, MediaType: mediaType})
 	}
-	return h.store.InLibraryByTMDB(refs)
+	return h.store.InLibraryByTMDB(ctx, refs)
 }
 
-func (h *Handler) addHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	if !sameOrigin(r) {
-		slog.Warn("add show: forbidden origin", slog.String("remote", r.RemoteAddr))
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		slog.Warn("add show: parse form failed", slog.Any("err", err))
-		http.Error(w, "bad form", http.StatusBadRequest)
-		return
-	}
-	id, err := strconv.ParseInt(r.FormValue("tmdb_id"), 10, 64)
-	if err != nil || id == 0 {
-		slog.Warn("add show: bad tmdb id", slog.String("value", r.FormValue("tmdb_id")))
-		http.Error(w, "bad tmdb id", http.StatusBadRequest)
-		return
-	}
-	mediaType := r.FormValue("media_type")
-	status := r.FormValue("status")
-	if status != "planned" && status != "watched" {
-		status = "planned"
-	}
+func (h *Handler) fetchGenreLists(ctx context.Context) ([]tmdb.Genre, []tmdb.Genre, error) {
+	const cacheTTL = 24 * time.Hour
 
-	detail, err := h.tmdb.FetchDetails(id, mediaType)
+	h.genres.mu.RLock()
+	if h.genres.movieList != nil && h.genres.tvList != nil && time.Since(h.genres.fetchedAt) < cacheTTL {
+		movie := append([]tmdb.Genre(nil), h.genres.movieList...)
+		tv := append([]tmdb.Genre(nil), h.genres.tvList...)
+		h.genres.mu.RUnlock()
+		return movie, tv, nil
+	}
+	h.genres.mu.RUnlock()
+
+	movieGenres, err := h.tmdb.FetchGenres(ctx, "movie")
 	if err != nil {
-		slog.Warn("add show: tmdb fetch failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusBadGateway)
-		return
+		return nil, nil, err
 	}
-	show := showFromDetail(detail, status)
-	showID, err := h.store.UpsertShow(&show)
+	tvGenres, err := h.tmdb.FetchGenres(ctx, "tv")
 	if err != nil {
-		slog.Warn("add show: upsert failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if status == "watched" {
-		http.Redirect(w, r, "/show/"+strconv.FormatInt(showID, 10), http.StatusSeeOther)
-		return
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-func (h *Handler) deleteHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	if !sameOrigin(r) {
-		slog.Warn("delete show: forbidden origin", slog.String("remote", r.RemoteAddr))
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		slog.Warn("delete show: parse form failed", slog.Any("err", err))
-		http.Error(w, "bad form", http.StatusBadRequest)
-		return
-	}
-	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
-	if err != nil || id == 0 {
-		slog.Warn("delete show: bad id", slog.String("value", r.FormValue("id")))
-		http.Error(w, "bad id", http.StatusBadRequest)
-		return
-	}
-	if err := h.store.DeleteShow(id); err != nil {
-		slog.Warn("delete show: delete failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-type exportPayload struct {
-	ExportedAt string       `json:"exported_at"`
-	Shows      []exportShow `json:"shows"`
-}
-
-type exportShow struct {
-	ID         int64    `json:"id"`
-	TMDBID     int64    `json:"tmdb_id"`
-	MediaType  string   `json:"media_type"`
-	Title      string   `json:"title"`
-	Year       *int64   `json:"year,omitempty"`
-	Genres     *string  `json:"genres,omitempty"`
-	Overview   *string  `json:"overview,omitempty"`
-	PosterPath *string  `json:"poster_path,omitempty"`
-	IMDbID     *string  `json:"imdb_id,omitempty"`
-	TMDBRating *float64 `json:"tmdb_rating,omitempty"`
-	TMDBVotes  *int64   `json:"tmdb_votes,omitempty"`
-	Status     string   `json:"status"`
-	BfRating   *int64   `json:"bf_rating,omitempty"`
-	GfRating   *int64   `json:"gf_rating,omitempty"`
-	BfComment  *string  `json:"bf_comment,omitempty"`
-	GfComment  *string  `json:"gf_comment,omitempty"`
-	CreatedAt  string   `json:"created_at"`
-	UpdatedAt  string   `json:"updated_at"`
-}
-
-func (h *Handler) exportHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	if !sameOrigin(r) {
-		slog.Warn("export: forbidden origin", slog.String("remote", r.RemoteAddr))
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	shows, err := h.store.ListShows(store.ListFilters{Status: "all"})
-	if err != nil {
-		slog.Warn("export: list shows failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	payload := exportPayload{
-		ExportedAt: time.Now().UTC().Format(time.RFC3339),
-		Shows:      make([]exportShow, 0, len(shows)),
-	}
-	for i := range shows {
-		show := shows[i]
-		payload.Shows = append(payload.Shows, exportShow{
-			ID:         show.ID,
-			TMDBID:     show.TMDBID,
-			MediaType:  show.MediaType,
-			Title:      show.Title,
-			Year:       nullInt64Ptr(show.Year),
-			Genres:     nullStringPtr(show.Genres),
-			Overview:   nullStringPtr(show.Overview),
-			PosterPath: nullStringPtr(show.PosterPath),
-			IMDbID:     nullStringPtr(show.IMDbID),
-			TMDBRating: nullFloat64Ptr(show.TMDBRating),
-			TMDBVotes:  nullInt64Ptr(show.TMDBVotes),
-			Status:     show.Status,
-			BfRating:   nullInt64Ptr(show.BfRating),
-			GfRating:   nullInt64Ptr(show.GfRating),
-			BfComment:  nullStringPtr(show.BfComment),
-			GfComment:  nullStringPtr(show.GfComment),
-			CreatedAt:  show.CreatedAt,
-			UpdatedAt:  show.UpdatedAt,
-		})
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Disposition", "attachment; filename=show-ratings.json")
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(payload); err != nil {
-		slog.Warn("export: encode failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func (h *Handler) showHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/show/")
-	idStr = strings.Trim(idStr, "/")
-	if idStr == "" {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
+		return nil, nil, err
 	}
 
-	if r.Method == http.MethodPost {
-		h.handleShowPost(w, r, id)
-		return
-	}
-
-	show, err := h.store.GetShow(id)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	data := detailPageData{
-		Show:          show,
-		ImageBase:     h.imageBase,
-		BfName:        h.bfName,
-		GfName:        h.gfName,
-		Authenticated: true,
-	}
-	h.render(w, "detail.html", data)
-}
-
-func (h *Handler) handleShowPost(w http.ResponseWriter, r *http.Request, id int64) {
-	if err := r.ParseForm(); err != nil {
-		slog.Warn("show: parse form failed", slog.Any("err", err))
-		http.Error(w, "bad form", http.StatusBadRequest)
-		return
-	}
-	if !sameOrigin(r) {
-		slog.Warn("show: forbidden origin", slog.String("remote", r.RemoteAddr))
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	if r.FormValue("action") == "toggle-status" {
-		current := strings.TrimSpace(r.FormValue("status"))
-		next := nextStatus(current)
-		if err := h.store.UpdateStatus(id, next); err != nil {
-			slog.Warn("show: update status failed", slog.Any("err", err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
-		return
-	}
-	if r.FormValue("action") == "clear-ratings" {
-		if err := h.store.ClearRatings(id); err != nil {
-			slog.Warn("show: clear ratings failed", slog.Any("err", err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
-		return
-	}
-	if r.FormValue("action") == "refresh-tmdb" {
-		show, err := h.store.GetShow(id)
-		if err != nil {
-			slog.Warn("show: fetch failed", slog.Any("err", err))
-			http.Error(w, "not found", http.StatusNotFound)
-			return
-		}
-		detail, err := h.tmdb.FetchDetails(show.TMDBID, show.MediaType)
-		if err != nil {
-			slog.Warn("show: tmdb refresh failed", slog.Any("err", err))
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
-		}
-		updated := showFromDetail(detail, show.Status)
-		if _, err := h.store.UpsertShow(&updated); err != nil {
-			slog.Warn("show: tmdb upsert failed", slog.Any("err", err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
-		return
-	}
-
-	bfRating := parseRating(r.FormValue("bf_rating"))
-	gfRating := parseRating(r.FormValue("gf_rating"))
-	bfComment := sql.NullString{}
-	if val := strings.TrimSpace(r.FormValue("bf_comment")); val != "" {
-		bfComment = sql.NullString{Valid: true, String: val}
-	}
-	gfComment := sql.NullString{}
-	if val := strings.TrimSpace(r.FormValue("gf_comment")); val != "" {
-		gfComment = sql.NullString{Valid: true, String: val}
-	}
-	if err := h.store.UpdateRatings(id, bfRating, gfRating, bfComment, gfComment); err != nil {
-		slog.Warn("show: update ratings failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-func (h *Handler) render(w http.ResponseWriter, name string, data any) {
-	tpl, ok := h.templates[name]
-	if !ok {
-		slog.Warn("render: template not found", slog.String("template", name))
-		http.Error(w, "template not found", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tpl.ExecuteTemplate(w, "layout", data); err != nil {
-		slog.Warn("render: execute failed", slog.Any("err", err), slog.String("template", name))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func (h *Handler) refreshTMDBHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	if !sameOrigin(r) {
-		slog.Warn("refresh tmdb: forbidden origin", slog.String("remote", r.RemoteAddr))
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	items, err := h.store.ListTMDBMissing()
-	if err != nil {
-		slog.Warn("refresh tmdb: list missing failed", slog.Any("err", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	for _, item := range items {
-		detail, err := h.tmdb.FetchDetails(item.TMDBID, item.MediaType)
-		if err != nil {
-			slog.Warn("refresh tmdb: fetch failed", slog.Any("err", err))
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
-		}
-		show := showFromDetail(detail, item.Status)
-		if _, err := h.store.UpsertShow(&show); err != nil {
-			slog.Warn("refresh tmdb: upsert failed", slog.Any("err", err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-func (h *Handler) requireAuth(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/login" {
-			next(w, r)
-			return
-		}
-		cookie, err := r.Cookie("auth")
-		if err != nil || cookie.Value != h.passHash {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-		next(w, r)
-	}
-}
-
-func setAuthCookie(w http.ResponseWriter, r *http.Request, value string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "auth",
-		Value:    value,
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   isSecureRequest(r),
-	})
-}
-
-func clearAuthCookie(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "auth",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   isSecureRequest(r),
-	})
-}
-
-func isSecureRequest(r *http.Request) bool {
-	if r.TLS != nil {
-		return true
-	}
-	return strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
-}
-
-func sameOrigin(r *http.Request) bool {
-	origin := strings.TrimSpace(r.Header.Get("Origin"))
-	if origin != "" {
-		parsed, err := url.Parse(origin)
-		if err != nil {
-			return false
-		}
-		return hostMatches(r.Host, parsed.Host)
-	}
-	referer := strings.TrimSpace(r.Header.Get("Referer"))
-	if referer != "" {
-		parsed, err := url.Parse(referer)
-		if err != nil {
-			return false
-		}
-		return hostMatches(r.Host, parsed.Host)
-	}
-	return false
-}
-
-func hostMatches(left, right string) bool {
-	if strings.EqualFold(left, right) {
-		return true
-	}
-	return strings.EqualFold(stripPort(left), stripPort(right))
-}
-
-func stripPort(host string) string {
-	if host == "" {
-		return host
-	}
-	if idx := strings.LastIndex(host, ":"); idx > -1 {
-		return host[:idx]
-	}
-	return host
-}
-
-func hashPassword(password string) string {
-	sum := sha256.Sum256([]byte(password))
-	return hex.EncodeToString(sum[:])
-}
-
-func shortGenres(genres sql.NullString) string {
-	if !genres.Valid {
-		return ""
-	}
-	parts := strings.Split(genres.String, ",")
-	out := make([]string, 0, 2)
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
+	movieMap := make(map[int]string, len(movieGenres))
+	for _, g := range movieGenres {
+		if strings.TrimSpace(g.Name) == "" {
 			continue
 		}
-		out = append(out, p)
-		if len(out) == 2 {
-			break
+		movieMap[g.ID] = g.Name
+	}
+	tvMap := make(map[int]string, len(tvGenres))
+	for _, g := range tvGenres {
+		if strings.TrimSpace(g.Name) == "" {
+			continue
+		}
+		tvMap[g.ID] = g.Name
+	}
+
+	h.genres.mu.Lock()
+	h.genres.movieList = append([]tmdb.Genre(nil), movieGenres...)
+	h.genres.tvList = append([]tmdb.Genre(nil), tvGenres...)
+	h.genres.movie = movieMap
+	h.genres.tv = tvMap
+	h.genres.fetchedAt = time.Now()
+	h.genres.mu.Unlock()
+
+	return movieGenres, tvGenres, nil
+}
+
+func (h *Handler) genreMaps(ctx context.Context) (map[int]string, map[int]string) {
+	const cacheTTL = 24 * time.Hour
+
+	h.genres.mu.RLock()
+	if h.genres.movie != nil && h.genres.tv != nil && time.Since(h.genres.fetchedAt) < cacheTTL {
+		movie := h.genres.movie
+		tv := h.genres.tv
+		h.genres.mu.RUnlock()
+		return movie, tv
+	}
+	h.genres.mu.RUnlock()
+
+	_, _, err := h.fetchGenreLists(ctx)
+	if err != nil {
+		return nil, nil
+	}
+
+	h.genres.mu.RLock()
+	movie := h.genres.movie
+	tv := h.genres.tv
+	h.genres.mu.RUnlock()
+	return movie, tv
+}
+
+func genreNamesFor(item tmdb.SearchResult, movieGenres, tvGenres map[int]string) []string {
+	var lookup map[int]string
+	if item.MediaType == "tv" {
+		lookup = tvGenres
+	} else {
+		lookup = movieGenres
+	}
+
+	if lookup == nil || len(item.GenreIDs) == 0 {
+		return nil
+	}
+
+	out := make([]string, 0, len(item.GenreIDs))
+	for _, id := range item.GenreIDs {
+		if name, ok := lookup[id]; ok {
+			out = append(out, name)
 		}
 	}
-	return strings.Join(out, ", ")
+	return out
+}
+
+func toPBGenres(items []tmdb.Genre) []*pb.Genre {
+	out := make([]*pb.Genre, 0, len(items))
+	for _, item := range items {
+		out = append(out, &pb.Genre{
+			Id:   int32(item.ID),
+			Name: item.Name,
+		})
+	}
+	return out
+}
+
+func parseListFilters(r *http.Request) store.ListFilters {
+	filters := store.ListFilters{
+		Status: r.URL.Query().Get("status"),
+		Genre:  r.URL.Query().Get("genre"),
+		Sort:   r.URL.Query().Get("sort"),
+	}
+
+	if r.URL.Query().Get("unrated") == "1" {
+		filters.Unrated = true
+	}
+
+	if val := r.URL.Query().Get("year_from"); val != "" {
+		if v, err := strconv.Atoi(val); err == nil {
+			filters.YearFrom = &v
+		}
+	}
+
+	if val := r.URL.Query().Get("year_to"); val != "" {
+		if v, err := strconv.Atoi(val); err == nil {
+			filters.YearTo = &v
+		}
+	}
+
+	return filters
 }
 
 func showFromDetail(detail *tmdb.Detail, status string) store.Show {
-	var year sql.NullInt64
+	var year sql.Null[int64]
 	if y := tmdb.ParseYear(detail.Year); y != nil {
-		year = sql.NullInt64{Valid: true, Int64: int64(*y)}
+		year = sql.Null[int64]{Valid: true, V: int64(*y)}
 	}
-	var genres sql.NullString
+
+	var genres sql.Null[string]
 	if len(detail.Genres) > 0 {
-		genres = sql.NullString{Valid: true, String: strings.Join(detail.Genres, ", ")}
+		genres = sql.Null[string]{Valid: true, V: strings.Join(detail.Genres, ", ")}
 	}
-	var overview sql.NullString
+
+	var overview sql.Null[string]
 	if strings.TrimSpace(detail.Overview) != "" {
-		overview = sql.NullString{Valid: true, String: detail.Overview}
+		overview = sql.Null[string]{Valid: true, V: detail.Overview}
 	}
-	var poster sql.NullString
+
+	var poster sql.Null[string]
 	if strings.TrimSpace(detail.PosterPath) != "" {
-		poster = sql.NullString{Valid: true, String: detail.PosterPath}
+		poster = sql.Null[string]{Valid: true, V: detail.PosterPath}
 	}
+
 	return store.Show{
 		TMDBID:     detail.TMDBID,
 		MediaType:  detail.MediaType,
@@ -1088,53 +1173,50 @@ func showFromDetail(detail *tmdb.Detail, status string) store.Show {
 		Genres:     genres,
 		Overview:   overview,
 		PosterPath: poster,
-		IMDbID:     toNullString(detail.IMDbID),
-		TMDBRating: toNullFloat(detail.VoteAverage),
-		TMDBVotes:  toNullInt(detail.VoteCount),
+		IMDbID:     toSQLNullString(detail.IMDbID),
+		TMDBRating: toSQLNullNumeric(detail.VoteAverage),
+		TMDBVotes:  toSQLNullNumeric(int64(detail.VoteCount)),
 		Status:     status,
 	}
 }
 
-func ratingText(val sql.NullInt64) string {
-	if !val.Valid {
-		return "-"
+func toPBShow(show *store.Show) *pb.Show {
+	return &pb.Show{
+		Id:         show.ID,
+		TmdbId:     show.TMDBID,
+		MediaType:  show.MediaType,
+		Title:      show.Title,
+		Year:       fromSQLNull(show.Year),
+		Genres:     fromSQLNull(show.Genres),
+		Overview:   fromSQLNull(show.Overview),
+		PosterPath: fromSQLNull(show.PosterPath),
+		ImdbId:     fromSQLNull(show.IMDbID),
+		TmdbRating: fromSQLNull(show.TMDBRating),
+		TmdbVotes:  fromSQLNull(show.TMDBVotes),
+		Status:     show.Status,
+		BfRating:   fromSQLNull(show.BfRating),
+		GfRating:   fromSQLNull(show.GfRating),
+		BfComment:  fromSQLNull(show.BfComment),
+		GfComment:  fromSQLNull(show.GfComment),
+		CreatedAt:  show.CreatedAt,
+		UpdatedAt:  show.UpdatedAt,
 	}
-	return strconv.FormatInt(val.Int64, 10)
 }
 
-func combinedRatingText(bf, gf sql.NullInt64) string {
-	if !bf.Valid && !gf.Valid {
-		return "-"
+func toPBShows(shows []store.Show) []*pb.Show {
+	out := make([]*pb.Show, 0, len(shows))
+	for i := range shows {
+		out = append(out, toPBShow(&shows[i]))
 	}
-	if bf.Valid && !gf.Valid {
-		return ratingText(bf)
-	}
-	if gf.Valid && !bf.Valid {
-		return ratingText(gf)
-	}
-	avg := (float64(bf.Int64) + float64(gf.Int64)) / 2.0
-	if avg == float64(int64(avg)) {
-		return strconv.FormatInt(int64(avg), 10)
-	}
-	return strconv.FormatFloat(avg, 'f', 1, 64)
+	return out
 }
 
-func parseRating(val string) sql.NullInt64 {
-	val = strings.TrimSpace(val)
-	if val == "" {
-		return sql.NullInt64{}
+func parseOptionalRating(val *int32) sql.Null[int64] {
+	if val == nil {
+		return sql.Null[int64]{}
 	}
-	n, err := strconv.Atoi(val)
-	if err != nil {
-		return sql.NullInt64{}
-	}
-	if n < 1 {
-		n = 1
-	}
-	if n > 10 {
-		n = 10
-	}
-	return sql.NullInt64{Valid: true, Int64: int64(n)}
+	n := min(max(int(*val), 1), 10)
+	return sql.Null[int64]{Valid: true, V: int64(n)}
 }
 
 func nextStatus(current string) string {
@@ -1146,81 +1228,4 @@ func nextStatus(current string) string {
 	default:
 		return "planned"
 	}
-}
-
-func toNullString(val string) sql.NullString {
-	val = strings.TrimSpace(val)
-	if val == "" {
-		return sql.NullString{}
-	}
-	return sql.NullString{Valid: true, String: val}
-}
-
-func toNullFloat(val float64) sql.NullFloat64 {
-	if val <= 0 {
-		return sql.NullFloat64{}
-	}
-	return sql.NullFloat64{Valid: true, Float64: val}
-}
-
-func toNullInt(val int) sql.NullInt64 {
-	if val <= 0 {
-		return sql.NullInt64{}
-	}
-	return sql.NullInt64{Valid: true, Int64: int64(val)}
-}
-
-func nullStringPtr(val sql.NullString) *string {
-	if !val.Valid {
-		return nil
-	}
-	value := val.String
-	return &value
-}
-
-func nullInt64Ptr(val sql.NullInt64) *int64 {
-	if !val.Valid {
-		return nil
-	}
-	value := val.Int64
-	return &value
-}
-
-func nullFloat64Ptr(val sql.NullFloat64) *float64 {
-	if !val.Valid {
-		return nil
-	}
-	value := val.Float64
-	return &value
-}
-
-func formatScore(val float64) string {
-	if val <= 0 {
-		return ""
-	}
-	return strconv.FormatFloat(val, 'f', 1, 64)
-}
-
-func formatVotes(val any) string {
-	switch v := val.(type) {
-	case int:
-		if v <= 0 {
-			return ""
-		}
-		return strconv.Itoa(v)
-	case int64:
-		if v <= 0 {
-			return ""
-		}
-		return strconv.FormatInt(v, 10)
-	default:
-		return ""
-	}
-}
-
-func imdbURL(id sql.NullString) string {
-	if !id.Valid || strings.TrimSpace(id.String) == "" {
-		return ""
-	}
-	return "https://www.imdb.com/title/" + strings.TrimSpace(id.String) + "/"
 }

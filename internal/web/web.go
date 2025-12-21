@@ -1,0 +1,14 @@
+// Package web embeds the frontend build output for the server.
+package web
+
+import (
+	"embed"
+	"io/fs"
+)
+
+//go:embed dist/*
+var dist embed.FS
+
+func Dist() (fs.FS, error) {
+	return fs.Sub(dist, "dist")
+}

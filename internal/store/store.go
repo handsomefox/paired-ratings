@@ -1,4 +1,4 @@
-// Package store handles SQLite persistence for shows and ratings.
+// Package store provides SQLite persistence for shows and ratings.
 package store
 
 import (
@@ -24,18 +24,18 @@ type Show struct {
 	TMDBID     int64
 	MediaType  string
 	Title      string
-	Year       sql.NullInt64
-	Genres     sql.NullString
-	Overview   sql.NullString
-	PosterPath sql.NullString
-	IMDbID     sql.NullString
-	TMDBRating sql.NullFloat64
-	TMDBVotes  sql.NullInt64
+	Year       sql.Null[int64]
+	Genres     sql.Null[string]
+	Overview   sql.Null[string]
+	PosterPath sql.Null[string]
+	IMDbID     sql.Null[string]
+	TMDBRating sql.Null[float64]
+	TMDBVotes  sql.Null[int64]
 	Status     string
-	BfRating   sql.NullInt64
-	GfRating   sql.NullInt64
-	BfComment  sql.NullString
-	GfComment  sql.NullString
+	BfRating   sql.Null[int64]
+	GfRating   sql.Null[int64]
+	BfComment  sql.Null[string]
+	GfComment  sql.Null[string]
 	CreatedAt  string
 	UpdatedAt  string
 }
@@ -64,33 +64,36 @@ func Open(dbPath string) (*Store, error) {
 	if dbPath == "" {
 		return nil, errors.New("DB_PATH is required")
 	}
+
 	dir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
+
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, err
 	}
+
 	ctx := context.Background()
 	if err := db.PingContext(ctx); err != nil {
 		if cerr := db.Close(); cerr != nil {
-			return nil, fmt.Errorf("ping db: %w", errors.Join(err, cerr))
+			return nil, fmt.Errorf("ping db: %w; close failed: %w", err, cerr)
 		}
 		return nil, err
 	}
+
 	if err := initSchema(ctx, db); err != nil {
 		if cerr := db.Close(); cerr != nil {
-			return nil, fmt.Errorf("init schema: %w", errors.Join(err, cerr))
+			return nil, fmt.Errorf("init schema: %w; close failed: %w", err, cerr)
 		}
 		return nil, err
 	}
+
 	return &Store{db: db}, nil
 }
 
-func (s *Store) Close() error {
-	return s.db.Close()
-}
+func (s *Store) Close() error { return s.db.Close() }
 
 func initSchema(ctx context.Context, db *sql.DB) error {
 	schema := `
@@ -118,25 +121,81 @@ CREATE TABLE IF NOT EXISTS shows (
 CREATE INDEX IF NOT EXISTS idx_shows_status ON shows(status);
 CREATE INDEX IF NOT EXISTS idx_shows_year ON shows(year);
 `
-	_, err := db.ExecContext(ctx, schema)
-	if err != nil {
+	if _, err := db.ExecContext(ctx, schema); err != nil {
 		return err
 	}
-	if err := addColumn(ctx, db, "shows", "imdb_id", "ALTER TABLE shows ADD COLUMN imdb_id TEXT"); err != nil {
+
+	if err := addColumnIfMissing(ctx, db, "shows", "imdb_id", "ALTER TABLE shows ADD COLUMN imdb_id TEXT"); err != nil {
 		return err
 	}
-	if err := addColumn(ctx, db, "shows", "tmdb_rating", "ALTER TABLE shows ADD COLUMN tmdb_rating REAL"); err != nil {
+	if err := addColumnIfMissing(ctx, db, "shows", "tmdb_rating", "ALTER TABLE shows ADD COLUMN tmdb_rating REAL"); err != nil {
 		return err
 	}
-	if err := addColumn(ctx, db, "shows", "tmdb_votes", "ALTER TABLE shows ADD COLUMN tmdb_votes INTEGER"); err != nil {
+	if err := addColumnIfMissing(ctx, db, "shows", "tmdb_votes", "ALTER TABLE shows ADD COLUMN tmdb_votes INTEGER"); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *Store) UpsertShow(show *Show) (int64, error) {
-	ctx := context.Background()
+func addColumnIfMissing(ctx context.Context, db *sql.DB, table, column, statement string) error {
+	has, err := hasColumn(ctx, db, table, column)
+	if err != nil {
+		return err
+	}
+	if has {
+		return nil
+	}
+	_, err = db.ExecContext(ctx, statement)
+	if err != nil {
+		has2, herr := hasColumn(ctx, db, table, column)
+		if herr == nil && has2 {
+			return nil
+		}
+	}
+	return err
+}
+
+func hasColumn(ctx context.Context, db *sql.DB, table, column string) (bool, error) {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil {
+		return false, err
+	}
+
+	for rows.Next() {
+		var cid int
+		var name string
+		var ctype string
+		var notnull int
+		var dflt sql.Null[string]
+		var pk int
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			if cerr := rows.Close(); cerr != nil {
+				return false, cerr
+			}
+			return false, err
+		}
+		if name == column {
+			if cerr := rows.Close(); cerr != nil {
+				return false, cerr
+			}
+			return true, nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		if cerr := rows.Close(); cerr != nil {
+			return false, cerr
+		}
+		return false, err
+	}
+	if cerr := rows.Close(); cerr != nil {
+		return false, cerr
+	}
+	return false, nil
+}
+
+func (s *Store) UpsertShow(ctx context.Context, show *Show) (int64, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
+
 	res, err := s.db.ExecContext(ctx, `
 INSERT INTO shows (
 	tmdb_id, media_type, title, year, genres, overview, poster_path, imdb_id, tmdb_rating, tmdb_votes, status,
@@ -171,15 +230,16 @@ ON CONFLICT(tmdb_id, media_type) DO UPDATE SET
 	if err != nil {
 		return 0, err
 	}
+
 	id, err := res.LastInsertId()
 	if err == nil && id != 0 {
 		return id, nil
 	}
-	return s.GetShowIDByTMDB(show.TMDBID, show.MediaType)
+
+	return s.GetShowIDByTMDB(ctx, show.TMDBID, show.MediaType)
 }
 
-func (s *Store) GetShowIDByTMDB(tmdbID int64, mediaType string) (int64, error) {
-	ctx := context.Background()
+func (s *Store) GetShowIDByTMDB(ctx context.Context, tmdbID int64, mediaType string) (int64, error) {
 	var id int64
 	err := s.db.QueryRowContext(ctx, `SELECT id FROM shows WHERE tmdb_id = ? AND media_type = ?`, tmdbID, mediaType).Scan(&id)
 	if err != nil {
@@ -188,52 +248,7 @@ func (s *Store) GetShowIDByTMDB(tmdbID int64, mediaType string) (int64, error) {
 	return id, nil
 }
 
-func (s *Store) InLibraryByTMDB(refs []TMDBRef) (map[TMDBRef]bool, error) {
-	ctx := context.Background()
-	out := make(map[TMDBRef]bool, len(refs))
-	if len(refs) == 0 {
-		return out, nil
-	}
-	conds := make([]string, 0, len(refs))
-	args := make([]any, 0, len(refs)*2)
-	seen := make(map[TMDBRef]struct{}, len(refs))
-	for _, ref := range refs {
-		ref.MediaType = strings.TrimSpace(ref.MediaType)
-		if ref.ID == 0 || ref.MediaType == "" {
-			continue
-		}
-		if _, ok := seen[ref]; ok {
-			continue
-		}
-		seen[ref] = struct{}{}
-		conds = append(conds, "(tmdb_id = ? AND media_type = ?)")
-		args = append(args, ref.ID, ref.MediaType)
-	}
-	if len(conds) == 0 {
-		return out, nil
-	}
-	query := fmt.Sprintf("SELECT tmdb_id, media_type FROM shows WHERE %s", strings.Join(conds, " OR "))
-	rows, err := s.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id int64
-		var mediaType string
-		if err := rows.Scan(&id, &mediaType); err != nil {
-			return nil, err
-		}
-		out[TMDBRef{ID: id, MediaType: mediaType}] = true
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (s *Store) GetShow(id int64) (Show, error) {
-	ctx := context.Background()
+func (s *Store) GetShow(ctx context.Context, id int64) (Show, error) {
 	var sh Show
 	err := s.db.QueryRowContext(ctx, `
 SELECT id, tmdb_id, media_type, title, year, genres, overview, poster_path, imdb_id, tmdb_rating, tmdb_votes, status,
@@ -262,59 +277,150 @@ FROM shows WHERE id = ?
 	return sh, err
 }
 
-func (s *Store) UpdateRatings(id int64, bfRating, gfRating sql.NullInt64, bfComment, gfComment sql.NullString) error {
-	ctx := context.Background()
-	now := time.Now().UTC().Format(time.RFC3339)
-	status := "watched"
-	_, err := s.db.ExecContext(ctx, `
-UPDATE shows SET
-	bf_rating = ?,
-	gf_rating = ?,
-	bf_comment = ?,
-	gf_comment = ?,
-	status = ?,
-	updated_at = ?
-WHERE id = ?
-`,
-		bfRating,
-		gfRating,
-		bfComment,
-		gfComment,
-		status,
-		now,
-		id,
-	)
-	return err
+type RatingsUpdate struct {
+	BfRating  *sql.Null[int64]
+	GfRating  *sql.Null[int64]
+	BfComment *sql.Null[string]
+	GfComment *sql.Null[string]
 }
 
-func (s *Store) UpdateStatus(id int64, status string) error {
-	ctx := context.Background()
+func (s *Store) UpdateRatings(ctx context.Context, id int64, update RatingsUpdate) error {
+	clauses := make([]string, 0, 6)
+	args := make([]any, 0, 8)
+
+	if update.BfRating != nil {
+		clauses = append(clauses, "bf_rating = ?")
+		args = append(args, *update.BfRating)
+	}
+	if update.GfRating != nil {
+		clauses = append(clauses, "gf_rating = ?")
+		args = append(args, *update.GfRating)
+	}
+	if update.BfComment != nil {
+		clauses = append(clauses, "bf_comment = ?")
+		args = append(args, *update.BfComment)
+	}
+	if update.GfComment != nil {
+		clauses = append(clauses, "gf_comment = ?")
+		args = append(args, *update.GfComment)
+	}
+
+	if len(clauses) == 0 {
+		return errors.New("no ratings fields provided")
+	}
+
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := s.db.ExecContext(ctx, `UPDATE shows SET status = ?, updated_at = ? WHERE id = ?`, status, now, id)
-	return err
+	clauses = append(clauses, "status = ?", "updated_at = ?")
+	args = append(args, "watched", now, id)
+
+	//nolint:gosec // clauses are assembled from fixed column names only.
+	query := fmt.Sprintf("UPDATE shows SET\n\t%s\nWHERE id = ?", strings.Join(clauses, ",\n\t"))
+	res, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	return expectRowsAffected(res)
 }
 
-func (s *Store) ClearRatings(id int64) error {
-	ctx := context.Background()
+func (s *Store) UpdateStatus(ctx context.Context, id int64, status string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := s.db.ExecContext(ctx, `
+	res, err := s.db.ExecContext(ctx, `UPDATE shows SET status = ?, updated_at = ? WHERE id = ?`, status, now, id)
+	if err != nil {
+		return err
+	}
+	return expectRowsAffected(res)
+}
+
+func (s *Store) ClearRatings(ctx context.Context, id int64) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	res, err := s.db.ExecContext(ctx, `
 UPDATE shows SET
 	bf_rating = NULL,
 	gf_rating = NULL,
+	bf_comment = NULL,
+	gf_comment = NULL,
 	updated_at = ?
 WHERE id = ?
 `, now, id)
-	return err
+	if err != nil {
+		return err
+	}
+	return expectRowsAffected(res)
 }
 
-func (s *Store) DeleteShow(id int64) error {
-	ctx := context.Background()
-	_, err := s.db.ExecContext(ctx, `DELETE FROM shows WHERE id = ?`, id)
-	return err
+func (s *Store) DeleteShow(ctx context.Context, id int64) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM shows WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	return expectRowsAffected(res)
 }
 
-func (s *Store) ListShows(filters ListFilters) (out []Show, err error) {
-	ctx := context.Background()
+func expectRowsAffected(res sql.Result) error {
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (s *Store) InLibraryByTMDB(ctx context.Context, refs []TMDBRef) (out map[TMDBRef]bool, err error) {
+	out = make(map[TMDBRef]bool, len(refs))
+	if len(refs) == 0 {
+		return out, nil
+	}
+
+	conds := make([]string, 0, len(refs))
+	args := make([]any, 0, len(refs)*2)
+	seen := make(map[TMDBRef]struct{}, len(refs))
+
+	for _, ref := range refs {
+		ref.MediaType = strings.TrimSpace(ref.MediaType)
+		if ref.ID == 0 || ref.MediaType == "" {
+			continue
+		}
+		if _, ok := seen[ref]; ok {
+			continue
+		}
+		seen[ref] = struct{}{}
+		conds = append(conds, "(tmdb_id = ? AND media_type = ?)")
+		args = append(args, ref.ID, ref.MediaType)
+	}
+
+	if len(conds) == 0 {
+		return out, nil
+	}
+
+	//nolint:gosec // conditions are assembled from fixed column names and placeholders.
+	query := "SELECT tmdb_id, media_type FROM shows WHERE " + strings.Join(conds, " OR ")
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if cerr := rows.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+
+	for rows.Next() {
+		var id int64
+		var mediaType string
+		if err := rows.Scan(&id, &mediaType); err != nil {
+			return nil, err
+		}
+		out[TMDBRef{ID: id, MediaType: mediaType}] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Store) ListShows(ctx context.Context, filters ListFilters) (out []Show, err error) {
 	clauses := []string{"1=1"}
 	args := []any{}
 
@@ -358,7 +464,7 @@ func (s *Store) ListShows(filters ListFilters) (out []Show, err error) {
 		orderBy = "title COLLATE NOCASE ASC"
 	}
 
-	//nolint:gosec // orderBy and clauses are constructed from a controlled set of options.
+	//nolint:gosec // clauses and orderBy are from a controlled set.
 	query := fmt.Sprintf(`
 SELECT id, tmdb_id, media_type, title, year, genres, overview, poster_path, imdb_id, tmdb_rating, tmdb_votes, status,
 	bf_rating, gf_rating, bf_comment, gf_comment, created_at, updated_at
@@ -372,7 +478,8 @@ ORDER BY %s
 		return nil, err
 	}
 	defer func() {
-		if cerr := rows.Close(); err == nil && cerr != nil {
+		cerr := rows.Close()
+		if err == nil && cerr != nil {
 			err = cerr
 		}
 	}()
@@ -409,52 +516,14 @@ ORDER BY %s
 	return out, nil
 }
 
-func addColumn(ctx context.Context, db *sql.DB, table, column, statement string) error {
-	if columnExists, err := hasColumn(ctx, db, table, column); err != nil {
-		return err
-	} else if columnExists {
-		return nil
-	}
-	if _, err := db.ExecContext(ctx, statement); err != nil {
-		if columnExists, cerr := hasColumn(ctx, db, table, column); cerr == nil && columnExists {
-			return nil
-		}
-		return err
-	}
-	return nil
-}
-
-func hasColumn(ctx context.Context, db *sql.DB, table, column string) (bool, error) {
-	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var cid int
-		var name string
-		var ctype string
-		var notnull int
-		var dflt sql.NullString
-		var pk int
-		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
-			return false, err
-		}
-		if name == column {
-			return true, nil
-		}
-	}
-	return false, rows.Err()
-}
-
-func (s *Store) ListAllGenres() (out []string, err error) {
-	ctx := context.Background()
+func (s *Store) ListAllGenres(ctx context.Context) (out []string, err error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT genres FROM shows WHERE genres IS NOT NULL AND genres != ''`)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		if cerr := rows.Close(); err == nil && cerr != nil {
+		cerr := rows.Close()
+		if err == nil && cerr != nil {
 			err = cerr
 		}
 	}()
@@ -476,18 +545,19 @@ func (s *Store) ListAllGenres() (out []string, err error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
 	out = make([]string, 0, len(seen))
 	for g := range seen {
 		out = append(out, g)
 	}
+
 	slices.SortFunc(out, func(a, b string) int {
 		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
 	})
 	return out, nil
 }
 
-func (s *Store) ListTMDBMissing() ([]TMDBRefresh, error) {
-	ctx := context.Background()
+func (s *Store) ListTMDBMissing(ctx context.Context) (out []TMDBRefresh, err error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT tmdb_id, media_type, status
 FROM shows
@@ -496,8 +566,13 @@ WHERE tmdb_rating IS NULL OR tmdb_votes IS NULL OR imdb_id IS NULL
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	out := []TMDBRefresh{}
+	defer func() {
+		if cerr := rows.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+
+	out = []TMDBRefresh{}
 	for rows.Next() {
 		var item TMDBRefresh
 		if err := rows.Scan(&item.TMDBID, &item.MediaType, &item.Status); err != nil {

@@ -1,0 +1,47 @@
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function formatScore(value?: number | null) {
+  if (!value || value <= 0) return "";
+  return value.toFixed(1);
+}
+
+export function formatVotes(value?: number | null) {
+  if (!value || value <= 0) return "";
+  return String(value);
+}
+
+export function ratingText(value?: number | null) {
+  if (!value) return "-";
+  return String(value);
+}
+
+export function combinedRating(bf?: number | null, gf?: number | null) {
+  if (!bf && !gf) return "-";
+  if (bf && !gf) return ratingText(bf);
+  if (gf && !bf) return ratingText(gf);
+  if (bf && gf) {
+    const avg = (bf + gf) / 2;
+    if (Number.isInteger(avg)) return String(avg);
+    return avg.toFixed(1);
+  }
+  return "-";
+}
+
+export function shortGenres(genres?: string | null) {
+  if (!genres) return "";
+  const parts = genres
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.slice(0, 2).join(", ");
+}
+
+export function shortGenreList(genres?: string[] | null) {
+  if (!genres || genres.length === 0) return "";
+  return genres.slice(0, 2).join(", ");
+}

@@ -1,0 +1,63 @@
+@config "../tailwind.config.ts";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --background: 222 30% 8%;
+    --foreground: 210 40% 96%;
+    --card: 222 24% 12%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 24% 12%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 176 78% 45%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 260 22% 20%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 217 16% 16%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 268 70% 60%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 16% 20%;
+    --input: 220 16% 20%;
+    --ring: 176 78% 45%;
+    --radius: 0.9rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 12% 12%, rgba(20, 184, 166, 0.18), transparent 35%),
+      radial-gradient(circle at 88% 16%, rgba(168, 85, 247, 0.2), transparent 40%),
+      linear-gradient(160deg, rgba(12, 18, 33, 0.8), rgba(2, 6, 23, 0.92));
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 240ms;
+    animation-timing-function: ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation-duration: 1ms;
+    }
+  }
+}
