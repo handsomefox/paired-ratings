@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -22,23 +23,29 @@ const (
 )
 
 func main() {
-	slog.SetDefault(logger.NewExitOnLevelLogger(slog.LevelError))
+	slog.SetDefault(logger.New(slog.LevelDebug))
+	if err := run(); err != nil {
+		fmt.Println("Error:", err.Error())
+		os.Exit(1)
+	}
+}
 
+func run() error {
 	dbPath := envOr("DB_PATH", "/app/data/website-rating.db")
 	apiKey := os.Getenv("TMDB_API_KEY")
 	password := os.Getenv("APP_PASSWORD")
 	bfName := envOr("BF_NAME", "Boyfriend")
 	gfName := envOr("GF_NAME", "Girlfriend")
 	if apiKey == "" {
-		slog.Error("TMDB_API_KEY is required")
+		return errors.New("TMDB_API_KEY is required")
 	}
 	if password == "" {
-		slog.Error("APP_PASSWORD is required")
+		return errors.New("APP_PASSWORD is required")
 	}
 
 	st, err := store.Open(dbPath)
 	if err != nil {
-		slog.Error("Failed to open DB", logger.Error(err))
+		return fmt.Errorf("failed to open db: %w", err)
 	}
 	defer func() {
 		if err := st.Close(); err != nil {
@@ -57,7 +64,7 @@ func main() {
 		GfName:    gfName,
 	})
 	if err != nil {
-		slog.Error("Failed to init handlers", logger.Error(err))
+		return fmt.Errorf("failed to init handlers: %w", err)
 	}
 
 	mux := http.NewServeMux()
@@ -75,8 +82,9 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Printf("server error: %v", err)
+		return fmt.Errorf("server error: %w", err)
 	}
+	return nil
 }
 
 func envOr(key, fallback string) string {

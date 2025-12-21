@@ -17,7 +17,9 @@
     </div>
     <div class="detail-hero-body">
       <div class="detail-header">
-        <h1 style="view-transition-name: title-{{.Show.MediaType}}-{{.Show.TMDBID}}">
+        <h1
+          style="view-transition-name: title-{{.Show.MediaType}}-{{.Show.TMDBID}}"
+        >
           {{.Show.Title}}
         </h1>
         {{if .Show.Year.Valid}}
@@ -34,23 +36,24 @@
               {{if .Show.Status}}{{.Show.Status}}{{else}}TBD{{end}}
             </button>
           </form>
-          <span class="rating-chip {{if not .Show.TMDBRating.Valid}}muted{{end}}">
-            {{if .Show.TMDBRating.Valid}}
-              {{formatScore .Show.TMDBRating.Float64}}
-              {{if .Show.TMDBVotes.Valid}}
-              <span class="votes">({{formatVotes .Show.TMDBVotes.Int64}})</span>
-              {{end}}
-            {{else}}
-              —
-            {{end}}
+          <span
+            class="rating-chip {{if not .Show.TMDBRating.Valid}}muted{{end}}"
+          >
+            {{if .Show.TMDBRating.Valid}} {{formatScore
+            .Show.TMDBRating.Float64}} {{if .Show.TMDBVotes.Valid}}
+            <span class="votes">({{formatVotes .Show.TMDBVotes.Int64}})</span>
+            {{end}} {{else}} — {{end}}
           </span>
-          {{if .Show.Genres.Valid}}<span class="no-sep">{{.Show.Genres.String}}</span>{{end}}
+          {{if .Show.Genres.Valid}}<span class="no-sep"
+            >{{.Show.Genres.String}}</span
+          >{{end}}
         </div>
       </div>
       <div class="detail-links">
-        {{ $imdb := imdbURL .Show.IMDbID }}
-        {{if $imdb}}
-          <a class="imdb-link" href="{{$imdb}}" target="_blank" rel="noopener">IMDb</a>
+        {{ $imdb := imdbURL .Show.IMDbID }} {{if $imdb}}
+        <a class="imdb-link" href="{{$imdb}}" target="_blank" rel="noopener"
+          >IMDb</a
+        >
         {{end}}
         <form method="post" action="/show/{{.Show.ID}}" class="refresh-form">
           <input type="hidden" name="action" value="refresh-tmdb" />
@@ -58,7 +61,9 @@
         </form>
         <form method="post" action="/show/{{.Show.ID}}" class="refresh-form">
           <input type="hidden" name="action" value="clear-ratings" />
-          <button type="submit" class="clear-ratings-button">Clear ratings</button>
+          <button type="submit" class="clear-ratings-button">
+            Clear ratings
+          </button>
         </form>
       </div>
       {{if .Show.Overview.Valid}}
@@ -228,20 +233,32 @@
         </div>
         <label>Comment</label>
         {{if .Show.BfComment.Valid}}
-          <div class="comment-display" data-comment-display>
-            <p>{{.Show.BfComment.String}}</p>
-            <button type="button" class="comment-edit" data-comment-edit aria-label="Edit comment">
-              <span class="edit-icon" aria-hidden="true"></span>
-            </button>
-          </div>
-          <textarea
-            name="bf_comment"
-            rows="3"
-            class="comment-editor is-hidden"
-            data-comment-editor
-          >{{.Show.BfComment.String}}</textarea>
+        <div class="comment-display" data-comment-display>
+          <p>{{.Show.BfComment.String}}</p>
+          <button
+            type="button"
+            class="comment-edit"
+            data-comment-edit
+            aria-label="Edit comment"
+          >
+            <span class="edit-icon" aria-hidden="true"></span>
+          </button>
+        </div>
+        <textarea
+          name="bf_comment"
+          rows="3"
+          class="comment-editor is-hidden"
+          data-comment-editor
+        >
+{{.Show.BfComment.String}}</textarea
+        >
         {{else}}
-          <textarea name="bf_comment" rows="3" class="comment-editor" data-comment-editor></textarea>
+        <textarea
+          name="bf_comment"
+          rows="3"
+          class="comment-editor"
+          data-comment-editor
+        ></textarea>
         {{end}}
       </div>
       <div class="rating-card gf">
@@ -384,20 +401,32 @@
         </div>
         <label>Comment</label>
         {{if .Show.GfComment.Valid}}
-          <div class="comment-display" data-comment-display>
-            <p>{{.Show.GfComment.String}}</p>
-            <button type="button" class="comment-edit" data-comment-edit aria-label="Edit comment">
-              <span class="edit-icon" aria-hidden="true"></span>
-            </button>
-          </div>
-          <textarea
-            name="gf_comment"
-            rows="3"
-            class="comment-editor is-hidden"
-            data-comment-editor
-          >{{.Show.GfComment.String}}</textarea>
+        <div class="comment-display" data-comment-display>
+          <p>{{.Show.GfComment.String}}</p>
+          <button
+            type="button"
+            class="comment-edit"
+            data-comment-edit
+            aria-label="Edit comment"
+          >
+            <span class="edit-icon" aria-hidden="true"></span>
+          </button>
+        </div>
+        <textarea
+          name="gf_comment"
+          rows="3"
+          class="comment-editor is-hidden"
+          data-comment-editor
+        >
+{{.Show.GfComment.String}}</textarea
+        >
         {{else}}
-          <textarea name="gf_comment" rows="3" class="comment-editor" data-comment-editor></textarea>
+        <textarea
+          name="gf_comment"
+          rows="3"
+          class="comment-editor"
+          data-comment-editor
+        ></textarea>
         {{end}}
       </div>
     </div>
@@ -424,8 +453,12 @@
     <h3>Delete show?</h3>
     <p>This will remove it from your library.</p>
     <div class="modal-actions">
-      <button type="button" class="button-ghost" data-confirm-cancel>Cancel</button>
-      <button type="button" class="button-ghost danger" data-confirm-delete>Delete</button>
+      <button type="button" class="button-ghost" data-confirm-cancel>
+        Cancel
+      </button>
+      <button type="button" class="button-ghost danger" data-confirm-delete>
+        Delete
+      </button>
     </div>
   </div>
 </div>

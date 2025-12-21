@@ -104,7 +104,8 @@
       if (!append) {
         const empty = document.createElement("div");
         empty.className = "empty";
-        empty.textContent = "No results yet. Try a different search or filters.";
+        empty.textContent =
+          "No results yet. Try a different search or filters.";
         results.appendChild(empty);
       }
       return;
@@ -197,8 +198,12 @@
         body.appendChild(inLibrary);
       } else {
         const actions = createEl("div", "actions");
-        actions.appendChild(createAddForm(item, "planned", "Add planned", false));
-        actions.appendChild(createAddForm(item, "watched", "Add watched", true));
+        actions.appendChild(
+          createAddForm(item, "planned", "Add planned", false)
+        );
+        actions.appendChild(
+          createAddForm(item, "watched", "Add watched", true)
+        );
         body.appendChild(actions);
       }
 

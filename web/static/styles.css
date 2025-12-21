@@ -179,11 +179,9 @@ textarea {
 
 select {
   appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
     linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) calc(50% - 2px),
+  background-position: calc(100% - 18px) calc(50% - 2px),
     calc(100% - 12px) calc(50% - 2px);
   background-size: 6px 6px, 6px 6px;
   background-repeat: no-repeat;
@@ -268,7 +266,6 @@ button.secondary {
   background: var(--accent-2);
   color: #0b0b13;
 }
-
 
 .logout button {
   border: 1px solid var(--border);
@@ -594,7 +591,6 @@ button.secondary {
 .menu-item.danger {
   color: #ff9d9d;
 }
-
 
 .modal-backdrop {
   position: fixed;

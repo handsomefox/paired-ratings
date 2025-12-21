@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -170,10 +171,12 @@ func (h *Handler) loginHandler(w http.ResponseWriter, r *http.Request) {
 		h.render(w, "login.html", loginPageData{Authenticated: false})
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
+			slog.Warn("login: parse form failed", slog.Any("err", err))
 			http.Error(w, "bad form", http.StatusBadRequest)
 			return
 		}
 		if r.FormValue("password") != h.password {
+			slog.Warn("login: invalid password", slog.String("remote", r.RemoteAddr))
 			h.render(w, "login.html", loginPageData{
 				Error:         "Invalid password",
 				Authenticated: false,
@@ -190,6 +193,11 @@ func (h *Handler) loginHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if !sameOrigin(r) {
+		slog.Warn("logout: forbidden origin", slog.String("remote", r.RemoteAddr))
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	clearAuthCookie(w, r)
@@ -218,11 +226,13 @@ func (h *Handler) listHandler(w http.ResponseWriter, r *http.Request) {
 
 	shows, err := h.store.ListShows(filters)
 	if err != nil {
+		slog.Warn("list shows failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	genres, err := h.store.ListAllGenres()
 	if err != nil {
+		slog.Warn("list genres failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -257,11 +267,13 @@ func (h *Handler) searchHandler(w http.ResponseWriter, r *http.Request) {
 	filters := parseSearchFilters(r)
 	pageData, err := h.searchTMDB(query, filters)
 	if err != nil {
+		slog.Warn("search tmdb failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	inLibrary, err := h.lookupInLibrary(pageData.Results)
 	if err != nil {
+		slog.Warn("search lookup failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -338,11 +350,13 @@ func (h *Handler) searchAPIHandler(w http.ResponseWriter, r *http.Request) {
 	results := []searchAPIResult{}
 	pageData, err := h.searchTMDB(query, filters)
 	if err != nil {
+		slog.Warn("search api tmdb failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	inLibrary, err := h.lookupInLibrary(pageData.Results)
 	if err != nil {
+		slog.Warn("search api lookup failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -379,10 +393,10 @@ func (h *Handler) searchTMDB(query string, filters searchFilters) (searchPage, e
 		filters.Page = 1
 	}
 	index := (filters.Page - 1) * perPage
-	tmdbPage := index/tmdbPageSize + 1
-	offset := index % tmdbPageSize
 
 	if query != "" {
+		tmdbPage := index/tmdbPageSize + 1
+		offset := index % tmdbPageSize
 		pageData, err := h.tmdb.SearchPage(query, tmdbPage)
 		if err != nil {
 			return searchPage{}, err
@@ -411,6 +425,8 @@ func (h *Handler) searchTMDB(query string, filters searchFilters) (searchPage, e
 	}
 	switch filters.MediaType {
 	case "movie", "tv":
+		tmdbPage := index/tmdbPageSize + 1
+		offset := index % tmdbPageSize
 		pageData, err := h.tmdb.DiscoverPage(filters.MediaType, discoverFilters, tmdbPage)
 		if err != nil {
 			return searchPage{}, err
@@ -428,6 +444,9 @@ func (h *Handler) searchTMDB(query string, filters searchFilters) (searchPage, e
 			TotalResults: pageData.TotalResults,
 		}, nil
 	default:
+		tmdbPageSizeAll := tmdbPageSize * 2
+		tmdbPage := index/tmdbPageSizeAll + 1
+		offset := index % tmdbPageSizeAll
 		movies, err := h.tmdb.DiscoverPage("movie", discoverFilters, tmdbPage)
 		if err != nil {
 			return searchPage{}, err
@@ -636,12 +655,19 @@ func (h *Handler) addHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	if !sameOrigin(r) {
+		slog.Warn("add show: forbidden origin", slog.String("remote", r.RemoteAddr))
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if err := r.ParseForm(); err != nil {
+		slog.Warn("add show: parse form failed", slog.Any("err", err))
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
 	id, err := strconv.ParseInt(r.FormValue("tmdb_id"), 10, 64)
 	if err != nil || id == 0 {
+		slog.Warn("add show: bad tmdb id", slog.String("value", r.FormValue("tmdb_id")))
 		http.Error(w, "bad tmdb id", http.StatusBadRequest)
 		return
 	}
@@ -653,12 +679,14 @@ func (h *Handler) addHandler(w http.ResponseWriter, r *http.Request) {
 
 	detail, err := h.tmdb.FetchDetails(id, mediaType)
 	if err != nil {
+		slog.Warn("add show: tmdb fetch failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	show := showFromDetail(detail, status)
 	showID, err := h.store.UpsertShow(&show)
 	if err != nil {
+		slog.Warn("add show: upsert failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -674,16 +702,24 @@ func (h *Handler) deleteHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	if !sameOrigin(r) {
+		slog.Warn("delete show: forbidden origin", slog.String("remote", r.RemoteAddr))
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	if err := r.ParseForm(); err != nil {
+		slog.Warn("delete show: parse form failed", slog.Any("err", err))
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil || id == 0 {
+		slog.Warn("delete show: bad id", slog.String("value", r.FormValue("id")))
 		http.Error(w, "bad id", http.StatusBadRequest)
 		return
 	}
 	if err := h.store.DeleteShow(id); err != nil {
+		slog.Warn("delete show: delete failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -722,11 +758,13 @@ func (h *Handler) exportHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !sameOrigin(r) {
+		slog.Warn("export: forbidden origin", slog.String("remote", r.RemoteAddr))
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	shows, err := h.store.ListShows(store.ListFilters{Status: "all"})
 	if err != nil {
+		slog.Warn("export: list shows failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -762,6 +800,7 @@ func (h *Handler) exportHandler(w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(payload); err != nil {
+		slog.Warn("export: encode failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -801,13 +840,20 @@ func (h *Handler) showHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleShowPost(w http.ResponseWriter, r *http.Request, id int64) {
 	if err := r.ParseForm(); err != nil {
+		slog.Warn("show: parse form failed", slog.Any("err", err))
 		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	if !sameOrigin(r) {
+		slog.Warn("show: forbidden origin", slog.String("remote", r.RemoteAddr))
+		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	if r.FormValue("action") == "toggle-status" {
 		current := strings.TrimSpace(r.FormValue("status"))
 		next := nextStatus(current)
 		if err := h.store.UpdateStatus(id, next); err != nil {
+			slog.Warn("show: update status failed", slog.Any("err", err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -815,11 +861,8 @@ func (h *Handler) handleShowPost(w http.ResponseWriter, r *http.Request, id int6
 		return
 	}
 	if r.FormValue("action") == "clear-ratings" {
-		if !sameOrigin(r) {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
 		if err := h.store.ClearRatings(id); err != nil {
+			slog.Warn("show: clear ratings failed", slog.Any("err", err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -827,22 +870,21 @@ func (h *Handler) handleShowPost(w http.ResponseWriter, r *http.Request, id int6
 		return
 	}
 	if r.FormValue("action") == "refresh-tmdb" {
-		if !sameOrigin(r) {
-			http.Error(w, "forbidden", http.StatusForbidden)
-			return
-		}
 		show, err := h.store.GetShow(id)
 		if err != nil {
+			slog.Warn("show: fetch failed", slog.Any("err", err))
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		detail, err := h.tmdb.FetchDetails(show.TMDBID, show.MediaType)
 		if err != nil {
+			slog.Warn("show: tmdb refresh failed", slog.Any("err", err))
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
 		updated := showFromDetail(detail, show.Status)
 		if _, err := h.store.UpsertShow(&updated); err != nil {
+			slog.Warn("show: tmdb upsert failed", slog.Any("err", err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -861,6 +903,7 @@ func (h *Handler) handleShowPost(w http.ResponseWriter, r *http.Request, id int6
 		gfComment = sql.NullString{Valid: true, String: val}
 	}
 	if err := h.store.UpdateRatings(id, bfRating, gfRating, bfComment, gfComment); err != nil {
+		slog.Warn("show: update ratings failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -870,11 +913,13 @@ func (h *Handler) handleShowPost(w http.ResponseWriter, r *http.Request, id int6
 func (h *Handler) render(w http.ResponseWriter, name string, data any) {
 	tpl, ok := h.templates[name]
 	if !ok {
+		slog.Warn("render: template not found", slog.String("template", name))
 		http.Error(w, "template not found", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tpl.ExecuteTemplate(w, "layout", data); err != nil {
+		slog.Warn("render: execute failed", slog.Any("err", err), slog.String("template", name))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -885,22 +930,26 @@ func (h *Handler) refreshTMDBHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !sameOrigin(r) {
+		slog.Warn("refresh tmdb: forbidden origin", slog.String("remote", r.RemoteAddr))
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	items, err := h.store.ListTMDBMissing()
 	if err != nil {
+		slog.Warn("refresh tmdb: list missing failed", slog.Any("err", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	for _, item := range items {
 		detail, err := h.tmdb.FetchDetails(item.TMDBID, item.MediaType)
 		if err != nil {
+			slog.Warn("refresh tmdb: fetch failed", slog.Any("err", err))
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
 		show := showFromDetail(detail, item.Status)
 		if _, err := h.store.UpsertShow(&show); err != nil {
+			slog.Warn("refresh tmdb: upsert failed", slog.Any("err", err))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -970,7 +1019,7 @@ func sameOrigin(r *http.Request) bool {
 		}
 		return hostMatches(r.Host, parsed.Host)
 	}
-	return true
+	return false
 }
 
 func hostMatches(left, right string) bool {
