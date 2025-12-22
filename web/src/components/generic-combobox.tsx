@@ -100,7 +100,7 @@ export function GenericCombobox({
               {options.map((option) => (
                 <CommandItem
                   key={option.code}
-                  value={option.code}
+                  value={`${option.code} ${option.name}`.toLowerCase()}
                   onSelect={() => {
                     onValueChange(normalizeOnSelect(option.code));
                     setOpen(false);
