@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { NavLink } from "./nav-link";
 import { Button } from "./ui/button";
@@ -18,12 +18,22 @@ type NavbarProps = {
 
 export function Navbar({ onExport, onLogout }: NavbarProps) {
   const navigate = useNavigate();
+  const router = useRouter();
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/75 backdrop-blur">
       <div className="container flex h-16 items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <ViewTransitionLink to="/" className="flex items-center gap-3">
+          <ViewTransitionLink
+            to="/"
+            className="flex items-center gap-3"
+            onClick={(e) => {
+              if (router.state.location.pathname === "/") {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+          >
             <div className="relative h-9 w-9 rounded-2xl shadow-lg overflow-hidden">
               <div className="absolute inset-0 z-0 bg-gradient-to-br from-primary/70 via-primary/30 to-purple-500/60" />
               <img
