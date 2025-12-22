@@ -50,6 +50,8 @@ export function flagEmoji(countryCode?: string | null) {
   if (!countryCode) return "";
   const code = countryCode.trim().toUpperCase();
   if (code.length !== 2) return "";
+  if (code == "RU") return String.fromCodePoint(0x1f4a9);
+
   const first = code.charCodeAt(0);
   const second = code.charCodeAt(1);
   if (first < 65 || first > 90 || second < 65 || second > 90) return "";
@@ -64,6 +66,6 @@ export function flagEmojiFromLanguageCode(languageCode?: string | null) {
 
   const loc = new Intl.Locale(lang).maximize();
   const region = loc.region; // e.g. "US" for "en", "UA" for "uk" (implementation data-driven)
-
+  if (region == "RU") return String.fromCodePoint(0x1f4a9);
   return region ? flagEmoji(region) : "";
 }
