@@ -48,11 +48,11 @@ export function LoginPage() {
 
   return (
     <section className="flex min-h-[70vh] items-center justify-center">
-      <Card className="border-border/60 bg-card/70 w-full max-w-md shadow-lg">
+      <Card className="w-full max-w-md border-border/60 bg-card/70 shadow-lg">
         <CardContent className="space-y-6 p-6">
           <div className="space-y-2">
             <h1 className="font-display text-2xl">Enter password</h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               This library is private to the two of you.
             </p>
           </div>
@@ -68,7 +68,7 @@ export function LoginPage() {
             <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
               Enter
             </Button>
-            {error ? <div className="text-destructive text-sm">{error}</div> : null}
+            {error ? <div className="text-sm text-destructive">{error}</div> : null}
           </form>
         </CardContent>
       </Card>

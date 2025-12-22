@@ -21,7 +21,7 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
   const router = useRouter();
 
   return (
-    <header className="border-border/60 bg-background/75 sticky top-0 z-30 border-b backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/75 backdrop-blur">
       <div className="container flex h-16 items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <ViewTransitionLink
@@ -35,7 +35,7 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
             }}
           >
             <div className="relative h-9 w-9 overflow-hidden rounded-2xl shadow-lg">
-              <div className="from-primary/70 via-primary/30 absolute inset-0 z-0 bg-gradient-to-br to-purple-500/60" />
+              <div className="absolute inset-0 z-0 bg-gradient-to-br from-primary/70 via-primary/30 to-purple-500/60" />
               <img
                 src="/assets/logo.png"
                 alt=""
@@ -44,7 +44,7 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
             </div>
             <div>
               <div className="font-display text-base">Show Ratings</div>
-              <div className="text-muted-foreground text-xs">Shared watchlist + ratings</div>
+              <div className="text-xs text-muted-foreground">Shared watchlist + ratings</div>
             </div>
           </ViewTransitionLink>
         </div>

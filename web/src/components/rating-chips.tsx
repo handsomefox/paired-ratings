@@ -15,7 +15,7 @@ const RatingChips = ({ bfRating, gfRating }: RatingChipsProps) => (
       <span>★</span>
       <strong>{ratingText(gfRating)}</strong>
     </div>
-    <div className="border-border/60 bg-muted/40 text-foreground inline-flex items-center gap-1 rounded-full border px-2.5 py-1">
+    <div className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-foreground">
       <span className="text-[0.65rem] font-semibold tracking-wide">AVG</span>
       <strong>{combinedRating(bfRating, gfRating)}</strong>
     </div>

@@ -216,8 +216,8 @@ function DetailContent({
         </Button>
       </div>
 
-      <div className="border-border/60 bg-card/70 grid gap-6 rounded-2xl border shadow-lg lg:grid-cols-[minmax(220px,300px)_minmax(0,1fr)]">
-        <div className="bg-muted/40 overflow-hidden">
+      <div className="grid gap-6 rounded-2xl border border-border/60 bg-card/70 shadow-lg lg:grid-cols-[minmax(220px,300px)_minmax(0,1fr)]">
+        <div className="overflow-hidden bg-muted/40">
           <div className="aspect-[2/3] overflow-hidden">
             {show.poster_path ? (
               <img
@@ -226,7 +226,7 @@ function DetailContent({
                 className="h-full w-full object-cover"
               />
             ) : (
-              <div className="text-muted-foreground flex h-full items-center justify-center text-xs tracking-wide uppercase">
+              <div className="flex h-full items-center justify-center text-xs uppercase tracking-wide text-muted-foreground">
                 No poster
               </div>
             )}
@@ -237,7 +237,7 @@ function DetailContent({
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="font-display text-2xl">{show.title}</h1>
               {show.year ? (
-                <span className="text-muted-foreground text-sm">{show.year}</span>
+                <span className="text-sm text-muted-foreground">{show.year}</span>
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -245,7 +245,7 @@ function DetailContent({
               <button
                 type="button"
                 className={cn(
-                  "rounded-full border px-2 py-0.5 tracking-wide uppercase transition hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] hover:brightness-110",
+                  "rounded-full border px-2 py-0.5 uppercase tracking-wide transition hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] hover:brightness-110",
                   statusTone,
                 )}
                 onClick={() => toggleStatusMutation.mutate()}
@@ -263,7 +263,7 @@ function DetailContent({
                 href={imdbUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="border-border/60 bg-card/60 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold tracking-wide uppercase transition hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] hover:brightness-110"
+                className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs font-semibold uppercase tracking-wide transition hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] hover:brightness-110"
               >
                 IMDb
               </a>
@@ -273,10 +273,10 @@ function DetailContent({
                 href={tmdbUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="border-border/60 bg-card/60 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold tracking-wide uppercase transition hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] hover:brightness-110"
+                className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs font-semibold uppercase tracking-wide transition hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] hover:brightness-110"
               >
                 TMDB
-                <span className="text-muted-foreground font-normal normal-case">
+                <span className="font-normal normal-case text-muted-foreground">
                   {show.tmdb_rating ? (
                     <>
                       {formatScore(show.tmdb_rating)}
@@ -288,9 +288,9 @@ function DetailContent({
                 </span>
               </a>
             ) : (
-              <span className="border-border/60 bg-card/60 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold tracking-wide uppercase">
+              <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
                 TMDB
-                <span className="text-muted-foreground font-normal normal-case">
+                <span className="font-normal normal-case text-muted-foreground">
                   {show.tmdb_rating ? (
                     <>
                       {formatScore(show.tmdb_rating)}
@@ -305,7 +305,7 @@ function DetailContent({
             <button
               type="button"
               onClick={() => refreshMutation.mutate()}
-              className="border-border/60 bg-card/60 inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] hover:brightness-110"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs font-semibold transition hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] hover:brightness-110"
             >
               Refresh TMDB
             </button>
@@ -318,18 +318,18 @@ function DetailContent({
             </button>
           </div>
 
-          {show.overview ? <p className="text-muted-foreground text-sm">{show.overview}</p> : null}
+          {show.overview ? <p className="text-sm text-muted-foreground">{show.overview}</p> : null}
         </div>
       </div>
 
-      <div className="border-border/60 bg-card/70 rounded-2xl border p-6 shadow-lg">
+      <div className="rounded-2xl border border-border/60 bg-card/70 p-6 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-lg">Ratings</h2>
-            <p className="text-muted-foreground text-xs">1–10, add a note if you want</p>
+            <p className="text-xs text-muted-foreground">1–10, add a note if you want</p>
           </div>
-          <div className="border-border/60 bg-muted/40 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
-            <span className="text-muted-foreground tracking-wide uppercase">Avg</span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs">
+            <span className="uppercase tracking-wide text-muted-foreground">Avg</span>
             <strong>{combinedRating(bfRating, gfRating)}</strong>
           </div>
         </div>
@@ -339,19 +339,19 @@ function DetailContent({
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-4 rounded-2xl border border-teal-500/40 bg-teal-500/5 p-4 shadow-[0_0_0_1px_rgba(20,184,166,0.2)]">
             <div className="flex items-center gap-2 text-sm font-semibold">
-              <span className="inline-flex h-6 w-9 items-center justify-center rounded-full bg-teal-500/20 text-xs font-bold text-teal-200 uppercase">
+              <span className="inline-flex h-6 w-9 items-center justify-center rounded-full bg-teal-500/20 text-xs font-bold uppercase text-teal-200">
                 BF
               </span>
               <span className="text-teal-200">{bfName}</span>
             </div>
             <div className="space-y-2">
-              <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Rating
               </div>
               <StarRating value={bfRating} onChange={setBfRating} tone="bf" />
             </div>
             <div className="space-y-2">
-              <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Comment
               </div>
               {bfEditing ? (
@@ -363,12 +363,12 @@ function DetailContent({
                   className="resize-none border-teal-500/40 focus-visible:ring-2 focus-visible:ring-teal-400/60"
                 />
               ) : (
-                <div className="border-border/60 bg-card/60 text-muted-foreground flex items-start justify-between gap-3 rounded-xl border border-dashed px-3 py-2 text-sm">
+                <div className="flex items-start justify-between gap-3 rounded-xl border border-dashed border-border/60 bg-card/60 px-3 py-2 text-sm text-muted-foreground">
                   <p className="leading-relaxed">{bfComment}</p>
                   <button
                     type="button"
                     onClick={() => setBfEditing(true)}
-                    className="border-border/60 text-muted-foreground hover:bg-muted/60 hover:text-foreground rounded-lg border px-2 py-1 text-xs tracking-wide uppercase transition"
+                    className="rounded-lg border border-border/60 px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
                   >
                     ✎
                   </button>
@@ -379,19 +379,19 @@ function DetailContent({
 
           <div className="space-y-4 rounded-2xl border border-purple-500/40 bg-purple-500/5 p-4 shadow-[0_0_0_1px_rgba(168,85,247,0.2)]">
             <div className="flex items-center gap-2 text-sm font-semibold">
-              <span className="inline-flex h-6 w-9 items-center justify-center rounded-full bg-purple-500/20 text-xs font-bold text-purple-200 uppercase">
+              <span className="inline-flex h-6 w-9 items-center justify-center rounded-full bg-purple-500/20 text-xs font-bold uppercase text-purple-200">
                 GF
               </span>
               <span className="text-purple-200">{gfName}</span>
             </div>
             <div className="space-y-2">
-              <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Rating
               </div>
               <StarRating value={gfRating} onChange={setGfRating} tone="gf" />
             </div>
             <div className="space-y-2">
-              <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Comment
               </div>
               {gfEditing ? (
@@ -403,12 +403,12 @@ function DetailContent({
                   className="resize-none border-purple-500/40 focus-visible:ring-2 focus-visible:ring-purple-400/60"
                 />
               ) : (
-                <div className="border-border/60 bg-card/60 text-muted-foreground flex items-start justify-between gap-3 rounded-xl border border-dashed px-3 py-2 text-sm">
+                <div className="flex items-start justify-between gap-3 rounded-xl border border-dashed border-border/60 bg-card/60 px-3 py-2 text-sm text-muted-foreground">
                   <p className="leading-relaxed">{gfComment}</p>
                   <button
                     type="button"
                     onClick={() => setGfEditing(true)}
-                    className="border-border/60 text-muted-foreground hover:bg-muted/60 hover:text-foreground rounded-lg border px-2 py-1 text-xs tracking-wide uppercase transition"
+                    className="rounded-lg border border-border/60 px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
                   >
                     ✎
                   </button>

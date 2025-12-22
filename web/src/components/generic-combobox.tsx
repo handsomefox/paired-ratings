@@ -62,12 +62,12 @@ export function GenericCombobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full max-w-full min-w-0 justify-between overflow-hidden text-left font-normal",
+            "w-full min-w-0 max-w-full justify-between overflow-hidden text-left font-normal",
             className,
           )}
           disabled={disabled}
         >
-          <div className="max-w-full min-w-0 flex-1 overflow-hidden whitespace-nowrap">
+          <div className="min-w-0 max-w-full flex-1 overflow-hidden whitespace-nowrap">
             {selected ? renderLabel(selected) : <span className="truncate">{placeholder}</span>}
           </div>
 

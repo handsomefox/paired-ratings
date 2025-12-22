@@ -17,7 +17,7 @@ export function LoadingGrid({ count = 8, className }: LoadingGridProps) {
       {items.map((id) => (
         <Card
           key={id}
-          className="border-border/60 bg-card/70 flex flex-col overflow-hidden shadow-lg"
+          className="flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg"
         >
           <Skeleton className="aspect-[2/3] w-full rounded-none" />
           <CardContent className="flex flex-1 flex-col gap-3 p-3">

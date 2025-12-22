@@ -101,7 +101,7 @@ const FiltersPane = ({
           </SheetTrigger>
           <SheetContent
             side="left"
-            className="bg-card text-foreground flex h-[100svh] w-[100vw] flex-col overflow-hidden sm:w-[320px]"
+            className="flex h-[100svh] w-[100vw] flex-col overflow-hidden bg-card text-foreground sm:w-[320px]"
           >
             <SheetHeader>
               <SheetTitle>{title}</SheetTitle>
@@ -114,7 +114,7 @@ const FiltersPane = ({
               {filters}
             </div>
 
-            <div className="bg-card absolute inset-x-0 bottom-0 border-t p-4 lg:hidden">
+            <div className="absolute inset-x-0 bottom-0 border-t bg-card p-4 lg:hidden">
               <Button className="w-full" onClick={() => onOpenChange(false)}>
                 Done
               </Button>
@@ -125,8 +125,8 @@ const FiltersPane = ({
 
       <div className={cn("grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]", gridClassName)}>
         <aside className="hidden lg:block">
-          <div className="border-border/60 bg-card/70 sticky top-24 max-h-[calc(100svh-6rem)] overflow-y-auto rounded-2xl border p-5 pr-4 shadow-lg">
-            <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+          <div className="sticky top-24 max-h-[calc(100svh-6rem)] overflow-y-auto rounded-2xl border border-border/60 bg-card/70 p-5 pr-4 shadow-lg">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {title}
             </div>
             <div className="mt-5">{filters}</div>

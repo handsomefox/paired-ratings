@@ -63,7 +63,7 @@ export function ShowCard({
   }, [overview, isExpanded]);
 
   const poster = (
-    <div className="bg-muted/40 aspect-[2/3] overflow-hidden">
+    <div className="aspect-[2/3] overflow-hidden bg-muted/40">
       {posterPath ? (
         <img
           src={`${imageBase}${posterPath}`}
@@ -72,7 +72,7 @@ export function ShowCard({
           loading="lazy"
         />
       ) : (
-        <div className="text-muted-foreground flex h-full items-center justify-center text-xs tracking-wide uppercase">
+        <div className="flex h-full items-center justify-center text-xs uppercase tracking-wide text-muted-foreground">
           No poster
         </div>
       )}
@@ -82,19 +82,19 @@ export function ShowCard({
   return (
     <Card
       className={cn(
-        "group border-border/60 bg-card/70 flex flex-col overflow-hidden shadow-lg",
+        "group flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg",
         className,
       )}
     >
       <div className="relative">
         {posterLink ? posterLink(poster) : poster}
-        {topRight ? <div className="absolute top-3 right-3">{topRight}</div> : null}
+        {topRight ? <div className="absolute right-3 top-3">{topRight}</div> : null}
       </div>
       <CardContent className="flex flex-1 flex-col gap-3 p-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-base leading-tight font-semibold">{title}</div>
-            {year ? <div className="text-muted-foreground text-xs">{year}</div> : null}
+            <div className="text-base font-semibold leading-tight">{title}</div>
+            {year ? <div className="text-xs text-muted-foreground">{year}</div> : null}
           </div>
           {statusBadge ?? null}
         </div>
@@ -102,13 +102,13 @@ export function ShowCard({
         {metaBadges ? (
           <div className="flex flex-wrap items-center gap-2 text-xs">{metaBadges}</div>
         ) : null}
-        {genresText ? <div className="text-muted-foreground text-xs">{genresText}</div> : null}
+        {genresText ? <div className="text-xs text-muted-foreground">{genresText}</div> : null}
 
         {overview ? (
           <div className="space-y-1">
             <p
               ref={overviewRef}
-              className={`text-muted-foreground text-xs ${
+              className={`text-xs text-muted-foreground ${
                 isExpanded ? "" : "line-clamp-3 min-h-[3.6em]"
               }`}
             >
@@ -117,7 +117,7 @@ export function ShowCard({
             {canToggle ? (
               <button
                 type="button"
-                className="text-primary/80 hover:text-primary text-xs font-semibold underline underline-offset-2 transition"
+                className="text-xs font-semibold text-primary/80 underline underline-offset-2 transition hover:text-primary"
                 onClick={handleToggle}
                 aria-expanded={isExpanded}
               >
