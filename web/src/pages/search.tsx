@@ -1,28 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import type { SearchRequest, SearchResponse, SearchResult } from "@/lib/api";
-import { LoadingGrid } from "@/components/loading-grid";
-import { flagEmoji, formatScore, formatVotes, shortGenreList } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ShowCard } from "@/components/show-card";
 import CardGrid from "@/components/card-grid";
-import FilterField from "@/components/filter-field";
 import { CountryCombobox } from "@/components/country-combobox";
-import { LanguageCombobox } from "@/components/language-combobox";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import FilterField from "@/components/filter-field";
 import FiltersPane from "@/components/filters-pane";
+import { LanguageCombobox } from "@/components/language-combobox";
+import { LoadingGrid } from "@/components/loading-grid";
+import { OriginCountriesChip } from "@/components/origin-countries-chip";
+import { ShowCard } from "@/components/show-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import {
   Pagination,
   PaginationContent,
@@ -32,9 +19,22 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { toast } from "sonner";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import type { SearchRequest, SearchResponse, SearchResult } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { formatScore, formatVotes, shortGenreList } from "@/lib/utils";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 const sortOptions = [
   { value: "relevance", label: "Relevance" },
@@ -404,10 +404,7 @@ export function SearchPage() {
           ];
 
   const availableCountries = searchCountriesQuery.data?.countries ?? [];
-  const countryLabel = (code: string) => {
-    const match = availableCountries.find((country) => country.code === code);
-    return match ? match.name : code;
-  };
+
   const availableLanguages = searchLanguagesQuery.data?.languages ?? [];
 
   const handleAdd = (item: SearchResult, status: string) => {
@@ -653,12 +650,6 @@ export function SearchPage() {
         <CardGrid>
           {results.map((item) => {
             const originCountries = item.origin_country ?? [];
-            const primaryCountry = originCountries[0];
-            const countryBadge = primaryCountry
-              ? `${flagEmoji(primaryCountry)} ${primaryCountry}${
-                  originCountries.length > 1 ? ` +${originCountries.length - 1}` : ""
-                }`
-              : "";
             return (
               <ShowCard
                 key={`${item.media_type}-${item.id}`}
@@ -689,35 +680,7 @@ export function SearchPage() {
                         "No TMDB score"
                       )}
                     </Badge>
-                    {countryBadge ? (
-                      <HoverCard>
-                        <HoverCardTrigger asChild>
-                          <Badge variant="outline">{countryBadge}</Badge>
-                        </HoverCardTrigger>
-                        <HoverCardContent className="w-64">
-                          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Origin countries
-                          </div>
-                          <ScrollArea className="mt-2 max-h-28 pr-2">
-                            <div className="space-y-1 text-xs">
-                              {originCountries.length > 0 ? (
-                                originCountries.map((code) => (
-                                  <div key={code} className="flex items-center gap-2">
-                                    <span className="text-base leading-none">
-                                      {flagEmoji(code)}
-                                    </span>
-                                    <span className="flex-1">{countryLabel(code)}</span>
-                                    <span className="text-muted-foreground">{code}</span>
-                                  </div>
-                                ))
-                              ) : (
-                                <div className="text-muted-foreground">No country data.</div>
-                              )}
-                            </div>
-                          </ScrollArea>
-                        </HoverCardContent>
-                      </HoverCard>
-                    ) : null}
+                    <OriginCountriesChip codes={originCountries} />
                     <Badge variant="outline">
                       {item.media_type === "movie"
                         ? "Movie"

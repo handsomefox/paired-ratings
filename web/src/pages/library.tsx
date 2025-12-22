@@ -1,24 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import type { ApiShow } from "@/lib/api";
-import { flagEmoji, formatScore, formatVotes, shortGenres } from "@/lib/utils";
-import { LoadingGrid } from "@/components/loading-grid";
-import { ViewTransitionLink } from "@/components/view-transition-link";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ShowCard } from "@/components/show-card";
 import CardGrid from "@/components/card-grid";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import FilterField from "@/components/filter-field";
-import RatingChips from "@/components/rating-chips";
 import { CountryCombobox } from "@/components/country-combobox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import FilterField from "@/components/filter-field";
+import FiltersPane from "@/components/filters-pane";
+import { LoadingGrid } from "@/components/loading-grid";
+import { OriginCountriesChip } from "@/components/origin-countries-chip";
+import RatingChips from "@/components/rating-chips";
+import { ShowCard } from "@/components/show-card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,7 +16,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import FiltersPane from "@/components/filters-pane";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -37,14 +34,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { ViewTransitionLink } from "@/components/view-transition-link";
+import type { ApiShow } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn, formatScore, formatVotes, shortGenres } from "@/lib/utils";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 const baseStatusOptions = [
   { value: "all", label: "All" },
@@ -334,12 +332,6 @@ export function LibraryPage() {
             ) : null}
             {shows.map((show) => {
               const originCountries = show.origin_country ?? [];
-              const primaryCountry = originCountries[0];
-              const countryBadge = primaryCountry
-                ? `${flagEmoji(primaryCountry)} ${primaryCountry}${
-                    originCountries.length > 1 ? ` +${originCountries.length - 1}` : ""
-                  }`
-                : "";
               return (
                 <ShowCard
                   key={show.id}
@@ -389,35 +381,7 @@ export function LibraryPage() {
                           "No TMDB score"
                         )}
                       </Badge>
-                      {countryBadge ? (
-                        <HoverCard>
-                          <HoverCardTrigger asChild>
-                            <Badge variant="outline">{countryBadge}</Badge>
-                          </HoverCardTrigger>
-                          <HoverCardContent className="w-64">
-                            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                              Origin countries
-                            </div>
-                            <ScrollArea className="mt-2 max-h-28 pr-2">
-                              <div className="space-y-1 text-xs">
-                                {originCountries.length > 0 ? (
-                                  originCountries.map((code) => (
-                                    <div key={code} className="flex items-center gap-2">
-                                      <span className="text-base leading-none">
-                                        {flagEmoji(code)}
-                                      </span>
-                                      <span className="flex-1">{countryLabel(code)}</span>
-                                      <span className="text-muted-foreground">{code}</span>
-                                    </div>
-                                  ))
-                                ) : (
-                                  <div className="text-muted-foreground">No country data.</div>
-                                )}
-                              </div>
-                            </ScrollArea>
-                          </HoverCardContent>
-                        </HoverCard>
-                      ) : null}
+                      <OriginCountriesChip codes={originCountries} />
                     </>
                   }
                   footer={

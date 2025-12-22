@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import type { ReactNode } from "react";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
   Outlet,
   RouterProvider,
@@ -10,21 +10,12 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { api } from "./lib/api";
-import { NavLink } from "./components/nav-link";
-import { ViewTransitionLink } from "./components/view-transition-link";
-import { LibraryPage } from "./pages/library";
-import { SearchPage } from "./pages/search";
-import { DetailPage } from "./pages/detail";
-import { LoginPage } from "./pages/login";
-import { Loading } from "./components/loading";
-import { Button } from "./components/ui/button";
-import { withViewTransition } from "./lib/view-transitions";
-import { Toaster } from "./components/ui/sonner";
+import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
-import { TooltipProvider } from "./components/ui/tooltip";
+import { Loading } from "./components/loading";
+import { NavLink } from "./components/nav-link";
+import { Button } from "./components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +23,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./components/ui/dropdown-menu";
+import { Toaster } from "./components/ui/sonner";
+import { TooltipProvider } from "./components/ui/tooltip";
+import { ViewTransitionLink } from "./components/view-transition-link";
+import { api } from "./lib/api";
+import { withViewTransition } from "./lib/view-transitions";
+import { DetailPage } from "./pages/detail";
+import { LibraryPage } from "./pages/library";
+import { LoginPage } from "./pages/login";
+import { SearchPage } from "./pages/search";
 
 export type AppContext = {
   queryClient: QueryClient;

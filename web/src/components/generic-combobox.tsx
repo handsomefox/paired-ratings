@@ -1,0 +1,118 @@
+import { Check, ChevronsUpDown } from "lucide-react";
+import { useMemo, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+
+export type ComboboxOption = {
+  code: string;
+  name: string;
+};
+
+type GenericComboboxProps = {
+  value: string;
+  onValueChange: (value: string) => void;
+  options: ComboboxOption[];
+  anyValue: string;
+  renderLabel: (option: ComboboxOption) => string;
+  normalizeOnSelect: (code: string) => string;
+  searchPlaceholder: string;
+  placeholder?: string;
+  anyLabel?: string;
+  className?: string;
+  disabled?: boolean;
+  emptyText?: string;
+};
+
+export function GenericCombobox({
+  value,
+  onValueChange,
+  options,
+  anyValue,
+  renderLabel,
+  normalizeOnSelect,
+  searchPlaceholder,
+  placeholder = "Any",
+  anyLabel = "Any",
+  className,
+  disabled,
+  emptyText = "No results found.",
+}: GenericComboboxProps) {
+  const [open, setOpen] = useState(false);
+
+  const normalizedValue = value || anyValue;
+
+  const selected = useMemo(() => options.find((option) => option.code === value), [options, value]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn("w-full justify-between font-normal", className)}
+          disabled={disabled}
+        >
+          <span className="truncate">{selected ? renderLabel(selected) : placeholder}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList className="max-h-60">
+            <CommandEmpty>{emptyText}</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value={anyValue}
+                onSelect={() => {
+                  onValueChange("");
+                  setOpen(false);
+                }}
+              >
+                <span>{anyLabel}</span>
+                <Check
+                  className={cn(
+                    "ml-auto h-4 w-4",
+                    normalizedValue === anyValue ? "opacity-100" : "opacity-0",
+                  )}
+                />
+              </CommandItem>
+
+              {options.map((option) => (
+                <CommandItem
+                  key={option.code}
+                  value={option.code}
+                  onSelect={() => {
+                    onValueChange(normalizeOnSelect(option.code));
+                    setOpen(false);
+                  }}
+                >
+                  <span className="flex-1">{renderLabel(option)}</span>
+                  <Check
+                    className={cn(
+                      "ml-auto h-4 w-4",
+                      normalizedValue === option.code ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
