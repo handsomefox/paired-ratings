@@ -3,6 +3,7 @@ import { CountryCombobox } from "@/components/country-combobox";
 import FilterField from "@/components/filter-field";
 import FiltersPane from "@/components/filters-pane";
 import { FiltersPaneContent } from "@/components/filters-pane-content";
+import { GenreCombobox } from "@/components/genre-combobox";
 import { LoadingGrid } from "@/components/loading-grid";
 import { OriginCountriesChip } from "@/components/origin-countries-chip";
 import RatingChips from "@/components/rating-chips";
@@ -50,8 +51,6 @@ const baseStatusOptions = [
   { value: "planned", label: "Planned" },
   { value: "watched", label: "Watched" },
 ];
-
-const anyGenreValue = "__any_genre__";
 
 function statusBadge(status?: string) {
   if (status === "watched") return "bg-teal-500/15 text-teal-300 border-teal-500/40";
@@ -226,22 +225,13 @@ export function LibraryPage() {
         </FilterField>
 
         <FilterField label="Genre">
-          <Select
-            value={genre || anyGenreValue}
-            onValueChange={(value) => setGenre(value === anyGenreValue ? "" : value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Any" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={anyGenreValue}>Any</SelectItem>
-              {genres.map((g) => (
-                <SelectItem key={g} value={g}>
-                  {g}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <GenreCombobox
+            value={genre}
+            onValueChange={setGenre}
+            genres={genres}
+            placeholder="Any"
+            anyLabel="Any"
+          />
         </FilterField>
 
         <FilterField label="Origin country">

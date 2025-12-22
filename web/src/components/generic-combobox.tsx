@@ -61,7 +61,7 @@ export function GenericCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between font-normal", className)}
+          className={cn("w-full justify-between font-normal text-left", className)}
           disabled={disabled}
         >
           <div className="min-w-0 flex-1 overflow-hidden">
