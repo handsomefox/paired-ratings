@@ -33,7 +33,7 @@ import type { SearchResponse, SearchResult } from "@/lib/api";
 import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { formatScore, formatVotes, shortGenreList } from "@/lib/utils";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -279,10 +279,16 @@ export function SearchPage() {
     refetchOnReconnect: false,
     refetchOnMount: false,
     retry: 1,
+    placeholderData: keepPreviousData,
   });
+
+  const isInitialLoading = searchQuery.isLoading && !searchQuery.data;
+  const isFetching = searchQuery.isFetching;
 
   // If backend clamps page, keep state consistent (only after data arrives)
   useEffect(() => {
+    if (searchQuery.isPlaceholderData) return;
+
     const serverPage = searchQuery.data?.page;
     if (serverPage && serverPage !== page) setPage(serverPage);
   }, [searchQuery.data?.page, page]);
@@ -593,7 +599,8 @@ export function SearchPage() {
           </Empty>
         ) : null}
 
-        <CardGrid>
+        {isInitialLoading ? <LoadingGrid /> : null}
+        <CardGrid className={`transition-opacity ${isFetching ? "opacity-60" : "opacity-100"}`}>
           {results.map((item) => {
             const originCountries = item.origin_country ?? [];
             return (
