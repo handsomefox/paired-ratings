@@ -469,7 +469,7 @@ func (s *Store) ListShows(ctx context.Context, filters ListFilters) (out []Show,
 		)
 	}
 	if filters.Unrated {
-		clauses = append(clauses, "bf_rating IS NULL AND gf_rating IS NULL")
+		clauses = append(clauses, "bf_rating IS NULL OR gf_rating IS NULL")
 	}
 
 	orderBy := "updated_at DESC"
