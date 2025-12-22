@@ -62,12 +62,12 @@ export function GenericCombobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full max-w-full min-w-0 justify-between font-normal text-left overflow-hidden",
+            "w-full max-w-full min-w-0 justify-between overflow-hidden text-left font-normal",
             className,
           )}
           disabled={disabled}
         >
-          <div className="min-w-0 flex-1 max-w-full overflow-hidden whitespace-nowrap">
+          <div className="max-w-full min-w-0 flex-1 overflow-hidden whitespace-nowrap">
             {selected ? renderLabel(selected) : <span className="truncate">{placeholder}</span>}
           </div>
 
@@ -79,7 +79,7 @@ export function GenericCombobox({
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList
-            className="max-h-[min(15rem,calc(100svh-12rem))] overflow-y-auto overscroll-contain touch-pan-y pr-2"
+            className="max-h-[min(15rem,calc(100svh-12rem))] touch-pan-y overflow-y-auto overscroll-contain pr-2"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             <CommandEmpty>{emptyText}</CommandEmpty>

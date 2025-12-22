@@ -13,7 +13,7 @@ const FilterField = ({ label, children, className, labelClassName }: FilterField
   <div className={cn("space-y-2", className)}>
     <label
       className={cn(
-        "text-xs font-semibold uppercase tracking-wide text-muted-foreground",
+        "text-muted-foreground text-xs font-semibold tracking-wide uppercase",
         labelClassName,
       )}
     >

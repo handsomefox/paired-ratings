@@ -291,7 +291,7 @@ export function SearchPage() {
 
     const serverPage = searchQuery.data?.page;
     if (serverPage && serverPage !== page) setPage(serverPage);
-  }, [searchQuery.data?.page, page]);
+  }, [searchQuery.isPlaceholderData, searchQuery.data?.page, page]);
 
   useEffect(() => {
     if (searchQuery.isError) toast.error("Failed to load search results.");
@@ -415,7 +415,7 @@ export function SearchPage() {
       </FilterField>
 
       <FilterField label="Genres">
-        <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-3">
+        <div className="border-border/60 bg-card/60 space-y-3 rounded-xl border p-3">
           <Select value={genreMode} onValueChange={(value) => setGenreMode(value as "all" | "any")}>
             <SelectTrigger>
               <SelectValue placeholder="Match" />
@@ -429,10 +429,10 @@ export function SearchPage() {
           <ScrollArea className="h-48 pr-2">
             <div className="space-y-2">
               {searchGenresQuery.isLoading ? (
-                <div className="text-xs text-muted-foreground">Loading genres…</div>
+                <div className="text-muted-foreground text-xs">Loading genres…</div>
               ) : null}
               {!searchGenresQuery.isLoading && availableGenres.length === 0 ? (
-                <div className="text-xs text-muted-foreground">No genres found.</div>
+                <div className="text-muted-foreground text-xs">No genres found.</div>
               ) : null}
               {availableGenres.map((genre) => {
                 const id = String(genre.id);
@@ -441,7 +441,7 @@ export function SearchPage() {
                   <label key={genre.id} className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 accent-primary"
+                      className="accent-primary h-4 w-4"
                       checked={checked}
                       onChange={(event) => {
                         if (event.target.checked) setSelectedGenres((prev) => [...prev, id]);
@@ -458,7 +458,7 @@ export function SearchPage() {
       </FilterField>
 
       <FilterField label="Origin country">
-        <div className="min-w-0 w-full">
+        <div className="w-full min-w-0">
           <CountryCombobox
             value={originCountry}
             onValueChange={setOriginCountry}
@@ -470,7 +470,7 @@ export function SearchPage() {
       </FilterField>
 
       <FilterField label="Original language">
-        <div className="min-w-0 w-full">
+        <div className="w-full min-w-0">
           <LanguageCombobox
             value={originalLanguage}
             onValueChange={setOriginalLanguage}
@@ -586,7 +586,7 @@ export function SearchPage() {
           />
         </form>
 
-        <div className="text-xs text-muted-foreground">{renderResultsCount()}</div>
+        <div className="text-muted-foreground text-xs">{renderResultsCount()}</div>
 
         {isLoading ? <LoadingGrid /> : null}
 
@@ -649,7 +649,7 @@ export function SearchPage() {
                 onToggleOverview={() => toggleOverview(`${item.media_type}-${item.id}`)}
                 footer={
                   item.in_library ? (
-                    <Badge className="w-fit bg-primary/15 text-primary">In library</Badge>
+                    <Badge className="bg-primary/15 text-primary w-fit">In library</Badge>
                   ) : (
                     <div className="flex gap-2">
                       <Button

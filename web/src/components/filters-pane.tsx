@@ -101,20 +101,20 @@ const FiltersPane = ({
           </SheetTrigger>
           <SheetContent
             side="left"
-            className="flex h-[100svh] w-[100vw] sm:w-[320px] flex-col overflow-hidden bg-card text-foreground"
+            className="bg-card text-foreground flex h-[100svh] w-[100vw] flex-col overflow-hidden sm:w-[320px]"
           >
             <SheetHeader>
               <SheetTitle>{title}</SheetTitle>
             </SheetHeader>
             <div
               ref={scrollRef}
-              className="mt-6 flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-20"
+              className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-20"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
               {filters}
             </div>
 
-            <div className="absolute inset-x-0 bottom-0 border-t bg-card p-4 lg:hidden">
+            <div className="bg-card absolute inset-x-0 bottom-0 border-t p-4 lg:hidden">
               <Button className="w-full" onClick={() => onOpenChange(false)}>
                 Done
               </Button>
@@ -125,8 +125,8 @@ const FiltersPane = ({
 
       <div className={cn("grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]", gridClassName)}>
         <aside className="hidden lg:block">
-          <div className="sticky top-24 max-h-[calc(100svh-6rem)] overflow-y-auto rounded-2xl border border-border/60 bg-card/70 p-5 pr-4 shadow-lg">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="border-border/60 bg-card/70 sticky top-24 max-h-[calc(100svh-6rem)] overflow-y-auto rounded-2xl border p-5 pr-4 shadow-lg">
+            <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
               {title}
             </div>
             <div className="mt-5">{filters}</div>

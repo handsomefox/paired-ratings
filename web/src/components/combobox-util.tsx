@@ -21,7 +21,7 @@ export function OptionLabel({
     <div className="flex min-w-0 items-center gap-2">
       {emoji ? <span className="shrink-0">{emoji}</span> : null}
       <span className="min-w-0 flex-1 truncate">{primary}</span>
-      <span className="shrink-0 text-muted-foreground">{code}</span>
+      <span className="text-muted-foreground shrink-0">{code}</span>
     </div>
   );
 }

@@ -9,7 +9,7 @@ type FiltersPaneContentProps = {
 export function FiltersPaneContent({ children, className }: FiltersPaneContentProps) {
   return (
     <div className={cn("w-full min-w-0", className)}>
-      <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 space-y-4">{children}</div>
+      <div className="mx-auto w-full max-w-5xl space-y-4 px-4 sm:px-6">{children}</div>
     </div>
   );
 }

@@ -47,7 +47,7 @@ export function OriginCountriesChip({
           </Badge>
         </HoverCardTrigger>
         <HoverCardContent className="w-64">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             {title}
           </div>
           <ScrollArea className="mt-2 pr-2" style={{ maxHeight: maxListHeight }}>

@@ -225,7 +225,7 @@ export function LibraryPage() {
         </FilterField>
 
         <FilterField label="Genre">
-          <div className="min-w-0 w-full">
+          <div className="w-full min-w-0">
             <GenreCombobox
               value={genre}
               onValueChange={setGenre}
@@ -237,7 +237,7 @@ export function LibraryPage() {
         </FilterField>
 
         <FilterField label="Origin country">
-          <div className="min-w-0 w-full">
+          <div className="w-full min-w-0">
             <CountryCombobox
               value={originCountry}
               onValueChange={setOriginCountry}
@@ -285,11 +285,11 @@ export function LibraryPage() {
         </FilterField>
       </div>
 
-      <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
+      <div className="border-border/60 bg-muted/40 flex items-center gap-3 rounded-xl border px-3 py-2">
         <Checkbox checked={unrated} onCheckedChange={(value) => setUnrated(Boolean(value))} />
         <div>
           <div className="text-sm font-medium">Unrated only</div>
-          <div className="text-xs text-muted-foreground">Hide anything with ratings.</div>
+          <div className="text-muted-foreground text-xs">Hide anything with ratings.</div>
         </div>
       </div>
 
@@ -340,7 +340,7 @@ export function LibraryPage() {
         headerClassName="flex-wrap items-end gap-4"
       >
         <FiltersPaneContent>
-          <div className="text-xs text-muted-foreground">{renderCount()}</div>
+          <div className="text-muted-foreground text-xs">{renderCount()}</div>
 
           {isInitialLoading ? <LoadingGrid /> : null}
 
