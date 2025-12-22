@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
+import { api, type SessionResponse } from "@/lib/api";
 import { withViewTransition } from "@/lib/view-transitions";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { FormEvent } from "react";
 import { useState } from "react";
@@ -31,6 +31,20 @@ export function LoginPage() {
     setError("");
     loginMutation.mutate({ password });
   };
+
+  const sessionQuery = useQuery({
+    queryKey: ["session"],
+    queryFn: api.session,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
+  });
+
+  if (isAuthenticated(sessionQuery.data)) {
+    return navigate({ to: "/" });
+  }
 
   return (
     <section className="flex min-h-[70vh] items-center justify-center">
@@ -60,4 +74,18 @@ export function LoginPage() {
       </Card>
     </section>
   );
+}
+
+function isAuthenticated(session: unknown): boolean {
+  if (!session) return false;
+
+  if (
+    typeof session === "object" &&
+    session !== null &&
+    (session as SessionResponse).authenticated === true
+  ) {
+    return true;
+  }
+
+  return false;
 }
