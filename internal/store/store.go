@@ -24,6 +24,8 @@ type Store struct {
 	db    *bun.DB
 }
 
+// Cache used only for schema checks on startup.
+// Key format: "<table>.<column>" -> bool.
 var hasColumnCache sync.Map
 
 type Show struct {
@@ -88,10 +90,22 @@ func Open(dbPath string) (*Store, error) {
 		return nil, err
 	}
 
+	// SQLite behaves best with a small connection pool.
+	sqldb.SetMaxOpenConns(1)
+	sqldb.SetMaxIdleConns(1)
+	sqldb.SetConnMaxLifetime(0)
+
 	ctx := context.Background()
 	if err := sqldb.PingContext(ctx); err != nil {
 		if cerr := sqldb.Close(); cerr != nil {
 			return nil, fmt.Errorf("ping db: %w; close failed: %w", err, cerr)
+		}
+		return nil, err
+	}
+
+	if err := applyPragmas(ctx, sqldb); err != nil {
+		if cerr := sqldb.Close(); cerr != nil {
+			return nil, fmt.Errorf("apply pragmas: %w; close failed: %w", err, cerr)
 		}
 		return nil, err
 	}
@@ -107,9 +121,34 @@ func Open(dbPath string) (*Store, error) {
 	return &Store{sqldb: sqldb, db: bdb}, nil
 }
 
-func (s *Store) Close() error { return s.sqldb.Close() }
+func (s *Store) Close() error {
+	if s == nil || s.sqldb == nil {
+		return nil
+	}
+	return s.sqldb.Close()
+}
+
+func applyPragmas(ctx context.Context, db *sql.DB) error {
+	stmts := []string{
+		"PRAGMA journal_mode = WAL;",
+		"PRAGMA busy_timeout = 5000;",
+	}
+
+	for _, stmt := range stmts {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func initSchema(ctx context.Context, db *sql.DB) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	schema := `
 CREATE TABLE IF NOT EXISTS shows (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,54 +175,65 @@ CREATE TABLE IF NOT EXISTS shows (
 CREATE INDEX IF NOT EXISTS idx_shows_status ON shows(status);
 CREATE INDEX IF NOT EXISTS idx_shows_year ON shows(year);
 `
-	if _, err := db.ExecContext(ctx, schema); err != nil {
+	if _, err := tx.ExecContext(ctx, schema); err != nil {
 		return err
 	}
 
-	if err := addColumnIfMissing(ctx, db, "shows", "imdb_id", "ALTER TABLE shows ADD COLUMN imdb_id TEXT"); err != nil {
+	// Migrations for older DB files where the table already exists but columns were added later.
+	if err := addColumnIfMissingTx(ctx, tx, "shows", "imdb_id", "ALTER TABLE shows ADD COLUMN imdb_id TEXT"); err != nil {
 		return err
 	}
-	if err := addColumnIfMissing(ctx, db, "shows", "tmdb_rating", "ALTER TABLE shows ADD COLUMN tmdb_rating REAL"); err != nil {
+	if err := addColumnIfMissingTx(ctx, tx, "shows", "tmdb_rating", "ALTER TABLE shows ADD COLUMN tmdb_rating REAL"); err != nil {
 		return err
 	}
-	if err := addColumnIfMissing(ctx, db, "shows", "tmdb_votes", "ALTER TABLE shows ADD COLUMN tmdb_votes INTEGER"); err != nil {
+	if err := addColumnIfMissingTx(ctx, tx, "shows", "tmdb_votes", "ALTER TABLE shows ADD COLUMN tmdb_votes INTEGER"); err != nil {
 		return err
 	}
-	if err := addColumnIfMissing(ctx, db, "shows", "origin_country", "ALTER TABLE shows ADD COLUMN origin_country TEXT"); err != nil {
+	if err := addColumnIfMissingTx(ctx, tx, "shows", "origin_country", "ALTER TABLE shows ADD COLUMN origin_country TEXT"); err != nil {
 		return err
 	}
-	return nil
+
+	return tx.Commit()
 }
 
-func addColumnIfMissing(ctx context.Context, db *sql.DB, table, column, statement string) error {
-	has, err := hasColumn(ctx, db, table, column)
+func addColumnIfMissingTx(ctx context.Context, tx *sql.Tx, table, column, statement string) error {
+	cacheKey := table + "." + column
+
+	has, err := hasColumnTx(ctx, tx, table, column)
 	if err != nil {
 		return err
 	}
 	if has {
 		return nil
 	}
-	_, err = db.ExecContext(ctx, statement)
-	if err != nil {
-		has2, herr := hasColumn(ctx, db, table, column)
+
+	if _, err := tx.ExecContext(ctx, statement); err != nil {
+		// If it failed because the column already exists (or concurrent init),
+		// the column will be visible now. Treat that as success.
+		hasColumnCache.Delete(cacheKey)
+		has2, herr := hasColumnTx(ctx, tx, table, column)
 		if herr == nil && has2 {
+			hasColumnCache.Store(cacheKey, true)
 			return nil
 		}
+		return err
 	}
-	return err
+
+	hasColumnCache.Store(cacheKey, true)
+	return nil
 }
 
-func hasColumn(ctx context.Context, db *sql.DB, table, column string) (bool, error) {
+func hasColumnTx(ctx context.Context, tx *sql.Tx, table, column string) (bool, error) {
 	cacheKey := table + "." + column
 	if cached, ok := hasColumnCache.Load(cacheKey); ok {
 		return cached.(bool), nil
 	}
 
-	//nolint:gosec // table is controlled in this package.
-	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
+	rows, err := tx.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
 		return false, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var cid int
@@ -193,38 +243,35 @@ func hasColumn(ctx context.Context, db *sql.DB, table, column string) (bool, err
 		var dflt sql.Null[string]
 		var pk int
 		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
-			if cerr := rows.Close(); cerr != nil {
-				return false, cerr
-			}
 			return false, err
 		}
 		if name == column {
-			if cerr := rows.Close(); cerr != nil {
-				return false, cerr
-			}
 			hasColumnCache.Store(cacheKey, true)
 			return true, nil
 		}
 	}
 	if err := rows.Err(); err != nil {
-		if cerr := rows.Close(); cerr != nil {
-			return false, cerr
-		}
 		return false, err
-	}
-	if cerr := rows.Close(); cerr != nil {
-		return false, cerr
 	}
 
 	hasColumnCache.Store(cacheKey, false)
 	return false, nil
 }
 
+func nowUTC() string {
+	return time.Now().UTC().Format(time.RFC3339)
+}
+
 func (s *Store) UpsertShow(ctx context.Context, show *Show) (int64, error) {
-	now := time.Now().UTC().Format(time.RFC3339)
+	if show == nil {
+		return 0, errors.New("show is nil")
+	}
+
+	now := nowUTC()
 
 	// Copy to avoid mutating caller-owned object.
 	sh := *show
+
 	sh.CreatedAt = now
 	sh.UpdatedAt = now
 
@@ -234,7 +281,7 @@ func (s *Store) UpsertShow(ctx context.Context, show *Show) (int64, error) {
 	sh.BfComment = sql.Null[string]{}
 	sh.GfComment = sql.Null[string]{}
 
-	res, err := s.db.NewInsert().
+	_, err := s.db.NewInsert().
 		Model(&sh).
 		Column(
 			"tmdb_id",
@@ -273,10 +320,6 @@ func (s *Store) UpsertShow(ctx context.Context, show *Show) (int64, error) {
 		return 0, err
 	}
 
-	id, err := res.LastInsertId()
-	if err == nil && id != 0 {
-		return id, nil
-	}
 	return s.GetShowIDByTMDB(ctx, sh.TMDBID, sh.MediaType)
 }
 
@@ -287,6 +330,7 @@ func (s *Store) GetShowIDByTMDB(ctx context.Context, tmdbID int64, mediaType str
 		Column("id").
 		Where("tmdb_id = ?", tmdbID).
 		Where("media_type = ?", mediaType).
+		Limit(1).
 		Scan(ctx, &id)
 	if err != nil {
 		return 0, err
@@ -316,7 +360,7 @@ func (s *Store) UpdateRatings(ctx context.Context, id int64, update RatingsUpdat
 		return errors.New("no ratings fields provided")
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowUTC()
 
 	q := s.db.NewUpdate().
 		Table("shows").
@@ -345,7 +389,7 @@ func (s *Store) UpdateRatings(ctx context.Context, id int64, update RatingsUpdat
 }
 
 func (s *Store) UpdateStatus(ctx context.Context, id int64, status string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowUTC()
 
 	res, err := s.db.NewUpdate().
 		Table("shows").
@@ -360,7 +404,7 @@ func (s *Store) UpdateStatus(ctx context.Context, id int64, status string) error
 }
 
 func (s *Store) ClearRatings(ctx context.Context, id int64) error {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := nowUTC()
 
 	res, err := s.db.NewUpdate().
 		Table("shows").
@@ -399,14 +443,14 @@ func expectRowsAffected(res sql.Result) error {
 	return nil
 }
 
-func (s *Store) InLibraryByTMDB(ctx context.Context, refs []TMDBRef) (out map[TMDBRef]bool, err error) {
-	out = make(map[TMDBRef]bool, len(refs))
+func (s *Store) InLibraryByTMDB(ctx context.Context, refs []TMDBRef) (map[TMDBRef]bool, error) {
+	out := make(map[TMDBRef]bool, len(refs))
 	if len(refs) == 0 {
 		return out, nil
 	}
 
 	seen := make(map[TMDBRef]struct{}, len(refs))
-	var uniq []TMDBRef
+	uniq := make([]TMDBRef, 0, len(refs))
 	for _, ref := range refs {
 		ref.MediaType = strings.TrimSpace(ref.MediaType)
 		if ref.ID == 0 || ref.MediaType == "" {
@@ -418,7 +462,6 @@ func (s *Store) InLibraryByTMDB(ctx context.Context, refs []TMDBRef) (out map[TM
 		seen[ref] = struct{}{}
 		uniq = append(uniq, ref)
 	}
-
 	if len(uniq) == 0 {
 		return out, nil
 	}
@@ -504,9 +547,9 @@ END DESC
 	return out, err
 }
 
-func (s *Store) ListAllGenres(ctx context.Context) (out []string, err error) {
+func (s *Store) ListAllGenres(ctx context.Context) ([]string, error) {
 	var rows []string
-	err = s.db.NewSelect().
+	err := s.db.NewSelect().
 		Table("shows").
 		Column("genres").
 		Where("genres IS NOT NULL").
@@ -527,7 +570,7 @@ func (s *Store) ListAllGenres(ctx context.Context) (out []string, err error) {
 		}
 	}
 
-	out = make([]string, 0, len(seen))
+	out := make([]string, 0, len(seen))
 	for g := range seen {
 		out = append(out, g)
 	}
@@ -538,9 +581,9 @@ func (s *Store) ListAllGenres(ctx context.Context) (out []string, err error) {
 	return out, nil
 }
 
-func (s *Store) ListAllCountries(ctx context.Context) (out []string, err error) {
+func (s *Store) ListAllCountries(ctx context.Context) ([]string, error) {
 	var rows []string
-	err = s.db.NewSelect().
+	err := s.db.NewSelect().
 		Table("shows").
 		Column("origin_country").
 		Where("origin_country IS NOT NULL").
@@ -561,7 +604,7 @@ func (s *Store) ListAllCountries(ctx context.Context) (out []string, err error) 
 		}
 	}
 
-	out = make([]string, 0, len(seen))
+	out := make([]string, 0, len(seen))
 	for code := range seen {
 		out = append(out, code)
 	}
@@ -572,9 +615,9 @@ func (s *Store) ListAllCountries(ctx context.Context) (out []string, err error) 
 	return out, nil
 }
 
-func (s *Store) ListTMDBMissing(ctx context.Context) (out []TMDBRefresh, err error) {
-	out = []TMDBRefresh{}
-	err = s.db.NewSelect().
+func (s *Store) ListTMDBMissing(ctx context.Context) ([]TMDBRefresh, error) {
+	out := []TMDBRefresh{}
+	err := s.db.NewSelect().
 		Table("shows").
 		Column("tmdb_id", "media_type", "status").
 		Where("tmdb_rating IS NULL OR tmdb_votes IS NULL OR imdb_id IS NULL OR origin_country IS NULL OR origin_country = ''").
