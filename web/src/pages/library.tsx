@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { ApiShow } from "@/lib/api";
 import { formatScore, formatVotes, shortGenres } from "@/lib/utils";
@@ -102,6 +102,7 @@ export function LibraryPage() {
   const showsQuery = useQuery({
     queryKey: ["shows", params.toString()],
     queryFn: () => api.listShows(params),
+    placeholderData: keepPreviousData,
   });
 
   const refreshMutation = useMutation({
@@ -285,7 +286,7 @@ export function LibraryPage() {
       <FiltersPane filtersOpen={filtersOpen} onOpenChange={setFiltersOpen} filters={FiltersForm}>
         <CardGrid>
           {showsQuery.isLoading ? <Loading label="Loading..." /> : null}
-          {!showsQuery.isLoading && !shows.length ? (
+          {!showsQuery.isLoading && !showsQuery.isFetching && !shows.length ? (
             <EmptyState className="col-span-full p-12">
               No shows yet. Use “Add” to pull from TMDB.
             </EmptyState>

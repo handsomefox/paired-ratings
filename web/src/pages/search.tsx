@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { SearchResponse, SearchResult } from "@/lib/api";
@@ -232,6 +238,7 @@ export function SearchPage() {
     queryFn: ({ pageParam }) => api.search(buildParams(pageParam)),
     getNextPageParam: (lastPage) =>
       lastPage.page < lastPage.total_pages ? lastPage.page + 1 : undefined,
+    placeholderData: keepPreviousData,
 
     staleTime: 30_000,
     refetchOnWindowFocus: false,
@@ -540,7 +547,7 @@ export function SearchPage() {
 
         {searchQuery.isLoading ? <Loading label="Loading..." /> : null}
 
-        {!searchQuery.isLoading && !results.length && enabled ? (
+        {!searchQuery.isLoading && !searchQuery.isFetching && !results.length && enabled ? (
           <EmptyState>No results yet.</EmptyState>
         ) : null}
 
