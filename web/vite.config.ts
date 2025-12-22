@@ -15,7 +15,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "assets/logo.png"],
+      includeAssets: ["favicon.ico", "assets/apple-touch-icon.png", "assets/logo.png"],
       manifest: {
         name: "Paired Ratings",
         short_name: "Paired Ratings",
@@ -26,10 +26,9 @@ export default defineConfig({
         theme_color: "#0B3B38",
         background_color: "#0E131D",
         icons: [
-          { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
-          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+          { src: "/assets/pwa-192x192.png", sizes: "192x192", type: "image/png" },
           {
-            src: "/pwa-512x512.png",
+            src: "/assets/pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable",
