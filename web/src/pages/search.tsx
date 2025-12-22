@@ -328,26 +328,10 @@ export function SearchPage() {
     return `Total results ${loaded}`;
   };
 
-  const pageItems = useMemo(() => {
-    if (totalPages <= 1) return [];
-    const items: Array<number | "ellipsis"> = [];
-
-    if (totalPages <= 5) {
-      for (let i = 1; i <= totalPages; i += 1) items.push(i);
-      return items;
-    }
-
-    items.push(1);
-    const start = Math.max(2, currentPage - 1);
-    const end = Math.min(totalPages - 1, currentPage + 1);
-
-    if (start > 2) items.push("ellipsis");
-    for (let i = start; i <= end; i += 1) items.push(i);
-    if (end < totalPages - 1) items.push("ellipsis");
-
-    items.push(totalPages);
-    return items;
-  }, [currentPage, totalPages]);
+  const pageItems = useMemo(
+    () => getPageItems(totalPages, currentPage, 3),
+    [totalPages, currentPage],
+  );
 
   const didMountRef = useRef(false);
   useEffect(() => {
@@ -737,4 +721,40 @@ export function SearchPage() {
       </FiltersPaneContent>
     </FiltersPane>
   );
+}
+
+function getPageItems(
+  totalPages: number,
+  currentPage: number,
+  siblingCount = 2,
+  boundaryCount = 1,
+): Array<number | "ellipsis"> {
+  const clamp = (n: number) => Math.max(1, Math.min(totalPages, n));
+
+  const startPages = Array.from({ length: Math.min(boundaryCount, totalPages) }, (_, i) => i + 1);
+  const endPages = Array.from(
+    { length: Math.min(boundaryCount, totalPages) },
+    (_, i) => totalPages - (Math.min(boundaryCount, totalPages) - 1) + i,
+  );
+
+  const siblingsStart = clamp(currentPage - siblingCount);
+  const siblingsEnd = clamp(currentPage + siblingCount);
+
+  const innerStart = Math.max(siblingsStart, boundaryCount + 1);
+  const innerEnd = Math.min(siblingsEnd, totalPages - boundaryCount);
+
+  const items: Array<number | "ellipsis"> = [];
+
+  startPages.forEach((p) => items.push(p));
+
+  if (innerStart > boundaryCount + 1) items.push("ellipsis");
+  for (let p = innerStart; p <= innerEnd; p++) items.push(p);
+
+  if (innerEnd < totalPages - boundaryCount) items.push("ellipsis");
+
+  endPages.forEach((p) => {
+    if (!items.includes(p)) items.push(p);
+  });
+
+  return items;
 }
