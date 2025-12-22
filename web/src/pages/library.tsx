@@ -2,12 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { ApiShow } from "@/lib/api";
-import { combinedRating, formatScore, formatVotes, ratingText, shortGenres } from "@/lib/utils";
+import { formatScore, formatVotes, shortGenres } from "@/lib/utils";
 import { Loading } from "@/components/loading";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShowCard } from "@/components/show-card";
+import CardGrid from "@/components/card-grid";
+import EmptyState from "@/components/empty-state";
+import FilterField from "@/components/filter-field";
+import RatingChips from "@/components/rating-chips";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import FiltersPane from "@/components/filters-pane";
 import {
   Select,
   SelectContent,
@@ -176,10 +180,7 @@ export function LibraryPage() {
   const FiltersForm = (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-        <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Status
-          </label>
+        <FilterField label="Status">
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger>
               <SelectValue placeholder="Status" />
@@ -192,11 +193,8 @@ export function LibraryPage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Genre
-          </label>
+        </FilterField>
+        <FilterField label="Genre">
           <Select
             value={genre || anyGenreValue}
             onValueChange={(value) => setGenre(value === anyGenreValue ? "" : value)}
@@ -213,11 +211,8 @@ export function LibraryPage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Year from
-          </label>
+        </FilterField>
+        <FilterField label="Year from">
           <Input
             type="number"
             min={1900}
@@ -225,11 +220,8 @@ export function LibraryPage() {
             value={yearFrom}
             onChange={(event) => setYearFrom(event.target.value)}
           />
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Year to
-          </label>
+        </FilterField>
+        <FilterField label="Year to">
           <Input
             type="number"
             min={1900}
@@ -237,11 +229,8 @@ export function LibraryPage() {
             value={yearTo}
             onChange={(event) => setYearTo(event.target.value)}
           />
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Sort
-          </label>
+        </FilterField>
+        <FilterField label="Sort">
           <Select value={sort} onValueChange={setSort}>
             <SelectTrigger>
               <SelectValue placeholder="Sort" />
@@ -254,7 +243,7 @@ export function LibraryPage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </FilterField>
       </div>
       <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
         <Checkbox checked={unrated} onCheckedChange={(value) => setUnrated(Boolean(value))} />
@@ -292,38 +281,14 @@ export function LibraryPage() {
   );
 
   return (
-    <section className="space-y-6">
-      <div className="flex items-center justify-end gap-2">
-        <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" className="lg:hidden">
-              Filters
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[320px] overflow-y-auto bg-card text-foreground">
-            <SheetHeader>
-              <SheetTitle>Filters</SheetTitle>
-            </SheetHeader>
-            <div className="mt-6">{FiltersForm}</div>
-          </SheetContent>
-        </Sheet>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="hidden lg:block">
-          <div className="sticky top-24 rounded-2xl border border-border/60 bg-card/70 p-5 shadow-lg">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Filters
-            </div>
-            <div className="mt-5">{FiltersForm}</div>
-          </div>
-        </aside>
-        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <>
+      <FiltersPane filtersOpen={filtersOpen} onOpenChange={setFiltersOpen} filters={FiltersForm}>
+        <CardGrid>
           {showsQuery.isLoading ? <Loading label="Loading..." /> : null}
           {!showsQuery.isLoading && !shows.length ? (
-            <div className="col-span-full rounded-2xl border border-dashed border-border/60 bg-card/30 p-12 text-center text-sm text-muted-foreground">
+            <EmptyState className="col-span-full p-12">
               No shows yet. Use “Add” to pull from TMDB.
-            </div>
+            </EmptyState>
           ) : null}
           {shows.map((show) => (
             <ShowCard
@@ -376,26 +341,11 @@ export function LibraryPage() {
               }
               genresText={show.genres ? shortGenres(show.genres) : ""}
               overview={show.overview}
-              footer={
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <div className="inline-flex items-center gap-1 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-teal-200">
-                    <span>★</span>
-                    <strong>{ratingText(show.bf_rating)}</strong>
-                  </div>
-                  <div className="inline-flex items-center gap-1 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-purple-200">
-                    <span>★</span>
-                    <strong>{ratingText(show.gf_rating)}</strong>
-                  </div>
-                  <div className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-foreground">
-                    <span>★</span>
-                    <strong>{combinedRating(show.bf_rating, show.gf_rating)}</strong>
-                  </div>
-                </div>
-              }
+              footer={<RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />}
             />
           ))}
-        </section>
-      </div>
+        </CardGrid>
+      </FiltersPane>
 
       <AlertDialog
         open={Boolean(pendingDelete)}
@@ -420,6 +370,6 @@ export function LibraryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </section>
+    </>
   );
 }

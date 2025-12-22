@@ -8,6 +8,9 @@ import { formatScore, formatVotes, shortGenreList } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShowCard } from "@/components/show-card";
+import CardGrid from "@/components/card-grid";
+import EmptyState from "@/components/empty-state";
+import FilterField from "@/components/filter-field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -17,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import FiltersPane from "@/components/filters-pane";
 import { toast } from "sonner";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 
@@ -372,10 +375,7 @@ export function SearchPage() {
 
   const FiltersForm = (
     <div className="space-y-5">
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Type
-        </label>
+      <FilterField label="Type">
         <Select value={mediaType} onValueChange={setMediaType}>
           <SelectTrigger>
             <SelectValue placeholder="All" />
@@ -388,13 +388,10 @@ export function SearchPage() {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </FilterField>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Year from
-          </label>
+        <FilterField label="Year from">
           <Input
             type="number"
             min={1900}
@@ -402,11 +399,8 @@ export function SearchPage() {
             value={yearFrom}
             onChange={(event) => setYearFrom(event.target.value)}
           />
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Year to
-          </label>
+        </FilterField>
+        <FilterField label="Year to">
           <Input
             type="number"
             min={1900}
@@ -414,13 +408,10 @@ export function SearchPage() {
             value={yearTo}
             onChange={(event) => setYearTo(event.target.value)}
           />
-        </div>
+        </FilterField>
       </div>
 
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Min TMDB rating
-        </label>
+      <FilterField label="Min TMDB rating">
         <Input
           type="number"
           min={0}
@@ -429,12 +420,9 @@ export function SearchPage() {
           value={minRating}
           onChange={(event) => setMinRating(event.target.value)}
         />
-      </div>
+      </FilterField>
 
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Min reviews
-        </label>
+      <FilterField label="Min reviews">
         <Input
           type="number"
           min={0}
@@ -443,12 +431,9 @@ export function SearchPage() {
           value={minVotes}
           onChange={(event) => setMinVotes(event.target.value)}
         />
-      </div>
+      </FilterField>
 
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Sort
-        </label>
+      <FilterField label="Sort">
         <Select value={sort} onValueChange={setSort}>
           <SelectTrigger>
             <SelectValue placeholder="Sort" />
@@ -461,12 +446,9 @@ export function SearchPage() {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </FilterField>
 
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Genres
-        </label>
+      <FilterField label="Genres">
         {mediaType === "all" ? (
           <div className="rounded-xl border border-dashed border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
             Choose Movie or TV to filter by genre.
@@ -482,7 +464,7 @@ export function SearchPage() {
                 <SelectItem value="any">Match any selected</SelectItem>
               </SelectContent>
             </Select>
-            <div className="max-h-[45vh] space-y-2 overflow-y-auto lg:max-h-48">
+            <div className="space-y-2 lg:max-h-48 lg:overflow-y-auto">
               {searchGenresQuery.isLoading ? (
                 <div className="text-xs text-muted-foreground">Loading genres…</div>
               ) : null}
@@ -513,7 +495,7 @@ export function SearchPage() {
             </div>
           </div>
         )}
-      </div>
+      </FilterField>
       <Separator />
       <Button
         type="button"
@@ -535,139 +517,112 @@ export function SearchPage() {
   );
 
   return (
-    <section className="space-y-6">
-      <div className="flex flex-wrap items-end justify-end gap-4">
-        <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" className="lg:hidden">
-              Filters
-            </Button>
-          </SheetTrigger>
-          <SheetContent
-            side="left"
-            className="flex h-full w-[320px] flex-col bg-card text-foreground"
-          >
-            <SheetHeader>
-              <SheetTitle>Filters</SheetTitle>
-            </SheetHeader>
-            <div className="mt-6 flex-1 overflow-y-auto pr-1">{FiltersForm}</div>
-          </SheetContent>
-        </Sheet>
-      </div>
+    <FiltersPane
+      filtersOpen={filtersOpen}
+      onOpenChange={setFiltersOpen}
+      filters={FiltersForm}
+      headerClassName="flex-wrap items-end gap-4"
+    >
+      <div className="space-y-4">
+        <form className="flex w-full justify-center" onSubmit={(event) => event.preventDefault()}>
+          <Input
+            type="text"
+            name="q"
+            placeholder="Search TMDB"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            autoFocus
+            className="w-full max-w-md"
+          />
+        </form>
 
-      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="hidden lg:block">
-          <div className="sticky top-24 rounded-2xl border border-border/60 bg-card/70 p-5 shadow-lg">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Filters
-            </div>
-            <div className="mt-5">{FiltersForm}</div>
-          </div>
-        </aside>
+        <div className="text-xs text-muted-foreground">{renderResultsCount()}</div>
 
-        <div className="space-y-4">
-          <form className="flex w-full justify-center" onSubmit={(event) => event.preventDefault()}>
-            <Input
-              type="text"
-              name="q"
-              placeholder="Search TMDB"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              autoFocus
-              className="w-full max-w-md"
+        {searchQuery.isLoading ? <Loading label="Loading..." /> : null}
+
+        {!searchQuery.isLoading && !results.length && enabled ? (
+          <EmptyState>No results yet.</EmptyState>
+        ) : null}
+
+        <CardGrid>
+          {results.map((item) => (
+            <ShowCard
+              key={`${item.media_type}-${item.id}`}
+              title={item.title}
+              year={item.year}
+              posterAlt={item.title}
+              posterPath={item.poster_path}
+              imageBase={imageBase}
+              posterLink={(node) => (
+                <button
+                  type="button"
+                  className="block w-full cursor-pointer text-left"
+                  onClick={() => void handleOpenImdb(item)}
+                  aria-label={`Search IMDb for ${item.title}`}
+                >
+                  {node}
+                </button>
+              )}
+              metaBadges={
+                <>
+                  <Badge variant="secondary">
+                    {item.vote_average ? (
+                      <>
+                        {formatScore(item.vote_average)}
+                        {item.vote_count ? ` (${formatVotes(item.vote_count)})` : ""}
+                      </>
+                    ) : (
+                      "No TMDB score"
+                    )}
+                  </Badge>
+                  <Badge variant="outline">
+                    {item.media_type === "movie"
+                      ? "Movie"
+                      : item.media_type === "tv"
+                        ? "TV"
+                        : item.media_type}
+                  </Badge>
+                </>
+              }
+              genresText={item.genres?.length ? shortGenreList(item.genres) : ""}
+              overview={item.overview}
+              overviewExpanded={expandedOverviews.has(`${item.media_type}-${item.id}`)}
+              onToggleOverview={() => toggleOverview(`${item.media_type}-${item.id}`)}
+              footer={
+                item.in_library ? (
+                  <Badge className="w-fit bg-primary/15 text-primary">In library</Badge>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20"
+                      onClick={() => handleAdd(item, "planned")}
+                      disabled={addMutation.isPending}
+                    >
+                      Plan
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="border-teal-500/40 bg-teal-500/10 text-teal-200 hover:bg-teal-500/20"
+                      onClick={() => handleAdd(item, "watched")}
+                      disabled={addMutation.isPending}
+                    >
+                      Watched
+                    </Button>
+                  </div>
+                )
+              }
             />
-          </form>
+          ))}
+        </CardGrid>
 
-          <div className="text-xs text-muted-foreground">{renderResultsCount()}</div>
+        <div ref={sentinelRef} />
 
-          {searchQuery.isLoading ? <Loading label="Loading..." /> : null}
-
-          {!searchQuery.isLoading && !results.length && enabled ? (
-            <div className="rounded-2xl border border-dashed border-border/60 bg-card/30 p-10 text-center text-sm text-muted-foreground">
-              No results yet.
-            </div>
-          ) : null}
-
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {results.map((item) => (
-              <ShowCard
-                key={`${item.media_type}-${item.id}`}
-                title={item.title}
-                year={item.year}
-                posterAlt={item.title}
-                posterPath={item.poster_path}
-                imageBase={imageBase}
-                posterLink={(node) => (
-                  <button
-                    type="button"
-                    className="block w-full cursor-pointer text-left"
-                    onClick={() => void handleOpenImdb(item)}
-                    aria-label={`Search IMDb for ${item.title}`}
-                  >
-                    {node}
-                  </button>
-                )}
-                metaBadges={
-                  <>
-                    <Badge variant="secondary">
-                      {item.vote_average ? (
-                        <>
-                          {formatScore(item.vote_average)}
-                          {item.vote_count ? ` (${formatVotes(item.vote_count)})` : ""}
-                        </>
-                      ) : (
-                        "No TMDB score"
-                      )}
-                    </Badge>
-                    <Badge variant="outline">
-                      {item.media_type === "movie"
-                        ? "Movie"
-                        : item.media_type === "tv"
-                          ? "TV"
-                          : item.media_type}
-                    </Badge>
-                  </>
-                }
-                genresText={item.genres?.length ? shortGenreList(item.genres) : ""}
-                overview={item.overview}
-                overviewExpanded={expandedOverviews.has(`${item.media_type}-${item.id}`)}
-                onToggleOverview={() => toggleOverview(`${item.media_type}-${item.id}`)}
-                footer={
-                  item.in_library ? (
-                    <Badge className="w-fit bg-primary/15 text-primary">In library</Badge>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20"
-                        onClick={() => handleAdd(item, "planned")}
-                        disabled={addMutation.isPending}
-                      >
-                        Plan
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="border-teal-500/40 bg-teal-500/10 text-teal-200 hover:bg-teal-500/20"
-                        onClick={() => handleAdd(item, "watched")}
-                        disabled={addMutation.isPending}
-                      >
-                        Watched
-                      </Button>
-                    </div>
-                  )
-                }
-              />
-            ))}
-          </div>
-
-          <div ref={sentinelRef} />
-
-          {isFetchingNextPage ? (
-            <div className="text-center text-xs text-muted-foreground">Loading more…</div>
-          ) : null}
-        </div>
+        {isFetchingNextPage ? (
+          <div className="text-center text-xs text-muted-foreground">Loading more…</div>
+        ) : null}
       </div>
-    </section>
+    </FiltersPane>
   );
 }
