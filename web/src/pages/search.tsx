@@ -2,6 +2,7 @@ import CardGrid from "@/components/card-grid";
 import { CountryCombobox } from "@/components/country-combobox";
 import FilterField from "@/components/filter-field";
 import FiltersPane from "@/components/filters-pane";
+import { FiltersPaneContent } from "@/components/filters-pane-content";
 import { LanguageCombobox } from "@/components/language-combobox";
 import { LoadingGrid } from "@/components/loading-grid";
 import { OriginCountriesChip } from "@/components/origin-countries-chip";
@@ -521,6 +522,7 @@ export function SearchPage() {
           anyLabel="Any"
         />
       </FilterField>
+
       <FilterField label="Original language">
         <LanguageCombobox
           value={originalLanguage}
@@ -590,6 +592,7 @@ export function SearchPage() {
       </FilterField>
 
       <Separator />
+
       <Button
         type="button"
         variant="ghost"
@@ -612,6 +615,9 @@ export function SearchPage() {
     </div>
   );
 
+  const isInitialLoading =
+    searchQuery.isLoading || (searchQuery.isFetching && results.length === 0);
+
   return (
     <FiltersPane
       filtersOpen={filtersOpen}
@@ -619,7 +625,7 @@ export function SearchPage() {
       filters={FiltersForm}
       headerClassName="flex-wrap items-end gap-4"
     >
-      <div className="space-y-4">
+      <FiltersPaneContent>
         <form className="flex w-full justify-center" onSubmit={(event) => event.preventDefault()}>
           <Input
             type="text"
@@ -634,9 +640,7 @@ export function SearchPage() {
 
         <div className="text-xs text-muted-foreground">{renderResultsCount()}</div>
 
-        {searchQuery.isLoading || (searchQuery.isFetching && results.length === 0) ? (
-          <LoadingGrid />
-        ) : null}
+        {isInitialLoading ? <LoadingGrid /> : null}
 
         {!searchQuery.isLoading && !searchQuery.isFetching && !results.length && enabled ? (
           <Empty className="border-border/60 bg-card/30">
@@ -726,7 +730,7 @@ export function SearchPage() {
 
         {totalPages > 1 ? (
           <Pagination className="pt-6">
-            <PaginationContent>
+            <PaginationContent className="flex-wrap justify-center">
               <PaginationItem>
                 <PaginationPrevious
                   href="#"
@@ -739,6 +743,7 @@ export function SearchPage() {
                   }}
                 />
               </PaginationItem>
+
               {pageItems.map((item, index) => (
                 <PaginationItem key={`${item}-${index}`}>
                   {item === "ellipsis" ? (
@@ -758,6 +763,7 @@ export function SearchPage() {
                   )}
                 </PaginationItem>
               ))}
+
               <PaginationItem>
                 <PaginationNext
                   href="#"
@@ -773,7 +779,7 @@ export function SearchPage() {
             </PaginationContent>
           </Pagination>
         ) : null}
-      </div>
+      </FiltersPaneContent>
     </FiltersPane>
   );
 }

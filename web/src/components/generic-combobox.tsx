@@ -71,8 +71,11 @@ export function GenericCombobox({
 
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
-          <CommandList className="max-h-60">
+          <CommandInput placeholder={searchPlaceholder} />{" "}
+          <CommandList
+            className="max-h-[min(15rem,calc(100svh-12rem))] overflow-y-auto overscroll-contain touch-pan-y"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               <CommandItem

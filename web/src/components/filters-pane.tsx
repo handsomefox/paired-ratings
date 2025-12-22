@@ -101,7 +101,7 @@ const FiltersPane = ({
           </SheetTrigger>
           <SheetContent
             side="left"
-            className="flex h-[100svh] w-[320px] flex-col overflow-hidden bg-card text-foreground"
+            className="flex h-[100svh] w-[100vw] sm:w-[320px] flex-col overflow-hidden bg-card text-foreground"
           >
             <SheetHeader>
               <SheetTitle>{title}</SheetTitle>

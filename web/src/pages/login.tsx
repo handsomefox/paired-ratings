@@ -17,9 +17,10 @@ export function LoginPage() {
   const loginMutation = useMutation({
     mutationFn: api.login,
     onSuccess: () => {
+      setError("");
       queryClient.invalidateQueries({ queryKey: ["session"] });
       withViewTransition(() => {
-        void navigate({ to: "/" });
+        return navigate({ to: "/" });
       });
     },
     onError: () => setError("Invalid password"),

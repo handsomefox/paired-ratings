@@ -2,6 +2,7 @@ import CardGrid from "@/components/card-grid";
 import { CountryCombobox } from "@/components/country-combobox";
 import FilterField from "@/components/filter-field";
 import FiltersPane from "@/components/filters-pane";
+import { FiltersPaneContent } from "@/components/filters-pane-content";
 import { LoadingGrid } from "@/components/loading-grid";
 import { OriginCountriesChip } from "@/components/origin-countries-chip";
 import RatingChips from "@/components/rating-chips";
@@ -76,6 +77,11 @@ export function LibraryPage() {
   const sessionQuery = useQuery({
     queryKey: ["session"],
     queryFn: api.session,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
   });
 
   const countriesQuery = useQuery({
@@ -168,6 +174,7 @@ export function LibraryPage() {
     if (debouncedFilters.unrated) next.set("unrated", "1");
     if (debouncedFilters.sort && debouncedFilters.sort !== "updated")
       next.set("sort", debouncedFilters.sort);
+
     const query = next.toString();
     const url = query ? `/?${query}` : "/";
     window.history.replaceState(null, "", url);
@@ -201,7 +208,7 @@ export function LibraryPage() {
   ];
 
   const FiltersForm = (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
         <FilterField label="Status">
           <Select value={status} onValueChange={setStatus}>
@@ -217,6 +224,7 @@ export function LibraryPage() {
             </SelectContent>
           </Select>
         </FilterField>
+
         <FilterField label="Genre">
           <Select
             value={genre || anyGenreValue}
@@ -235,6 +243,7 @@ export function LibraryPage() {
             </SelectContent>
           </Select>
         </FilterField>
+
         <FilterField label="Origin country">
           <CountryCombobox
             value={originCountry}
@@ -244,6 +253,7 @@ export function LibraryPage() {
             anyLabel="Any"
           />
         </FilterField>
+
         <div className="grid grid-cols-2 gap-3">
           <FilterField label="Year from">
             <Input
@@ -264,6 +274,7 @@ export function LibraryPage() {
             />
           </FilterField>
         </div>
+
         <FilterField label="Sort">
           <Select value={sort} onValueChange={setSort}>
             <SelectTrigger>
@@ -279,6 +290,7 @@ export function LibraryPage() {
           </Select>
         </FilterField>
       </div>
+
       <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
         <Checkbox checked={unrated} onCheckedChange={(value) => setUnrated(Boolean(value))} />
         <div>
@@ -286,7 +298,9 @@ export function LibraryPage() {
           <div className="text-xs text-muted-foreground">Hide anything with ratings.</div>
         </div>
       </div>
+
       <Separator />
+
       <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
@@ -315,21 +329,37 @@ export function LibraryPage() {
     </div>
   );
 
+  const isInitialLoading = showsQuery.isLoading || (showsQuery.isFetching && shows.length === 0);
+  const isEmpty = !showsQuery.isLoading && !showsQuery.isFetching && shows.length === 0;
+
+  const renderCount = () => {
+    if (isInitialLoading) return "";
+    return `Shows (${shows.length})`;
+  };
+
   return (
     <>
-      <FiltersPane filtersOpen={filtersOpen} onOpenChange={setFiltersOpen} filters={FiltersForm}>
-        {showsQuery.isLoading || (showsQuery.isFetching && !shows.length) ? (
-          <LoadingGrid />
-        ) : (
+      <FiltersPane
+        filtersOpen={filtersOpen}
+        onOpenChange={setFiltersOpen}
+        filters={FiltersForm}
+        headerClassName="flex-wrap items-end gap-4"
+      >
+        <FiltersPaneContent>
+          <div className="text-xs text-muted-foreground">{renderCount()}</div>
+
+          {isInitialLoading ? <LoadingGrid /> : null}
+
+          {isEmpty ? (
+            <Empty className="border-border/60 bg-card/30">
+              <EmptyHeader>
+                <EmptyTitle>No shows yet</EmptyTitle>
+                <EmptyDescription>Use “Add” to pull from TMDB.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : null}
+
           <CardGrid>
-            {!showsQuery.isLoading && !showsQuery.isFetching && !shows.length ? (
-              <Empty className="col-span-full border-border/60 bg-card/30">
-                <EmptyHeader>
-                  <EmptyTitle>No shows yet</EmptyTitle>
-                  <EmptyDescription>Use “Add” to pull from TMDB.</EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            ) : null}
             {shows.map((show) => {
               const originCountries = show.origin_country ?? [];
               return (
@@ -395,7 +425,7 @@ export function LibraryPage() {
               );
             })}
           </CardGrid>
-        )}
+        </FiltersPaneContent>
       </FiltersPane>
 
       <AlertDialog

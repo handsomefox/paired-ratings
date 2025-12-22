@@ -44,7 +44,7 @@ type StarRatingProps = {
 
 function StarRating({ value, onChange, tone }: StarRatingProps) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 pr-1">
       {ratingValues.map((rating) => {
         const active = value !== null && rating <= value;
         const toneClass = tone === "bf" ? "text-teal-300" : "text-purple-300";
@@ -55,7 +55,7 @@ function StarRating({ value, onChange, tone }: StarRatingProps) {
             type="button"
             onClick={() => onChange(rating)}
             className={cn(
-              "text-2xl leading-none transition hover:-translate-y-0.5",
+              "text-[22px] leading-none transition hover:-translate-y-0.5",
               active ? toneClass : idleClass,
             )}
             aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
@@ -461,6 +461,11 @@ export function DetailPage() {
   const sessionQuery = useQuery({
     queryKey: ["session"],
     queryFn: api.session,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
   });
 
   const showQuery = useQuery({

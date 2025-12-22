@@ -12,20 +12,10 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { toast } from "sonner";
 import { Loading } from "./components/loading";
-import { NavLink } from "./components/nav-link";
-import { Button } from "./components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "./components/ui/dropdown-menu";
+import { Navbar } from "./components/navbar";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
-import { ViewTransitionLink } from "./components/view-transition-link";
 import { api } from "./lib/api";
 import { withViewTransition } from "./lib/view-transitions";
 import { DetailPage } from "./pages/detail";
@@ -50,9 +40,15 @@ const queryClient = new QueryClient({
 const RootLayout = () => {
   const navigate = useNavigate();
   const state = useRouterState();
+
   const sessionQuery = useQuery({
     queryKey: ["session"],
     queryFn: api.session,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
   });
 
   const authed = sessionQuery.data?.authenticated ?? false;
@@ -70,6 +66,26 @@ const RootLayout = () => {
     window.scrollTo(0, 0);
   }, [state.location.pathname]);
 
+  const handleExport = async () => {
+    const res = await api.exportData();
+    if (!res.ok) throw new Error("export failed");
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "show-ratings.json";
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleLogout = async () => {
+    await api.logout();
+    await queryClient.invalidateQueries({ queryKey: ["session"] });
+    withViewTransition(() => {
+      void navigate({ to: "/login" });
+    });
+  };
+
   if (sessionQuery.isLoading) {
     return (
       <main className="container py-16">
@@ -80,122 +96,7 @@ const RootLayout = () => {
 
   return (
     <div className="min-h-screen">
-      {authed ? (
-        <header className="sticky top-0 z-30 border-b border-border/60 bg-background/75 backdrop-blur">
-          <div className="container flex h-16 items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <ViewTransitionLink to="/" className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/70 via-primary/30 to-purple-500/60 text-sm font-semibold text-foreground shadow-lg">
-                  SR
-                </div>
-                <div>
-                  <div className="text-base font-display">Show Ratings</div>
-                  <div className="text-xs text-muted-foreground">Shared watchlist + ratings</div>
-                </div>
-              </ViewTransitionLink>
-            </div>
-            <nav className="hidden items-center gap-2 md:flex">
-              <NavLink to="/">Library</NavLink>
-              <NavLink to="/search">Add</NavLink>
-            </nav>
-            <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="rounded-full md:hidden">
-                    <span className="sr-only">Open menu</span>
-                    <span className="text-lg leading-none">≡</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => void navigate({ to: "/" })}>
-                    Library
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => void navigate({ to: "/search" })}>
-                    Add
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={async () => {
-                      try {
-                        const res = await api.exportData();
-                        if (!res.ok) {
-                          throw new Error("export failed");
-                        }
-                        const blob = await res.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = "show-ratings.json";
-                        a.click();
-                        window.URL.revokeObjectURL(url);
-                        toast.success("Exported ratings.");
-                      } catch {
-                        toast.error("Export failed.");
-                      }
-                    }}
-                  >
-                    Export
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={async () => {
-                      await api.logout();
-                      await queryClient.invalidateQueries({
-                        queryKey: ["session"],
-                      });
-                      withViewTransition(() => {
-                        void navigate({ to: "/login" });
-                      });
-                    }}
-                  >
-                    Log out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full hidden md:inline-flex"
-                onClick={async () => {
-                  try {
-                    const res = await api.exportData();
-                    if (!res.ok) {
-                      throw new Error("export failed");
-                    }
-                    const blob = await res.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "show-ratings.json";
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    toast.success("Exported ratings.");
-                  } catch {
-                    toast.error("Export failed.");
-                  }
-                }}
-              >
-                Export
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full hidden md:inline-flex"
-                onClick={async () => {
-                  await api.logout();
-                  await queryClient.invalidateQueries({
-                    queryKey: ["session"],
-                  });
-                  withViewTransition(() => {
-                    void navigate({ to: "/login" });
-                  });
-                }}
-              >
-                Log out
-              </Button>
-            </div>
-          </div>
-        </header>
-      ) : null}
+      {authed ? <Navbar onExport={handleExport} onLogout={handleLogout} /> : null}
       <main className="container py-6 md:py-8">
         <Outlet />
       </main>
