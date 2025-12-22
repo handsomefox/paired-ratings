@@ -2,23 +2,69 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 const DEFAULT_REGION_BY_LANG: Record<string, string> = {
+  AM: "ET",
   AR: "SA",
+  ARY: "MA",
+  BG: "BG",
+  BN: "BD",
+  BS: "BA",
   CS: "CZ",
   DA: "DK",
+  DD: "DE",
+  DE: "DE",
   EL: "GR",
   EN: "US",
+  ES: "ES",
+  ET: "EE",
+  FA: "IR",
+  FI: "FI",
+  FR: "FR",
+  HA: "NG",
   HE: "IL",
   HI: "IN",
+  HR: "HR",
+  HU: "HU",
+  ID: "ID",
+  IG: "NG",
+  IN: "ID",
+  IS: "IS",
+  IT: "IT",
+  IW: "IL",
+  JA: "JP",
+  JI: "IL",
+  KN: "IN",
   KO: "KR",
+  LT: "LT",
+  LV: "LV",
+  MK: "MK",
+  ML: "IN",
+  NB: "NO",
+  NL: "NL",
+  NN: "NO",
   NO: "NO",
+  PL: "PL",
   PT: "BR",
   RN: "BI",
+  RO: "RO",
+  SK: "SK",
+  SL: "SI",
+  SR: "RS",
   SU: "RU",
   SV: "SE",
   SW: "TZ",
+  TA: "IN",
+  TE: "IN",
+  TH: "TH",
+  TR: "TR",
   UK: "UA",
+  UR: "PK",
   VI: "VN",
+  XC: "CZ",
+  XZ: "CZ",
+  YO: "NG",
+  YU: "RS",
   ZH: "TW",
+  ZR: "CD",
 };
 
 export function cn(...inputs: ClassValue[]) {
@@ -68,7 +114,8 @@ export function shortGenreList(genres?: string[] | null) {
 
 export function flagEmoji(countryCode?: string | null) {
   if (!countryCode) return "";
-  const code = countryCode.trim().toUpperCase();
+  let code = countryCode.trim().toUpperCase();
+  code = DEFAULT_REGION_BY_LANG[code] ?? code;
   if (!/^[A-Z]{2}$/.test(code)) return "";
   if (code == "RU") return String.fromCodePoint(0x1f4a9);
   const base = 0x1f1e6;
@@ -82,10 +129,7 @@ export function flagEmojiFromLanguageCode(languageCode?: string | null) {
   if (!/^[a-z]{2,3}$/.test(lang)) return "";
 
   const locale = new Intl.Locale(lang).maximize();
-  let region = locale.region;
-  if (!region) {
-    region = DEFAULT_REGION_BY_LANG[lang.toUpperCase()];
-  }
+  const region = DEFAULT_REGION_BY_LANG[lang.toUpperCase()] ?? locale.region ?? "";
   if (region == "RU") return String.fromCodePoint(0x1f4a9);
 
   return region ? flagEmoji(region) : "";
