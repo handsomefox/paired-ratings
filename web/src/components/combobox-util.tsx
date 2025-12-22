@@ -13,7 +13,7 @@ export function OptionLabel({
   primary,
   code,
 }: {
-  emoji: string;
+  emoji?: string;
   primary: string;
   code: string;
 }) {

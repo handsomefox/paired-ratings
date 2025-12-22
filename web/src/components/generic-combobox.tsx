@@ -61,12 +61,16 @@ export function GenericCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between font-normal text-left", className)}
+          className={cn(
+            "w-full max-w-full min-w-0 justify-between font-normal text-left overflow-hidden",
+            className,
+          )}
           disabled={disabled}
         >
-          <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="min-w-0 flex-1 max-w-full overflow-hidden whitespace-nowrap">
             {selected ? renderLabel(selected) : <span className="truncate">{placeholder}</span>}
           </div>
+
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -75,7 +79,7 @@ export function GenericCombobox({
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList
-            className="max-h-[min(15rem,calc(100svh-12rem))] overflow-y-auto overscroll-contain touch-pan-y"
+            className="max-h-[min(15rem,calc(100svh-12rem))] overflow-y-auto overscroll-contain touch-pan-y pr-2"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             <CommandEmpty>{emptyText}</CommandEmpty>

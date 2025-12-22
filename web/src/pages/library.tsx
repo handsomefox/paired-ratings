@@ -208,7 +208,7 @@ export function LibraryPage() {
 
   const FiltersForm = (
     <div className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 [&>*]:min-w-0">
         <FilterField label="Status">
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger>
@@ -225,23 +225,27 @@ export function LibraryPage() {
         </FilterField>
 
         <FilterField label="Genre">
-          <GenreCombobox
-            value={genre}
-            onValueChange={setGenre}
-            genres={genres}
-            placeholder="Any"
-            anyLabel="Any"
-          />
+          <div className="min-w-0 w-full">
+            <GenreCombobox
+              value={genre}
+              onValueChange={setGenre}
+              genres={genres}
+              placeholder="Any"
+              anyLabel="Any"
+            />
+          </div>
         </FilterField>
 
         <FilterField label="Origin country">
-          <CountryCombobox
-            value={originCountry}
-            onValueChange={setOriginCountry}
-            options={countries.map((code) => ({ code, name: countryLabel(code) }))}
-            placeholder="Any"
-            anyLabel="Any"
-          />
+          <div className="min-w-0 w-full">
+            <CountryCombobox
+              value={originCountry}
+              onValueChange={setOriginCountry}
+              options={countries.map((code) => ({ code, name: countryLabel(code) }))}
+              placeholder="Any"
+              anyLabel="Any"
+            />
+          </div>
         </FilterField>
 
         <div className="grid grid-cols-2 gap-3">

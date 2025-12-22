@@ -643,6 +643,12 @@ func (h *Handler) getSearch(w http.ResponseWriter, r *http.Request) error {
 	query := strings.TrimSpace(req.Q)
 	filters := searchFiltersFromRequest(req)
 
+	if query != "" {
+		if filters.MediaType != "movie" && filters.MediaType != "tv" {
+			return badRequest("media_type required")
+		}
+	}
+
 	pageData, err := h.searchTMDB(ctx, query, filters)
 	if err != nil {
 		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
@@ -691,9 +697,10 @@ func (h *Handler) searchTMDB(ctx context.Context, query string, filters searchFi
 	}
 
 	if query != "" {
+		mediaType := strings.TrimSpace(filters.MediaType)
 		type pageFetcher func(page int) (tmdb.SearchPage, error)
 		fetch := func(page int) (tmdb.SearchPage, error) {
-			return h.tmdb.SearchPage(ctx, query, page)
+			return h.tmdb.SearchPage(ctx, query, mediaType, page)
 		}
 		startFromFirst := !filters.isEmpty() || filters.Sort != "relevance"
 		return h.searchWithFilterPaging(ctx, fetch, filters, perPage, tmdbPageSize, startFromFirst, true)

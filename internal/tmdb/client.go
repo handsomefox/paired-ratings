@@ -154,11 +154,17 @@ type languageResponse []struct {
 	Name        string `json:"name"`
 }
 
-func (c *Client) SearchPage(ctx context.Context, query string, page int) (SearchPage, error) {
+func (c *Client) SearchPage(ctx context.Context, query string, mediaType string, page int) (SearchPage, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return SearchPage{}, nil
 	}
+
+	mediaType = strings.TrimSpace(mediaType)
+	if mediaType != "movie" && mediaType != "tv" {
+		return SearchPage{}, errors.New("invalid media type")
+	}
+
 	if page < 1 {
 		page = 1
 	}
@@ -169,8 +175,8 @@ func (c *Client) SearchPage(ctx context.Context, query string, page int) (Search
 	values.Set("include_adult", "false")
 	values.Set("page", strconv.Itoa(page))
 
-	endpoint := baseURL + "/search/multi?" + values.Encode()
-	return c.fetchSearch(ctx, endpoint, "")
+	endpoint := baseURL + "/search/" + mediaType + "?" + values.Encode()
+	return c.fetchSearch(ctx, endpoint, mediaType)
 }
 
 func (c *Client) DiscoverPage(ctx context.Context, mediaType string, filters DiscoverFilters, page int) (SearchPage, error) {

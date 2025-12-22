@@ -34,7 +34,7 @@ import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { formatScore, formatVotes, shortGenreList } from "@/lib/utils";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const sortOptions = [
@@ -43,21 +43,35 @@ const sortOptions = [
   { value: "votes", label: "TMDB votes" },
   { value: "year", label: "Year" },
   { value: "title", label: "Title" },
-];
+] as const;
 
 const mediaTypeOptions = [
-  { value: "all", label: "All" },
   { value: "movie", label: "Movie" },
   { value: "tv", label: "TV" },
-];
+] as const;
+
+type MediaType = (typeof mediaTypeOptions)[number]["value"];
+type Sort = (typeof sortOptions)[number]["value"];
 
 type SearchKey = Omit<SearchRequest, "page">;
+
+function sanitizeMediaType(raw: string | null | undefined): MediaType {
+  const v = (raw ?? "").toLowerCase().trim();
+  return v === "tv" ? "tv" : "movie";
+}
+
+function sanitizeSort(raw: string | null | undefined): Sort {
+  const v = (raw ?? "").toLowerCase().trim();
+  return sortOptions.some((o) => o.value === v) ? (v as Sort) : "relevance";
+}
 
 export function SearchPage() {
   const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
 
   const [query, setQuery] = useState(initialParams.get("q") ?? "");
-  const [mediaType, setMediaType] = useState(initialParams.get("media_type") ?? "all");
+  const [mediaType, setMediaType] = useState<MediaType>(() =>
+    sanitizeMediaType(initialParams.get("media_type")),
+  );
   const [yearFrom, setYearFrom] = useState(initialParams.get("year_from") ?? "");
   const [yearTo, setYearTo] = useState(initialParams.get("year_to") ?? "");
   const [minRating, setMinRating] = useState(initialParams.get("min_rating") ?? "");
@@ -72,7 +86,7 @@ export function SearchPage() {
   const [originalLanguage, setOriginalLanguage] = useState(
     (initialParams.get("original_language") ?? "").toLowerCase(),
   );
-  const [sort, setSort] = useState(initialParams.get("sort") ?? "relevance");
+  const [sort, setSort] = useState<Sort>(() => sanitizeSort(initialParams.get("sort")));
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [expandedOverviews, setExpandedOverviews] = useState<Set<string>>(() => new Set());
   const [genreMode, setGenreMode] = useState<"all" | "any">(() =>
@@ -144,76 +158,48 @@ export function SearchPage() {
     return selectedGenres.join(genreMode === "any" ? "|" : ",");
   }, [selectedGenres, genreMode]);
 
-  const debouncedFilters = useDebouncedValue(
-    {
-      query,
+  const debouncedQuery = useDebouncedValue(query, 600);
+  const trimmedQuery = debouncedQuery.trim();
+
+  useEffect(() => {
+    setPage((prev) => (prev === 1 ? prev : 1));
+  }, [
+    trimmedQuery,
+    mediaType,
+    yearFrom,
+    yearTo,
+    minRating,
+    minVotes,
+    sort,
+    genreQuery,
+    originCountry,
+    originalLanguage,
+  ]);
+
+  const searchKey: SearchKey = useMemo(
+    () => ({
+      q: trimmedQuery,
+      media_type: mediaType,
+      year_from: yearFrom,
+      year_to: yearTo,
+      min_rating: minRating,
+      min_votes: minVotes,
+      sort,
+      genres: genreQuery,
+      origin_country: originCountry,
+      original_language: originalLanguage,
+    }),
+    [
+      trimmedQuery,
       mediaType,
       yearFrom,
       yearTo,
       minRating,
       minVotes,
       sort,
-      genres: genreQuery,
+      genreQuery,
       originCountry,
       originalLanguage,
-    },
-    600,
-  );
-
-  useEffect(() => {
-    setPage((prev) => (prev === 1 ? prev : 1));
-  }, [
-    debouncedFilters.query,
-    debouncedFilters.mediaType,
-    debouncedFilters.yearFrom,
-    debouncedFilters.yearTo,
-    debouncedFilters.minRating,
-    debouncedFilters.minVotes,
-    debouncedFilters.sort,
-    debouncedFilters.genres,
-    debouncedFilters.originCountry,
-    debouncedFilters.originalLanguage,
-  ]);
-
-  const trimmedQuery = debouncedFilters.query.trim();
-
-  const hasFilters: boolean =
-    debouncedFilters.mediaType !== "all" ||
-    debouncedFilters.yearFrom !== "" ||
-    debouncedFilters.yearTo !== "" ||
-    debouncedFilters.minRating !== "" ||
-    debouncedFilters.minVotes !== "" ||
-    debouncedFilters.genres !== "" ||
-    debouncedFilters.originCountry !== "" ||
-    debouncedFilters.originalLanguage !== "" ||
-    (debouncedFilters.sort !== "" && debouncedFilters.sort !== "relevance");
-
-  const enabled: boolean = trimmedQuery.length >= 1 || hasFilters;
-
-  const searchKey: SearchKey = useMemo(
-    () => ({
-      q: trimmedQuery,
-      media_type: debouncedFilters.mediaType,
-      year_from: debouncedFilters.yearFrom,
-      year_to: debouncedFilters.yearTo,
-      min_rating: debouncedFilters.minRating,
-      min_votes: debouncedFilters.minVotes,
-      sort: debouncedFilters.sort,
-      genres: debouncedFilters.genres,
-      origin_country: debouncedFilters.originCountry,
-      original_language: debouncedFilters.originalLanguage,
-    }),
-    [
-      trimmedQuery,
-      debouncedFilters.mediaType,
-      debouncedFilters.yearFrom,
-      debouncedFilters.yearTo,
-      debouncedFilters.minRating,
-      debouncedFilters.minVotes,
-      debouncedFilters.sort,
-      debouncedFilters.genres,
-      debouncedFilters.originCountry,
-      debouncedFilters.originalLanguage,
     ],
   );
 
@@ -228,76 +214,56 @@ export function SearchPage() {
     searchKey.min_votes,
     searchKey.sort,
     searchKey.genres,
+    searchKey.origin_country,
+    searchKey.original_language,
     page,
   ]);
 
   useEffect(() => {
     const params = new URLSearchParams();
 
+    params.set("media_type", mediaType);
     if (trimmedQuery) params.set("q", trimmedQuery);
-    if (debouncedFilters.mediaType && debouncedFilters.mediaType !== "all") {
-      params.set("media_type", debouncedFilters.mediaType);
-    }
-    if (debouncedFilters.yearFrom) params.set("year_from", debouncedFilters.yearFrom);
-    if (debouncedFilters.yearTo) params.set("year_to", debouncedFilters.yearTo);
-    if (debouncedFilters.minRating) params.set("min_rating", debouncedFilters.minRating);
-    if (debouncedFilters.minVotes) params.set("min_votes", debouncedFilters.minVotes);
-    if (debouncedFilters.sort && debouncedFilters.sort !== "relevance") {
-      params.set("sort", debouncedFilters.sort);
-    }
-    if (debouncedFilters.genres) {
-      params.set("genres", debouncedFilters.genres);
-    }
-    if (debouncedFilters.originCountry) {
-      params.set("origin_country", debouncedFilters.originCountry);
-    }
-    if (debouncedFilters.originalLanguage) {
-      params.set("original_language", debouncedFilters.originalLanguage);
-    }
-    if (page > 1) {
-      params.set("page", String(page));
-    }
+    if (yearFrom) params.set("year_from", yearFrom);
+    if (yearTo) params.set("year_to", yearTo);
+    if (minRating) params.set("min_rating", minRating);
+    if (minVotes) params.set("min_votes", minVotes);
+    if (sort && sort !== "relevance") params.set("sort", sort);
+    if (genreQuery) params.set("genres", genreQuery);
+    if (originCountry) params.set("origin_country", originCountry);
+    if (originalLanguage) params.set("original_language", originalLanguage);
+    if (page > 1) params.set("page", String(page));
 
     const next = params.toString();
     const url = next ? `/search?${next}` : "/search";
     window.history.replaceState(null, "", url);
   }, [
+    mediaType,
     trimmedQuery,
-    debouncedFilters.mediaType,
-    debouncedFilters.yearFrom,
-    debouncedFilters.yearTo,
-    debouncedFilters.minRating,
-    debouncedFilters.minVotes,
-    debouncedFilters.sort,
-    debouncedFilters.genres,
-    debouncedFilters.originCountry,
-    debouncedFilters.originalLanguage,
+    yearFrom,
+    yearTo,
+    minRating,
+    minVotes,
+    sort,
+    genreQuery,
+    originCountry,
+    originalLanguage,
     page,
   ]);
 
   const buildParams = () => {
     const params = new URLSearchParams();
 
+    params.set("media_type", mediaType);
     if (trimmedQuery) params.set("q", trimmedQuery);
-    if (debouncedFilters.mediaType && debouncedFilters.mediaType !== "all") {
-      params.set("media_type", debouncedFilters.mediaType);
-    }
-    if (debouncedFilters.yearFrom) params.set("year_from", debouncedFilters.yearFrom);
-    if (debouncedFilters.yearTo) params.set("year_to", debouncedFilters.yearTo);
-    if (debouncedFilters.minRating) params.set("min_rating", debouncedFilters.minRating);
-    if (debouncedFilters.minVotes) params.set("min_votes", debouncedFilters.minVotes);
-    if (debouncedFilters.sort && debouncedFilters.sort !== "relevance") {
-      params.set("sort", debouncedFilters.sort);
-    }
-    if (debouncedFilters.genres) {
-      params.set("genres", debouncedFilters.genres);
-    }
-    if (debouncedFilters.originCountry) {
-      params.set("origin_country", debouncedFilters.originCountry);
-    }
-    if (debouncedFilters.originalLanguage) {
-      params.set("original_language", debouncedFilters.originalLanguage);
-    }
+    if (yearFrom) params.set("year_from", yearFrom);
+    if (yearTo) params.set("year_to", yearTo);
+    if (minRating) params.set("min_rating", minRating);
+    if (minVotes) params.set("min_votes", minVotes);
+    if (sort && sort !== "relevance") params.set("sort", sort);
+    if (genreQuery) params.set("genres", genreQuery);
+    if (originCountry) params.set("origin_country", originCountry);
+    if (originalLanguage) params.set("original_language", originalLanguage);
     if (page > 1) params.set("page", String(page));
 
     return params;
@@ -305,7 +271,7 @@ export function SearchPage() {
 
   const searchQuery = useQuery<SearchResponse, Error>({
     queryKey: ["search", searchKey, page],
-    enabled,
+    enabled: true,
     queryFn: () => api.search(buildParams()),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
@@ -351,20 +317,15 @@ export function SearchPage() {
   }, [searchQuery.isError]);
 
   const renderResultsCount = () => {
-    if (!trimmedQuery && !hasFilters) return "";
+    if (!searchQuery.data && searchQuery.isLoading) return "";
     const loaded = results.length;
+    const total = totalResults;
 
-    if (trimmedQuery) {
-      if (totalResults && totalResults > loaded) {
-        return `Results for "${trimmedQuery}" (${loaded} / ${totalResults})`;
-      }
-      return `Results for "${trimmedQuery}" (${loaded})`;
+    if (total && total !== loaded) {
+      return `Total results ${total}, showing ${loaded}`;
     }
 
-    if (totalResults && totalResults > loaded) {
-      return `Results (${loaded} / ${totalResults})`;
-    }
-    return `Results (${loaded})`;
+    return `Total results ${loaded}`;
   };
 
   const pageItems = useMemo(() => {
@@ -388,24 +349,22 @@ export function SearchPage() {
     return items;
   }, [currentPage, totalPages]);
 
+  const didMountRef = useRef(false);
   useEffect(() => {
-    if (mediaType === "all") {
-      setSelectedGenres([]);
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
     }
+    setSelectedGenres([]);
+    setGenreMode("all");
   }, [mediaType]);
 
   const availableGenres =
     mediaType === "movie"
       ? (searchGenresQuery.data?.movie_genres ?? [])
-      : mediaType === "tv"
-        ? (searchGenresQuery.data?.tv_genres ?? [])
-        : [
-            ...(searchGenresQuery.data?.movie_genres ?? []),
-            ...(searchGenresQuery.data?.tv_genres ?? []),
-          ];
+      : (searchGenresQuery.data?.tv_genres ?? []);
 
   const availableCountries = searchCountriesQuery.data?.countries ?? [];
-
   const availableLanguages = searchLanguagesQuery.data?.languages ?? [];
 
   const handleAdd = (item: SearchResult, status: string) => {
@@ -445,9 +404,9 @@ export function SearchPage() {
   const FiltersForm = (
     <div className="space-y-5">
       <FilterField label="Type">
-        <Select value={mediaType} onValueChange={setMediaType}>
+        <Select value={mediaType} onValueChange={(v) => setMediaType(v as MediaType)}>
           <SelectTrigger>
-            <SelectValue placeholder="All" />
+            <SelectValue placeholder="Movie" />
           </SelectTrigger>
           <SelectContent>
             {mediaTypeOptions.map((option) => (
@@ -460,77 +419,73 @@ export function SearchPage() {
       </FilterField>
 
       <FilterField label="Genres">
-        {mediaType === "all" ? (
-          <div className="rounded-xl border border-dashed border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            Choose Movie or TV to filter by genre.
-          </div>
-        ) : (
-          <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-3">
-            <Select
-              value={genreMode}
-              onValueChange={(value) => setGenreMode(value as "all" | "any")}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Match" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Match all selected</SelectItem>
-                <SelectItem value="any">Match any selected</SelectItem>
-              </SelectContent>
-            </Select>
-            <ScrollArea className="h-48 pr-2">
-              <div className="space-y-2">
-                {searchGenresQuery.isLoading ? (
-                  <div className="text-xs text-muted-foreground">Loading genres…</div>
-                ) : null}
-                {!searchGenresQuery.isLoading && availableGenres.length === 0 ? (
-                  <div className="text-xs text-muted-foreground">No genres found.</div>
-                ) : null}
-                {availableGenres.map((genre) => {
-                  const id = String(genre.id);
-                  const checked = selectedGenres.includes(id);
-                  return (
-                    <label key={genre.id} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-primary"
-                        checked={checked}
-                        onChange={(event) => {
-                          if (event.target.checked) {
-                            setSelectedGenres((prev) => [...prev, id]);
-                          } else {
-                            setSelectedGenres((prev) => prev.filter((val) => val !== id));
-                          }
-                        }}
-                      />
-                      <span>{genre.name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
+        <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-3">
+          <Select value={genreMode} onValueChange={(value) => setGenreMode(value as "all" | "any")}>
+            <SelectTrigger>
+              <SelectValue placeholder="Match" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Match all selected</SelectItem>
+              <SelectItem value="any">Match any selected</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <ScrollArea className="h-48 pr-2">
+            <div className="space-y-2">
+              {searchGenresQuery.isLoading ? (
+                <div className="text-xs text-muted-foreground">Loading genres…</div>
+              ) : null}
+              {!searchGenresQuery.isLoading && availableGenres.length === 0 ? (
+                <div className="text-xs text-muted-foreground">No genres found.</div>
+              ) : null}
+              {availableGenres.map((genre) => {
+                const id = String(genre.id);
+                const checked = selectedGenres.includes(id);
+                return (
+                  <label key={genre.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary"
+                      checked={checked}
+                      onChange={(event) => {
+                        if (event.target.checked) {
+                          setSelectedGenres((prev) => [...prev, id]);
+                        } else {
+                          setSelectedGenres((prev) => prev.filter((val) => val !== id));
+                        }
+                      }}
+                    />
+                    <span>{genre.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </div>
       </FilterField>
 
       <FilterField label="Origin country">
-        <CountryCombobox
-          value={originCountry}
-          onValueChange={setOriginCountry}
-          options={availableCountries}
-          placeholder="Any"
-          anyLabel="Any"
-        />
+        <div className="min-w-0 w-full">
+          <CountryCombobox
+            value={originCountry}
+            onValueChange={setOriginCountry}
+            options={availableCountries}
+            placeholder="Any"
+            anyLabel="Any"
+          />
+        </div>
       </FilterField>
 
       <FilterField label="Original language">
-        <LanguageCombobox
-          value={originalLanguage}
-          onValueChange={setOriginalLanguage}
-          options={availableLanguages}
-          placeholder="Any"
-          anyLabel="Any"
-        />
+        <div className="min-w-0 w-full">
+          <LanguageCombobox
+            value={originalLanguage}
+            onValueChange={setOriginalLanguage}
+            options={availableLanguages}
+            placeholder="Any"
+            anyLabel="Any"
+          />
+        </div>
       </FilterField>
 
       <div className="grid grid-cols-2 gap-3">
@@ -577,7 +532,7 @@ export function SearchPage() {
       </FilterField>
 
       <FilterField label="Sort">
-        <Select value={sort} onValueChange={setSort}>
+        <Select value={sort} onValueChange={(v) => setSort(v as Sort)}>
           <SelectTrigger>
             <SelectValue placeholder="Sort" />
           </SelectTrigger>
@@ -597,7 +552,7 @@ export function SearchPage() {
         type="button"
         variant="ghost"
         onClick={() => {
-          setMediaType("all");
+          setMediaType("movie");
           setYearFrom("");
           setYearTo("");
           setMinRating("");
@@ -642,7 +597,7 @@ export function SearchPage() {
 
         {isInitialLoading ? <LoadingGrid /> : null}
 
-        {!searchQuery.isLoading && !searchQuery.isFetching && !results.length && enabled ? (
+        {!searchQuery.isLoading && !searchQuery.isFetching && !results.length ? (
           <Empty className="border-border/60 bg-card/30">
             <EmptyHeader>
               <EmptyTitle>No results yet</EmptyTitle>
