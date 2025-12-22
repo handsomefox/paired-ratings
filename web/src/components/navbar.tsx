@@ -24,12 +24,12 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
       <div className="container flex h-16 items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <ViewTransitionLink to="/" className="flex items-center gap-3">
-            <div className="relative h-9 w-9 rounded-2xl shadow-lg">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/70 via-primary/30 to-purple-500/60" />
+            <div className="relative h-9 w-9 rounded-2xl shadow-lg overflow-hidden">
+              <div className="absolute inset-0 z-0 bg-gradient-to-br from-primary/70 via-primary/30 to-purple-500/60" />
               <img
                 src="/assets/logo.png"
                 alt=""
-                className="absolute inset-0 h-full w-full object-cover"
+                className="absolute inset-0 z-10 h-full w-full object-cover"
               />
             </div>
             <div>
