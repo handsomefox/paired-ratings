@@ -64,7 +64,7 @@ const SelectContent = React.forwardRef<
 >(({ className, children, position = "popper", onKeyDown, style, ...props }, ref) => {
   const contentStyle = {
     ...(style as React.CSSProperties),
-    ["--select-content-max-height" as "--select-content-max-height"]:
+    ["--select-content-max-height" as const]:
       "min(var(--radix-select-content-available-height),calc(100svh-7rem))",
   } as React.CSSProperties;
 

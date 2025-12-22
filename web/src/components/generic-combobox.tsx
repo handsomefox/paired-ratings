@@ -1,5 +1,5 @@
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type JSX } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +23,7 @@ type GenericComboboxProps = {
   onValueChange: (value: string) => void;
   options: ComboboxOption[];
   anyValue: string;
-  renderLabel: (option: ComboboxOption) => string;
+  renderLabel: (option: ComboboxOption) => JSX.Element;
   normalizeOnSelect: (code: string) => string;
   searchPlaceholder: string;
   placeholder?: string;
