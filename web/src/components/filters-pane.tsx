@@ -107,11 +107,17 @@ const FiltersPane = ({
               <SheetTitle>{title}</SheetTitle>
             </SheetHeader>
             <div
-              className="mt-6 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-3 lg:pr-2"
-              style={{ WebkitOverflowScrolling: "touch" }}
               ref={scrollRef}
+              className="mt-6 flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-20"
+              style={{ WebkitOverflowScrolling: "touch" }}
             >
               {filters}
+            </div>
+
+            <div className="absolute inset-x-0 bottom-0 border-t bg-card p-4 lg:hidden">
+              <Button className="w-full" onClick={() => onOpenChange(false)}>
+                Done
+              </Button>
             </div>
           </SheetContent>
         </Sheet>
