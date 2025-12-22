@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -19,25 +20,28 @@ type Store struct {
 	db *sql.DB
 }
 
+var hasColumnCache sync.Map
+
 type Show struct {
-	ID         int64
-	TMDBID     int64
-	MediaType  string
-	Title      string
-	Year       sql.Null[int64]
-	Genres     sql.Null[string]
-	Overview   sql.Null[string]
-	PosterPath sql.Null[string]
-	IMDbID     sql.Null[string]
-	TMDBRating sql.Null[float64]
-	TMDBVotes  sql.Null[int64]
-	Status     string
-	BfRating   sql.Null[int64]
-	GfRating   sql.Null[int64]
-	BfComment  sql.Null[string]
-	GfComment  sql.Null[string]
-	CreatedAt  string
-	UpdatedAt  string
+	ID            int64
+	TMDBID        int64
+	MediaType     string
+	Title         string
+	Year          sql.Null[int64]
+	Genres        sql.Null[string]
+	Overview      sql.Null[string]
+	PosterPath    sql.Null[string]
+	IMDbID        sql.Null[string]
+	TMDBRating    sql.Null[float64]
+	TMDBVotes     sql.Null[int64]
+	OriginCountry sql.Null[string]
+	Status        string
+	BfRating      sql.Null[int64]
+	GfRating      sql.Null[int64]
+	BfComment     sql.Null[string]
+	GfComment     sql.Null[string]
+	CreatedAt     string
+	UpdatedAt     string
 }
 
 type ListFilters struct {
@@ -45,6 +49,7 @@ type ListFilters struct {
 	YearFrom *int
 	YearTo   *int
 	Genre    string
+	Country  string
 	Unrated  bool
 	Sort     string
 }
@@ -109,6 +114,7 @@ CREATE TABLE IF NOT EXISTS shows (
 	imdb_id TEXT,
 	tmdb_rating REAL,
 	tmdb_votes INTEGER,
+	origin_country TEXT,
 	status TEXT NOT NULL,
 	bf_rating INTEGER,
 	gf_rating INTEGER,
@@ -134,6 +140,9 @@ CREATE INDEX IF NOT EXISTS idx_shows_year ON shows(year);
 	if err := addColumnIfMissing(ctx, db, "shows", "tmdb_votes", "ALTER TABLE shows ADD COLUMN tmdb_votes INTEGER"); err != nil {
 		return err
 	}
+	if err := addColumnIfMissing(ctx, db, "shows", "origin_country", "ALTER TABLE shows ADD COLUMN origin_country TEXT"); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -156,6 +165,10 @@ func addColumnIfMissing(ctx context.Context, db *sql.DB, table, column, statemen
 }
 
 func hasColumn(ctx context.Context, db *sql.DB, table, column string) (bool, error) {
+	cacheKey := table + "." + column
+	if cached, ok := hasColumnCache.Load(cacheKey); ok {
+		return cached.(bool), nil
+	}
 	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
 		return false, err
@@ -178,6 +191,7 @@ func hasColumn(ctx context.Context, db *sql.DB, table, column string) (bool, err
 			if cerr := rows.Close(); cerr != nil {
 				return false, cerr
 			}
+			hasColumnCache.Store(cacheKey, true)
 			return true, nil
 		}
 	}
@@ -190,6 +204,7 @@ func hasColumn(ctx context.Context, db *sql.DB, table, column string) (bool, err
 	if cerr := rows.Close(); cerr != nil {
 		return false, cerr
 	}
+	hasColumnCache.Store(cacheKey, false)
 	return false, nil
 }
 
@@ -198,9 +213,9 @@ func (s *Store) UpsertShow(ctx context.Context, show *Show) (int64, error) {
 
 	res, err := s.db.ExecContext(ctx, `
 INSERT INTO shows (
-	tmdb_id, media_type, title, year, genres, overview, poster_path, imdb_id, tmdb_rating, tmdb_votes, status,
+	tmdb_id, media_type, title, year, genres, overview, poster_path, imdb_id, tmdb_rating, tmdb_votes, origin_country, status,
 	bf_rating, gf_rating, bf_comment, gf_comment, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?)
 ON CONFLICT(tmdb_id, media_type) DO UPDATE SET
 	title=excluded.title,
 	year=excluded.year,
@@ -210,6 +225,7 @@ ON CONFLICT(tmdb_id, media_type) DO UPDATE SET
 	imdb_id=excluded.imdb_id,
 	tmdb_rating=excluded.tmdb_rating,
 	tmdb_votes=excluded.tmdb_votes,
+	origin_country=excluded.origin_country,
 	status=excluded.status,
 	updated_at=excluded.updated_at
 `,
@@ -223,6 +239,7 @@ ON CONFLICT(tmdb_id, media_type) DO UPDATE SET
 		show.IMDbID,
 		show.TMDBRating,
 		show.TMDBVotes,
+		show.OriginCountry,
 		show.Status,
 		now,
 		now,
@@ -251,8 +268,8 @@ func (s *Store) GetShowIDByTMDB(ctx context.Context, tmdbID int64, mediaType str
 func (s *Store) GetShow(ctx context.Context, id int64) (Show, error) {
 	var sh Show
 	err := s.db.QueryRowContext(ctx, `
-SELECT id, tmdb_id, media_type, title, year, genres, overview, poster_path, imdb_id, tmdb_rating, tmdb_votes, status,
-	bf_rating, gf_rating, bf_comment, gf_comment, created_at, updated_at
+SELECT id, tmdb_id, media_type, title, year, genres, overview, poster_path, imdb_id, tmdb_rating, tmdb_votes, origin_country,
+	status, bf_rating, gf_rating, bf_comment, gf_comment, created_at, updated_at
 FROM shows WHERE id = ?
 `, id).Scan(
 		&sh.ID,
@@ -266,6 +283,7 @@ FROM shows WHERE id = ?
 		&sh.IMDbID,
 		&sh.TMDBRating,
 		&sh.TMDBVotes,
+		&sh.OriginCountry,
 		&sh.Status,
 		&sh.BfRating,
 		&sh.GfRating,
@@ -440,6 +458,16 @@ func (s *Store) ListShows(ctx context.Context, filters ListFilters) (out []Show,
 		clauses = append(clauses, "genres LIKE ?")
 		args = append(args, "%"+filters.Genre+"%")
 	}
+	if filters.Country != "" {
+		clauses = append(clauses, "(origin_country = ? OR origin_country LIKE ? OR origin_country LIKE ? OR origin_country LIKE ?)")
+		args = append(
+			args,
+			filters.Country,
+			filters.Country+",%",
+			"%, "+filters.Country+",%",
+			"%, "+filters.Country,
+		)
+	}
 	if filters.Unrated {
 		clauses = append(clauses, "bf_rating IS NULL AND gf_rating IS NULL")
 	}
@@ -466,8 +494,8 @@ func (s *Store) ListShows(ctx context.Context, filters ListFilters) (out []Show,
 
 	//nolint:gosec // clauses and orderBy are from a controlled set.
 	query := fmt.Sprintf(`
-SELECT id, tmdb_id, media_type, title, year, genres, overview, poster_path, imdb_id, tmdb_rating, tmdb_votes, status,
-	bf_rating, gf_rating, bf_comment, gf_comment, created_at, updated_at
+SELECT id, tmdb_id, media_type, title, year, genres, overview, poster_path, imdb_id, tmdb_rating, tmdb_votes, origin_country,
+	status, bf_rating, gf_rating, bf_comment, gf_comment, created_at, updated_at
 FROM shows
 WHERE %s
 ORDER BY %s
@@ -498,6 +526,7 @@ ORDER BY %s
 			&sh.IMDbID,
 			&sh.TMDBRating,
 			&sh.TMDBVotes,
+			&sh.OriginCountry,
 			&sh.Status,
 			&sh.BfRating,
 			&sh.GfRating,
@@ -557,11 +586,52 @@ func (s *Store) ListAllGenres(ctx context.Context) (out []string, err error) {
 	return out, nil
 }
 
+func (s *Store) ListAllCountries(ctx context.Context) (out []string, err error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT origin_country FROM shows WHERE origin_country IS NOT NULL AND origin_country != ''`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		cerr := rows.Close()
+		if err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
+
+	seen := map[string]struct{}{}
+	for rows.Next() {
+		var codes string
+		if err := rows.Scan(&codes); err != nil {
+			return nil, err
+		}
+		for _, code := range strings.Split(codes, ",") {
+			code = strings.TrimSpace(code)
+			if code == "" {
+				continue
+			}
+			seen[code] = struct{}{}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	out = make([]string, 0, len(seen))
+	for code := range seen {
+		out = append(out, code)
+	}
+
+	slices.SortFunc(out, func(a, b string) int {
+		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
+	})
+	return out, nil
+}
+
 func (s *Store) ListTMDBMissing(ctx context.Context) (out []TMDBRefresh, err error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT tmdb_id, media_type, status
 FROM shows
-WHERE tmdb_rating IS NULL OR tmdb_votes IS NULL OR imdb_id IS NULL
+WHERE tmdb_rating IS NULL OR tmdb_votes IS NULL OR imdb_id IS NULL OR origin_country IS NULL OR origin_country = ''
 `)
 	if err != nil {
 		return nil, err

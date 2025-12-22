@@ -2,16 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { ApiShow } from "@/lib/api";
-import { formatScore, formatVotes, shortGenres } from "@/lib/utils";
-import { Loading } from "@/components/loading";
+import { flagEmoji, formatScore, formatVotes, shortGenres } from "@/lib/utils";
+import { LoadingGrid } from "@/components/loading-grid";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShowCard } from "@/components/show-card";
 import CardGrid from "@/components/card-grid";
-import EmptyState from "@/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import FilterField from "@/components/filter-field";
 import RatingChips from "@/components/rating-chips";
+import { CountryCombobox } from "@/components/country-combobox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,12 +37,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const baseStatusOptions = [
   { value: "all", label: "All" },
@@ -61,6 +64,9 @@ export function LibraryPage() {
   const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const [status, setStatus] = useState(() => initialParams.get("status") ?? "all");
   const [genre, setGenre] = useState(() => initialParams.get("genre") ?? "");
+  const [originCountry, setOriginCountry] = useState(() =>
+    (initialParams.get("origin_country") ?? "").toUpperCase(),
+  );
   const [yearFrom, setYearFrom] = useState(() => initialParams.get("year_from") ?? "");
   const [yearTo, setYearTo] = useState(() => initialParams.get("year_to") ?? "");
   const [unrated, setUnrated] = useState(() => initialParams.get("unrated") === "1");
@@ -74,8 +80,18 @@ export function LibraryPage() {
     queryFn: api.session,
   });
 
+  const countriesQuery = useQuery({
+    queryKey: ["search-countries"],
+    queryFn: api.searchCountries,
+    staleTime: 1000 * 60 * 60 * 24,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
+  });
+
   const debouncedFilters = useDebouncedValue(
-    { status, genre, yearFrom, yearTo, unrated, sort },
+    { status, genre, originCountry, yearFrom, yearTo, unrated, sort },
     250,
   );
 
@@ -84,6 +100,7 @@ export function LibraryPage() {
     if (debouncedFilters.status && debouncedFilters.status !== "all")
       p.set("status", debouncedFilters.status);
     if (debouncedFilters.genre) p.set("genre", debouncedFilters.genre);
+    if (debouncedFilters.originCountry) p.set("origin_country", debouncedFilters.originCountry);
     if (debouncedFilters.yearFrom) p.set("year_from", debouncedFilters.yearFrom);
     if (debouncedFilters.yearTo) p.set("year_to", debouncedFilters.yearTo);
     if (debouncedFilters.unrated) p.set("unrated", "1");
@@ -93,6 +110,7 @@ export function LibraryPage() {
   }, [
     debouncedFilters.status,
     debouncedFilters.genre,
+    debouncedFilters.originCountry,
     debouncedFilters.yearFrom,
     debouncedFilters.yearTo,
     debouncedFilters.unrated,
@@ -146,6 +164,7 @@ export function LibraryPage() {
     if (debouncedFilters.status && debouncedFilters.status !== "all")
       next.set("status", debouncedFilters.status);
     if (debouncedFilters.genre) next.set("genre", debouncedFilters.genre);
+    if (debouncedFilters.originCountry) next.set("origin_country", debouncedFilters.originCountry);
     if (debouncedFilters.yearFrom) next.set("year_from", debouncedFilters.yearFrom);
     if (debouncedFilters.yearTo) next.set("year_to", debouncedFilters.yearTo);
     if (debouncedFilters.unrated) next.set("unrated", "1");
@@ -157,6 +176,7 @@ export function LibraryPage() {
   }, [
     debouncedFilters.status,
     debouncedFilters.genre,
+    debouncedFilters.originCountry,
     debouncedFilters.yearFrom,
     debouncedFilters.yearTo,
     debouncedFilters.unrated,
@@ -165,6 +185,10 @@ export function LibraryPage() {
 
   const shows = showsQuery.data?.shows ?? [];
   const genres = showsQuery.data?.genres ?? [];
+  const countries = showsQuery.data?.countries ?? [];
+  const countryNames = countriesQuery.data?.countries ?? [];
+  const countryLabel = (code: string) =>
+    countryNames.find((country) => country.code === code)?.name ?? code;
   const imageBase = sessionQuery.data?.image_base ?? "";
   const bfName = sessionQuery.data?.bf_name ?? "BF";
   const gfName = sessionQuery.data?.gf_name ?? "GF";
@@ -213,24 +237,35 @@ export function LibraryPage() {
             </SelectContent>
           </Select>
         </FilterField>
-        <FilterField label="Year from">
-          <Input
-            type="number"
-            min={1900}
-            max={2100}
-            value={yearFrom}
-            onChange={(event) => setYearFrom(event.target.value)}
+        <FilterField label="Origin country">
+          <CountryCombobox
+            value={originCountry}
+            onValueChange={setOriginCountry}
+            options={countries.map((code) => ({ code, name: countryLabel(code) }))}
+            placeholder="Any"
+            anyLabel="Any"
           />
         </FilterField>
-        <FilterField label="Year to">
-          <Input
-            type="number"
-            min={1900}
-            max={2100}
-            value={yearTo}
-            onChange={(event) => setYearTo(event.target.value)}
-          />
-        </FilterField>
+        <div className="grid grid-cols-2 gap-3">
+          <FilterField label="Year from">
+            <Input
+              type="number"
+              min={1900}
+              max={2100}
+              value={yearFrom}
+              onChange={(event) => setYearFrom(event.target.value)}
+            />
+          </FilterField>
+          <FilterField label="Year to">
+            <Input
+              type="number"
+              min={1900}
+              max={2100}
+              value={yearTo}
+              onChange={(event) => setYearTo(event.target.value)}
+            />
+          </FilterField>
+        </div>
         <FilterField label="Sort">
           <Select value={sort} onValueChange={setSort}>
             <SelectTrigger>
@@ -269,6 +304,7 @@ export function LibraryPage() {
           onClick={() => {
             setStatus("all");
             setGenre("");
+            setOriginCountry("");
             setYearFrom("");
             setYearTo("");
             setUnrated(false);
@@ -284,68 +320,118 @@ export function LibraryPage() {
   return (
     <>
       <FiltersPane filtersOpen={filtersOpen} onOpenChange={setFiltersOpen} filters={FiltersForm}>
-        <CardGrid>
-          {showsQuery.isLoading ? <Loading label="Loading..." /> : null}
-          {!showsQuery.isLoading && !showsQuery.isFetching && !shows.length ? (
-            <EmptyState className="col-span-full p-12">
-              No shows yet. Use “Add” to pull from TMDB.
-            </EmptyState>
-          ) : null}
-          {shows.map((show) => (
-            <ShowCard
-              key={show.id}
-              title={
-                <ViewTransitionLink to="/show/$showId" params={{ showId: String(show.id) }}>
-                  {show.title}
-                </ViewTransitionLink>
-              }
-              year={show.year}
-              posterAlt={show.title}
-              posterPath={show.poster_path}
-              imageBase={imageBase}
-              posterLink={(node) => (
-                <ViewTransitionLink to="/show/$showId" params={{ showId: String(show.id) }}>
-                  {node}
-                </ViewTransitionLink>
-              )}
-              topRight={
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full">
-                      <span className="sr-only">Open menu</span>
-                      <span className="text-lg leading-none">⋯</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setPendingDelete(show)}>
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              }
-              statusBadge={
-                <Badge variant="outline" className={cn("border", statusBadge(show.status))}>
-                  {show.status || "tbd"}
-                </Badge>
-              }
-              metaBadges={
-                <Badge variant="secondary" className="gap-1">
-                  {show.tmdb_rating ? (
-                    <>
-                      <span>{formatScore(show.tmdb_rating)}</span>
-                      {show.tmdb_votes ? <span>({formatVotes(show.tmdb_votes)})</span> : null}
-                    </>
-                  ) : (
-                    "No TMDB score"
+        {showsQuery.isLoading || (showsQuery.isFetching && !shows.length) ? (
+          <LoadingGrid />
+        ) : (
+          <CardGrid>
+            {!showsQuery.isLoading && !showsQuery.isFetching && !shows.length ? (
+              <Empty className="col-span-full border-border/60 bg-card/30">
+                <EmptyHeader>
+                  <EmptyTitle>No shows yet</EmptyTitle>
+                  <EmptyDescription>Use “Add” to pull from TMDB.</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : null}
+            {shows.map((show) => {
+              const originCountries = show.origin_country ?? [];
+              const primaryCountry = originCountries[0];
+              const countryBadge = primaryCountry
+                ? `${flagEmoji(primaryCountry)} ${primaryCountry}${
+                    originCountries.length > 1 ? ` +${originCountries.length - 1}` : ""
+                  }`
+                : "";
+              return (
+                <ShowCard
+                  key={show.id}
+                  title={
+                    <ViewTransitionLink to="/show/$showId" params={{ showId: String(show.id) }}>
+                      {show.title}
+                    </ViewTransitionLink>
+                  }
+                  year={show.year}
+                  posterAlt={show.title}
+                  posterPath={show.poster_path}
+                  imageBase={imageBase}
+                  posterLink={(node) => (
+                    <ViewTransitionLink to="/show/$showId" params={{ showId: String(show.id) }}>
+                      {node}
+                    </ViewTransitionLink>
                   )}
-                </Badge>
-              }
-              genresText={show.genres ? shortGenres(show.genres) : ""}
-              overview={show.overview}
-              footer={<RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />}
-            />
-          ))}
-        </CardGrid>
+                  topRight={
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full">
+                          <span className="sr-only">Open menu</span>
+                          <span className="text-lg leading-none">⋯</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setPendingDelete(show)}>
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  }
+                  statusBadge={
+                    <Badge variant="outline" className={cn("border", statusBadge(show.status))}>
+                      {show.status || "tbd"}
+                    </Badge>
+                  }
+                  metaBadges={
+                    <>
+                      <Badge variant="secondary" className="gap-1">
+                        {show.tmdb_rating ? (
+                          <>
+                            <span>{formatScore(show.tmdb_rating)}</span>
+                            {show.tmdb_votes ? <span>({formatVotes(show.tmdb_votes)})</span> : null}
+                          </>
+                        ) : (
+                          "No TMDB score"
+                        )}
+                      </Badge>
+                      {countryBadge ? (
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <Badge variant="outline">{countryBadge}</Badge>
+                          </HoverCardTrigger>
+                          <HoverCardContent className="w-64">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              Origin countries
+                            </div>
+                            <ScrollArea className="mt-2 max-h-28 pr-2">
+                              <div className="space-y-1 text-xs">
+                                {originCountries.length > 0 ? (
+                                  originCountries.map((code) => (
+                                    <div key={code} className="flex items-center gap-2">
+                                      <span className="text-base leading-none">
+                                        {flagEmoji(code)}
+                                      </span>
+                                      <span className="flex-1">{countryLabel(code)}</span>
+                                      <span className="text-muted-foreground">{code}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-muted-foreground">No country data.</div>
+                                )}
+                              </div>
+                            </ScrollArea>
+                          </HoverCardContent>
+                        </HoverCard>
+                      ) : null}
+                    </>
+                  }
+                  footer={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />
+                    </div>
+                  }
+                  genresText={show.genres ? shortGenres(show.genres) : ""}
+                  overview={show.overview}
+                />
+              );
+            })}
+          </CardGrid>
+        )}
       </FiltersPane>
 
       <AlertDialog

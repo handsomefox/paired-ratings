@@ -5,8 +5,11 @@ export type ApiShow = pb.Show;
 export type ApiShowDetail = pb.ShowDetail;
 export type ListResponse = pb.ListResponse;
 export type SearchResult = pb.SearchResult;
+export type SearchRequest = pb.SearchRequest;
 export type SearchResponse = pb.SearchResponse;
 export type SearchGenresResponse = pb.SearchGenresResponse;
+export type SearchCountriesResponse = pb.SearchCountriesResponse;
+export type SearchLanguagesResponse = pb.SearchLanguagesResponse;
 export type SearchResolveResponse = pb.SearchResolveResponse;
 export type LoginRequest = pb.LoginRequest;
 export type AddShowRequest = pb.AddShowRequest;
@@ -76,6 +79,8 @@ export const api = {
   search: (params: URLSearchParams) =>
     jsonRequest<SearchResponse>(`/api/search?${params.toString()}`),
   searchGenres: () => jsonRequest<SearchGenresResponse>("/api/search/genres"),
+  searchCountries: () => jsonRequest<SearchCountriesResponse>("/api/search/countries"),
+  searchLanguages: () => jsonRequest<SearchLanguagesResponse>("/api/search/languages"),
   searchResolve: (tmdbId: number, mediaType: string) =>
     jsonRequest<SearchResolveResponse>(
       `/api/search/resolve?tmdb_id=${tmdbId}&media_type=${mediaType}`,

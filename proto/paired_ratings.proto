@@ -34,6 +34,7 @@ message Show {
   optional string gf_comment = 16 [json_name = "gf_comment"];
   string created_at = 17 [json_name = "created_at"];
   string updated_at = 18 [json_name = "updated_at"];
+  repeated string origin_country = 19 [json_name = "origin_country"];
 }
 
 message ShowDetail {
@@ -44,6 +45,7 @@ message ShowDetail {
 message ListResponse {
   repeated Show shows = 1 [json_name = "shows"];
   repeated string genres = 2 [json_name = "genres"];
+  repeated string countries = 3 [json_name = "countries"];
 }
 
 message GenresResponse {
@@ -61,6 +63,22 @@ message SearchResult {
   int32 vote_count = 8 [json_name = "vote_count"];
   bool in_library = 9 [json_name = "in_library"];
   repeated string genres = 10 [json_name = "genres"];
+  repeated string origin_country = 11 [json_name = "origin_country"];
+  string original_language = 12 [json_name = "original_language"];
+}
+
+message SearchRequest {
+  string q = 1 [json_name = "q"];
+  string media_type = 2 [json_name = "media_type"];
+  string year_from = 3 [json_name = "year_from"];
+  string year_to = 4 [json_name = "year_to"];
+  string min_rating = 5 [json_name = "min_rating"];
+  string min_votes = 6 [json_name = "min_votes"];
+  string sort = 7 [json_name = "sort"];
+  string genres = 8 [json_name = "genres"];
+  string origin_country = 9 [json_name = "origin_country"];
+  string original_language = 10 [json_name = "original_language"];
+  int32 page = 11 [json_name = "page"];
 }
 
 message SearchResponse {
@@ -75,9 +93,27 @@ message Genre {
   string name = 2 [json_name = "name"];
 }
 
+message Country {
+  string code = 1 [json_name = "code"];
+  string name = 2 [json_name = "name"];
+}
+
+message Language {
+  string code = 1 [json_name = "code"];
+  string name = 2 [json_name = "name"];
+}
+
 message SearchGenresResponse {
   repeated Genre movie_genres = 1 [json_name = "movie_genres"];
   repeated Genre tv_genres = 2 [json_name = "tv_genres"];
+}
+
+message SearchCountriesResponse {
+  repeated Country countries = 1 [json_name = "countries"];
+}
+
+message SearchLanguagesResponse {
+  repeated Language languages = 1 [json_name = "languages"];
 }
 
 message SearchResolveResponse {

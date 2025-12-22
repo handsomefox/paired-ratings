@@ -32,6 +32,8 @@ type Handler struct {
 	bfName    string
 	gfName    string
 	genres    genreCache
+	countries countryCache
+	languages languageCache
 }
 
 type Config struct {
@@ -52,17 +54,31 @@ type genreCache struct {
 	fetchedAt time.Time
 }
 
+type countryCache struct {
+	mu        sync.RWMutex
+	items     []tmdb.Country
+	fetchedAt time.Time
+}
+
+type languageCache struct {
+	mu        sync.RWMutex
+	items     []tmdb.Language
+	fetchedAt time.Time
+}
+
 type searchFilters struct {
-	MediaType string
-	YearFrom  *int
-	YearTo    *int
-	MinRating *float64
-	MinVotes  *int
-	Sort      string
-	Page      int
-	GenreIDs  []int
-	GenreMode string
-	GenreRaw  string
+	MediaType        string
+	YearFrom         *int
+	YearTo           *int
+	MinRating        *float64
+	MinVotes         *int
+	Sort             string
+	Page             int
+	GenreIDs         []int
+	GenreMode        string
+	GenreRaw         string
+	OriginCountry    string
+	OriginalLanguage string
 }
 
 type searchPage struct {
@@ -71,7 +87,6 @@ type searchPage struct {
 	TotalPages   int
 	TotalResults int
 }
-
 
 func New(cfg *Config) (*Handler, error) {
 	if cfg.Store == nil {
@@ -114,6 +129,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Method(http.MethodPost, "/logout", Adapt(h.postLogout))
 		r.Method(http.MethodGet, "/search", Adapt(h.getSearch))
 		r.Method(http.MethodGet, "/search/genres", Adapt(h.getSearchGenres))
+		r.Method(http.MethodGet, "/search/countries", Adapt(h.getSearchCountries))
+		r.Method(http.MethodGet, "/search/languages", Adapt(h.getSearchLanguages))
 		r.Method(http.MethodGet, "/search/resolve", Adapt(h.getSearchResolve))
 		r.Method(http.MethodGet, "/genres", Adapt(h.getGenres))
 
@@ -194,9 +211,16 @@ func (h *Handler) getShows(w http.ResponseWriter, r *http.Request) error {
 		return internal(err)
 	}
 
+	countries, err := h.store.ListAllCountries(ctx)
+	if err != nil {
+		slog.Warn("list countries failed", slog.Any("err", err))
+		return internal(err)
+	}
+
 	writeJSON(w, http.StatusOK, &pb.ListResponse{
-		Shows:  toPBShows(shows),
-		Genres: genres,
+		Shows:     toPBShows(shows),
+		Genres:    genres,
+		Countries: countries,
 	})
 	return nil
 }
@@ -492,6 +516,36 @@ func (h *Handler) getSearchGenres(w http.ResponseWriter, r *http.Request) error 
 	return nil
 }
 
+func (h *Handler) getSearchCountries(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	countries, err := h.fetchCountryList(ctx)
+	if err != nil {
+		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
+	}
+
+	resp := &pb.SearchCountriesResponse{
+		Countries: toPBCountries(countries),
+	}
+	writeJSON(w, http.StatusOK, resp)
+	return nil
+}
+
+func (h *Handler) getSearchLanguages(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	languages, err := h.fetchLanguageList(ctx)
+	if err != nil {
+		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
+	}
+
+	resp := &pb.SearchLanguagesResponse{
+		Languages: toPBLanguages(languages),
+	}
+	writeJSON(w, http.StatusOK, resp)
+	return nil
+}
+
 func (h *Handler) getSearchResolve(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	tmdbIDRaw := strings.TrimSpace(r.URL.Query().Get("tmdb_id"))
@@ -585,8 +639,9 @@ func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) err
 func (h *Handler) getSearch(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	filters := parseSearchFilters(r)
+	req := parseSearchRequest(r)
+	query := strings.TrimSpace(req.Q)
+	filters := searchFiltersFromRequest(req)
 
 	pageData, err := h.searchTMDB(ctx, query, filters)
 	if err != nil {
@@ -603,16 +658,18 @@ func (h *Handler) getSearch(w http.ResponseWriter, r *http.Request) error {
 	results := make([]*pb.SearchResult, 0, len(pageData.Results))
 	for _, item := range pageData.Results {
 		results = append(results, &pb.SearchResult{
-			Id:          item.ID,
-			MediaType:   item.MediaType,
-			Title:       item.Title,
-			Year:        item.Year,
-			PosterPath:  item.PosterPath,
-			Overview:    item.Overview,
-			VoteAverage: item.VoteAverage,
-			VoteCount:   toInt32(item.VoteCount),
-			InLibrary:   inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
-			Genres:      genreNamesFor(item, movieGenres, tvGenres),
+			Id:               item.ID,
+			MediaType:        item.MediaType,
+			Title:            item.Title,
+			Year:             item.Year,
+			PosterPath:       item.PosterPath,
+			Overview:         item.Overview,
+			VoteAverage:      item.VoteAverage,
+			VoteCount:        toInt32(item.VoteCount),
+			InLibrary:        inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
+			Genres:           genreNamesFor(item, movieGenres, tvGenres),
+			OriginCountry:    item.OriginCountry,
+			OriginalLanguage: item.OriginalLanguage,
 		})
 	}
 
@@ -647,11 +704,13 @@ func (h *Handler) searchTMDB(ctx context.Context, query string, filters searchFi
 	}
 
 	discoverFilters := tmdb.DiscoverFilters{
-		YearFrom:  filters.YearFrom,
-		YearTo:    filters.YearTo,
-		MinRating: filters.MinRating,
-		MinVotes:  filters.MinVotes,
-		Genres:    filters.GenreRaw,
+		YearFrom:         filters.YearFrom,
+		YearTo:           filters.YearTo,
+		MinRating:        filters.MinRating,
+		MinVotes:         filters.MinVotes,
+		Genres:           filters.GenreRaw,
+		OriginCountry:    filters.OriginCountry,
+		OriginalLanguage: filters.OriginalLanguage,
 	}
 
 	switch filters.MediaType {
@@ -766,51 +825,83 @@ func (h *Handler) searchWithFilterPaging(
 	}, nil
 }
 
-func parseSearchFilters(r *http.Request) searchFilters {
-	mediaType := strings.TrimSpace(r.URL.Query().Get("media_type"))
+func parseSearchRequest(r *http.Request) *pb.SearchRequest {
+	query := r.URL.Query()
+	req := &pb.SearchRequest{
+		Q:                strings.TrimSpace(query.Get("q")),
+		MediaType:        strings.TrimSpace(query.Get("media_type")),
+		YearFrom:         strings.TrimSpace(query.Get("year_from")),
+		YearTo:           strings.TrimSpace(query.Get("year_to")),
+		MinRating:        strings.TrimSpace(query.Get("min_rating")),
+		MinVotes:         strings.TrimSpace(query.Get("min_votes")),
+		Sort:             strings.TrimSpace(query.Get("sort")),
+		Genres:           strings.TrimSpace(query.Get("genres")),
+		OriginCountry:    strings.TrimSpace(query.Get("origin_country")),
+		OriginalLanguage: strings.TrimSpace(query.Get("original_language")),
+	}
+
+	if val := strings.TrimSpace(query.Get("page")); val != "" {
+		if parsed, err := strconv.Atoi(val); err == nil && parsed > 0 {
+			req.Page = int32(parsed)
+		}
+	}
+
+	return req
+}
+
+func searchFiltersFromRequest(req *pb.SearchRequest) searchFilters {
+	mediaType := strings.TrimSpace(req.MediaType)
 	if mediaType != "movie" && mediaType != "tv" {
 		mediaType = "all"
 	}
 
 	var yearFrom *int
-	if val := strings.TrimSpace(r.URL.Query().Get("year_from")); val != "" {
+	if val := strings.TrimSpace(req.YearFrom); val != "" {
 		if parsed, err := strconv.Atoi(val); err == nil {
 			yearFrom = &parsed
 		}
 	}
 
 	var yearTo *int
-	if val := strings.TrimSpace(r.URL.Query().Get("year_to")); val != "" {
+	if val := strings.TrimSpace(req.YearTo); val != "" {
 		if parsed, err := strconv.Atoi(val); err == nil {
 			yearTo = &parsed
 		}
 	}
 
 	var minRating *float64
-	if val := strings.TrimSpace(r.URL.Query().Get("min_rating")); val != "" {
+	if val := strings.TrimSpace(req.MinRating); val != "" {
 		if parsed, err := strconv.ParseFloat(val, 64); err == nil && parsed > 0 {
 			minRating = &parsed
 		}
 	}
 
 	var minVotes *int
-	if val := strings.TrimSpace(r.URL.Query().Get("min_votes")); val != "" {
+	if val := strings.TrimSpace(req.MinVotes); val != "" {
 		if parsed, err := strconv.Atoi(val); err == nil && parsed > 0 {
 			minVotes = &parsed
 		}
 	}
 
-	genreRaw := strings.TrimSpace(r.URL.Query().Get("genres"))
+	originCountry := strings.TrimSpace(req.OriginCountry)
+	if originCountry != "" {
+		originCountry = strings.ToUpper(originCountry)
+	}
+
+	originalLanguage := strings.TrimSpace(req.OriginalLanguage)
+	if originalLanguage != "" {
+		originalLanguage = strings.ToLower(originalLanguage)
+	}
+
+	genreRaw := strings.TrimSpace(req.Genres)
 	genreIDs, genreMode, genreQuery := parseGenreFilter(genreRaw)
 
 	page := 1
-	if val := strings.TrimSpace(r.URL.Query().Get("page")); val != "" {
-		if parsed, err := strconv.Atoi(val); err == nil && parsed > 0 {
-			page = parsed
-		}
+	if req.Page > 0 {
+		page = int(req.Page)
 	}
 
-	sort := strings.TrimSpace(r.URL.Query().Get("sort"))
+	sort := strings.TrimSpace(req.Sort)
 	switch sort {
 	case "rating", "year", "title", "votes":
 	default:
@@ -818,21 +909,30 @@ func parseSearchFilters(r *http.Request) searchFilters {
 	}
 
 	return searchFilters{
-		MediaType: mediaType,
-		YearFrom:  yearFrom,
-		YearTo:    yearTo,
-		MinRating: minRating,
-		MinVotes:  minVotes,
-		Sort:      sort,
-		Page:      page,
-		GenreIDs:  genreIDs,
-		GenreMode: genreMode,
-		GenreRaw:  genreQuery,
+		MediaType:        mediaType,
+		YearFrom:         yearFrom,
+		YearTo:           yearTo,
+		MinRating:        minRating,
+		MinVotes:         minVotes,
+		Sort:             sort,
+		Page:             page,
+		GenreIDs:         genreIDs,
+		GenreMode:        genreMode,
+		GenreRaw:         genreQuery,
+		OriginCountry:    originCountry,
+		OriginalLanguage: originalLanguage,
 	}
 }
 
 func (f searchFilters) isEmpty() bool {
-	return f.MediaType == "all" && f.YearFrom == nil && f.YearTo == nil && f.MinRating == nil && f.MinVotes == nil && len(f.GenreIDs) == 0
+	return f.MediaType == "all" &&
+		f.YearFrom == nil &&
+		f.YearTo == nil &&
+		f.MinRating == nil &&
+		f.MinVotes == nil &&
+		len(f.GenreIDs) == 0 &&
+		f.OriginCountry == "" &&
+		f.OriginalLanguage == ""
 }
 
 func applySearchFilters(items []tmdb.SearchResult, filters searchFilters) []tmdb.SearchResult {
@@ -850,6 +950,26 @@ func applySearchFilters(items []tmdb.SearchResult, filters searchFilters) []tmdb
 		}
 		if filters.MinVotes != nil && item.VoteCount < *filters.MinVotes {
 			continue
+		}
+		if filters.OriginalLanguage != "" {
+			if item.OriginalLanguage == "" || !strings.EqualFold(item.OriginalLanguage, filters.OriginalLanguage) {
+				continue
+			}
+		}
+		if filters.OriginCountry != "" {
+			if len(item.OriginCountry) == 0 {
+				continue
+			}
+			matched := false
+			for _, code := range item.OriginCountry {
+				if strings.EqualFold(code, filters.OriginCountry) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
 		}
 		if len(filters.GenreIDs) > 0 {
 			if !matchesGenres(item.GenreIDs, filters.GenreIDs, filters.GenreMode) {
@@ -1156,11 +1276,103 @@ func toPBGenres(items []tmdb.Genre) []*pb.Genre {
 	return out
 }
 
+func (h *Handler) fetchCountryList(ctx context.Context) ([]tmdb.Country, error) {
+	const cacheTTL = 24 * time.Hour
+
+	h.countries.mu.RLock()
+	if h.countries.items != nil && time.Since(h.countries.fetchedAt) < cacheTTL {
+		cached := append([]tmdb.Country(nil), h.countries.items...)
+		h.countries.mu.RUnlock()
+		return cached, nil
+	}
+	h.countries.mu.RUnlock()
+
+	countries, err := h.tmdb.FetchCountries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	slices.SortFunc(countries, func(a, b tmdb.Country) int {
+		nameA := strings.ToLower(strings.TrimSpace(a.Name))
+		nameB := strings.ToLower(strings.TrimSpace(b.Name))
+		if nameA == nameB {
+			return strings.Compare(strings.ToLower(a.Code), strings.ToLower(b.Code))
+		}
+		return strings.Compare(nameA, nameB)
+	})
+
+	h.countries.mu.Lock()
+	h.countries.items = append([]tmdb.Country(nil), countries...)
+	h.countries.fetchedAt = time.Now()
+	h.countries.mu.Unlock()
+
+	return countries, nil
+}
+
+func toPBCountries(items []tmdb.Country) []*pb.Country {
+	out := make([]*pb.Country, 0, len(items))
+	for _, item := range items {
+		out = append(out, &pb.Country{
+			Code: item.Code,
+			Name: item.Name,
+		})
+	}
+	return out
+}
+
+func (h *Handler) fetchLanguageList(ctx context.Context) ([]tmdb.Language, error) {
+	const cacheTTL = 24 * time.Hour
+
+	h.languages.mu.RLock()
+	if h.languages.items != nil && time.Since(h.languages.fetchedAt) < cacheTTL {
+		cached := append([]tmdb.Language(nil), h.languages.items...)
+		h.languages.mu.RUnlock()
+		return cached, nil
+	}
+	h.languages.mu.RUnlock()
+
+	languages, err := h.tmdb.FetchLanguages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	slices.SortFunc(languages, func(a, b tmdb.Language) int {
+		nameA := strings.ToLower(strings.TrimSpace(a.Name))
+		nameB := strings.ToLower(strings.TrimSpace(b.Name))
+		if nameA == nameB {
+			return strings.Compare(strings.ToLower(a.Code), strings.ToLower(b.Code))
+		}
+		return strings.Compare(nameA, nameB)
+	})
+
+	h.languages.mu.Lock()
+	h.languages.items = append([]tmdb.Language(nil), languages...)
+	h.languages.fetchedAt = time.Now()
+	h.languages.mu.Unlock()
+
+	return languages, nil
+}
+
+func toPBLanguages(items []tmdb.Language) []*pb.Language {
+	out := make([]*pb.Language, 0, len(items))
+	for _, item := range items {
+		out = append(out, &pb.Language{
+			Code: item.Code,
+			Name: item.Name,
+		})
+	}
+	return out
+}
+
 func parseListFilters(r *http.Request) store.ListFilters {
+	country := strings.TrimSpace(r.URL.Query().Get("origin_country"))
+	if country != "" {
+		country = strings.ToUpper(country)
+	}
+
 	filters := store.ListFilters{
-		Status: r.URL.Query().Get("status"),
-		Genre:  r.URL.Query().Get("genre"),
-		Sort:   r.URL.Query().Get("sort"),
+		Status:  r.URL.Query().Get("status"),
+		Genre:   r.URL.Query().Get("genre"),
+		Country: country,
+		Sort:    r.URL.Query().Get("sort"),
 	}
 
 	if r.URL.Query().Get("unrated") == "1" {
@@ -1203,41 +1415,48 @@ func showFromDetail(detail *tmdb.Detail, status string) store.Show {
 		poster = sql.Null[string]{Valid: true, V: detail.PosterPath}
 	}
 
+	var originCountry sql.Null[string]
+	if len(detail.OriginCountry) > 0 {
+		originCountry = sql.Null[string]{Valid: true, V: strings.Join(detail.OriginCountry, ", ")}
+	}
+
 	return store.Show{
-		TMDBID:     detail.TMDBID,
-		MediaType:  detail.MediaType,
-		Title:      detail.Title,
-		Year:       year,
-		Genres:     genres,
-		Overview:   overview,
-		PosterPath: poster,
-		IMDbID:     toSQLNullString(detail.IMDbID),
-		TMDBRating: toSQLNullNumeric(detail.VoteAverage),
-		TMDBVotes:  toSQLNullNumeric(int64(detail.VoteCount)),
-		Status:     status,
+		TMDBID:        detail.TMDBID,
+		MediaType:     detail.MediaType,
+		Title:         detail.Title,
+		Year:          year,
+		Genres:        genres,
+		Overview:      overview,
+		PosterPath:    poster,
+		IMDbID:        toSQLNullString(detail.IMDbID),
+		TMDBRating:    toSQLNullNumeric(detail.VoteAverage),
+		TMDBVotes:     toSQLNullNumeric(int64(detail.VoteCount)),
+		OriginCountry: originCountry,
+		Status:        status,
 	}
 }
 
 func toPBShow(show *store.Show) *pb.Show {
 	return &pb.Show{
-		Id:         show.ID,
-		TmdbId:     show.TMDBID,
-		MediaType:  show.MediaType,
-		Title:      show.Title,
-		Year:       fromSQLNull(show.Year),
-		Genres:     fromSQLNull(show.Genres),
-		Overview:   fromSQLNull(show.Overview),
-		PosterPath: fromSQLNull(show.PosterPath),
-		ImdbId:     fromSQLNull(show.IMDbID),
-		TmdbRating: fromSQLNull(show.TMDBRating),
-		TmdbVotes:  fromSQLNull(show.TMDBVotes),
-		Status:     show.Status,
-		BfRating:   fromSQLNull(show.BfRating),
-		GfRating:   fromSQLNull(show.GfRating),
-		BfComment:  fromSQLNull(show.BfComment),
-		GfComment:  fromSQLNull(show.GfComment),
-		CreatedAt:  show.CreatedAt,
-		UpdatedAt:  show.UpdatedAt,
+		Id:            show.ID,
+		TmdbId:        show.TMDBID,
+		MediaType:     show.MediaType,
+		Title:         show.Title,
+		Year:          fromSQLNull(show.Year),
+		Genres:        fromSQLNull(show.Genres),
+		Overview:      fromSQLNull(show.Overview),
+		PosterPath:    fromSQLNull(show.PosterPath),
+		ImdbId:        fromSQLNull(show.IMDbID),
+		TmdbRating:    fromSQLNull(show.TMDBRating),
+		TmdbVotes:     fromSQLNull(show.TMDBVotes),
+		Status:        show.Status,
+		BfRating:      fromSQLNull(show.BfRating),
+		GfRating:      fromSQLNull(show.GfRating),
+		BfComment:     fromSQLNull(show.BfComment),
+		GfComment:     fromSQLNull(show.GfComment),
+		CreatedAt:     show.CreatedAt,
+		UpdatedAt:     show.UpdatedAt,
+		OriginCountry: splitCommaValues(show.OriginCountry),
 	}
 }
 

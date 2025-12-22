@@ -1,22 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  keepPreviousData,
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import type { InfiniteData } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { SearchResponse, SearchResult } from "@/lib/api";
-import { Loading } from "@/components/loading";
-import { formatScore, formatVotes, shortGenreList } from "@/lib/utils";
+import type { SearchRequest, SearchResponse, SearchResult } from "@/lib/api";
+import { LoadingGrid } from "@/components/loading-grid";
+import { flagEmoji, formatScore, formatVotes, shortGenreList } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShowCard } from "@/components/show-card";
 import CardGrid from "@/components/card-grid";
-import EmptyState from "@/components/empty-state";
 import FilterField from "@/components/filter-field";
+import { CountryCombobox } from "@/components/country-combobox";
+import { LanguageCombobox } from "@/components/language-combobox";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -26,7 +20,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import FiltersPane from "@/components/filters-pane";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { toast } from "sonner";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 
@@ -44,16 +50,7 @@ const mediaTypeOptions = [
   { value: "tv", label: "TV" },
 ];
 
-type SearchKey = {
-  q: string;
-  media_type: string;
-  year_from: string;
-  year_to: string;
-  min_rating: string;
-  min_votes: string;
-  sort: string;
-  genres: string;
-};
+type SearchKey = Omit<SearchRequest, "page">;
 
 export function SearchPage() {
   const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -64,6 +61,16 @@ export function SearchPage() {
   const [yearTo, setYearTo] = useState(initialParams.get("year_to") ?? "");
   const [minRating, setMinRating] = useState(initialParams.get("min_rating") ?? "");
   const [minVotes, setMinVotes] = useState(initialParams.get("min_votes") ?? "");
+  const [page, setPage] = useState(() => {
+    const raw = Number(initialParams.get("page") ?? "1");
+    return Number.isFinite(raw) && raw > 0 ? raw : 1;
+  });
+  const [originCountry, setOriginCountry] = useState(
+    (initialParams.get("origin_country") ?? "").toUpperCase(),
+  );
+  const [originalLanguage, setOriginalLanguage] = useState(
+    (initialParams.get("original_language") ?? "").toLowerCase(),
+  );
   const [sort, setSort] = useState(initialParams.get("sort") ?? "relevance");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [expandedOverviews, setExpandedOverviews] = useState<Set<string>>(() => new Set());
@@ -80,7 +87,6 @@ export function SearchPage() {
   });
 
   const queryClient = useQueryClient();
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const sessionQuery = useQuery({
     queryKey: ["session"],
@@ -95,6 +101,26 @@ export function SearchPage() {
   const searchGenresQuery = useQuery({
     queryKey: ["search-genres"],
     queryFn: api.searchGenres,
+    staleTime: 1000 * 60 * 60 * 24,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
+  });
+
+  const searchCountriesQuery = useQuery({
+    queryKey: ["search-countries"],
+    queryFn: api.searchCountries,
+    staleTime: 1000 * 60 * 60 * 24,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
+  });
+
+  const searchLanguagesQuery = useQuery({
+    queryKey: ["search-languages"],
+    queryFn: api.searchLanguages,
     staleTime: 1000 * 60 * 60 * 24,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -118,9 +144,35 @@ export function SearchPage() {
   }, [selectedGenres, genreMode]);
 
   const debouncedFilters = useDebouncedValue(
-    { query, mediaType, yearFrom, yearTo, minRating, minVotes, sort, genres: genreQuery },
+    {
+      query,
+      mediaType,
+      yearFrom,
+      yearTo,
+      minRating,
+      minVotes,
+      sort,
+      genres: genreQuery,
+      originCountry,
+      originalLanguage,
+    },
     600,
   );
+
+  useEffect(() => {
+    setPage((prev) => (prev === 1 ? prev : 1));
+  }, [
+    debouncedFilters.query,
+    debouncedFilters.mediaType,
+    debouncedFilters.yearFrom,
+    debouncedFilters.yearTo,
+    debouncedFilters.minRating,
+    debouncedFilters.minVotes,
+    debouncedFilters.sort,
+    debouncedFilters.genres,
+    debouncedFilters.originCountry,
+    debouncedFilters.originalLanguage,
+  ]);
 
   const trimmedQuery = debouncedFilters.query.trim();
 
@@ -131,6 +183,8 @@ export function SearchPage() {
     debouncedFilters.minRating !== "" ||
     debouncedFilters.minVotes !== "" ||
     debouncedFilters.genres !== "" ||
+    debouncedFilters.originCountry !== "" ||
+    debouncedFilters.originalLanguage !== "" ||
     (debouncedFilters.sort !== "" && debouncedFilters.sort !== "relevance");
 
   const enabled: boolean = trimmedQuery.length >= 1 || hasFilters;
@@ -145,6 +199,8 @@ export function SearchPage() {
       min_votes: debouncedFilters.minVotes,
       sort: debouncedFilters.sort,
       genres: debouncedFilters.genres,
+      origin_country: debouncedFilters.originCountry,
+      original_language: debouncedFilters.originalLanguage,
     }),
     [
       trimmedQuery,
@@ -155,6 +211,8 @@ export function SearchPage() {
       debouncedFilters.minVotes,
       debouncedFilters.sort,
       debouncedFilters.genres,
+      debouncedFilters.originCountry,
+      debouncedFilters.originalLanguage,
     ],
   );
 
@@ -169,6 +227,7 @@ export function SearchPage() {
     searchKey.min_votes,
     searchKey.sort,
     searchKey.genres,
+    page,
   ]);
 
   useEffect(() => {
@@ -187,6 +246,15 @@ export function SearchPage() {
     }
     if (debouncedFilters.genres) {
       params.set("genres", debouncedFilters.genres);
+    }
+    if (debouncedFilters.originCountry) {
+      params.set("origin_country", debouncedFilters.originCountry);
+    }
+    if (debouncedFilters.originalLanguage) {
+      params.set("original_language", debouncedFilters.originalLanguage);
+    }
+    if (page > 1) {
+      params.set("page", String(page));
     }
 
     const next = params.toString();
@@ -201,9 +269,12 @@ export function SearchPage() {
     debouncedFilters.minVotes,
     debouncedFilters.sort,
     debouncedFilters.genres,
+    debouncedFilters.originCountry,
+    debouncedFilters.originalLanguage,
+    page,
   ]);
 
-  const buildParams = (page: number) => {
+  const buildParams = () => {
     const params = new URLSearchParams();
 
     if (trimmedQuery) params.set("q", trimmedQuery);
@@ -220,26 +291,22 @@ export function SearchPage() {
     if (debouncedFilters.genres) {
       params.set("genres", debouncedFilters.genres);
     }
+    if (debouncedFilters.originCountry) {
+      params.set("origin_country", debouncedFilters.originCountry);
+    }
+    if (debouncedFilters.originalLanguage) {
+      params.set("original_language", debouncedFilters.originalLanguage);
+    }
     if (page > 1) params.set("page", String(page));
 
     return params;
   };
 
-  const searchQuery = useInfiniteQuery<
-    SearchResponse,
-    Error,
-    InfiniteData<SearchResponse, number>,
-    (string | SearchKey)[],
-    number
-  >({
-    queryKey: ["search", searchKey],
-    initialPageParam: 1,
+  const searchQuery = useQuery<SearchResponse, Error>({
+    queryKey: ["search", searchKey, page],
     enabled,
-    queryFn: ({ pageParam }) => api.search(buildParams(pageParam)),
-    getNextPageParam: (lastPage) =>
-      lastPage.page < lastPage.total_pages ? lastPage.page + 1 : undefined,
+    queryFn: () => api.search(buildParams()),
     placeholderData: keepPreviousData,
-
     staleTime: 30_000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -252,23 +319,17 @@ export function SearchPage() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["shows"] });
 
-      queryClient.setQueryData<InfiniteData<SearchResponse, number>>(
-        ["search", searchKey],
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              results: page.results.map((item) =>
-                item.id === variables.tmdb_id && item.media_type === variables.media_type
-                  ? { ...item, in_library: true }
-                  : item,
-              ),
-            })),
-          };
-        },
-      );
+      queryClient.setQueryData<SearchResponse>(["search", searchKey, page], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          results: old.results.map((item) =>
+            item.id === variables.tmdb_id && item.media_type === variables.media_type
+              ? { ...item, in_library: true }
+              : item,
+          ),
+        };
+      });
 
       toast.success("Added to library.");
     },
@@ -278,43 +339,15 @@ export function SearchPage() {
   });
 
   const results: SearchResult[] =
-    searchQuery.data?.pages
-      .flatMap((page) => page.results)
-      .filter((item): item is SearchResult => Boolean(item)) ?? [];
+    searchQuery.data?.results?.filter((item): item is SearchResult => Boolean(item)) ?? [];
 
-  const totalResults = searchQuery.data?.pages[0]?.total_results ?? 0;
-
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = searchQuery;
+  const totalResults = searchQuery.data?.total_results ?? 0;
+  const totalPages = searchQuery.data?.total_pages ?? 0;
+  const currentPage = searchQuery.data?.page ?? page;
 
   useEffect(() => {
     if (searchQuery.isError) toast.error("Failed to load search results.");
   }, [searchQuery.isError]);
-
-  const fetchLockRef = useRef(false);
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        if (!enabled) return;
-        if (!hasNextPage) return;
-        if (fetchLockRef.current) return;
-
-        fetchLockRef.current = true;
-        void fetchNextPage().finally(() => {
-          fetchLockRef.current = false;
-        });
-      },
-      { rootMargin: "150px 0px" },
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [enabled, hasNextPage, fetchNextPage]);
 
   const renderResultsCount = () => {
     if (!trimmedQuery && !hasFilters) return "";
@@ -333,6 +366,27 @@ export function SearchPage() {
     return `Results (${loaded})`;
   };
 
+  const pageItems = useMemo(() => {
+    if (totalPages <= 1) return [];
+    const items: Array<number | "ellipsis"> = [];
+
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i += 1) items.push(i);
+      return items;
+    }
+
+    items.push(1);
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+
+    if (start > 2) items.push("ellipsis");
+    for (let i = start; i <= end; i += 1) items.push(i);
+    if (end < totalPages - 1) items.push("ellipsis");
+
+    items.push(totalPages);
+    return items;
+  }, [currentPage, totalPages]);
+
   useEffect(() => {
     if (mediaType === "all") {
       setSelectedGenres([]);
@@ -341,10 +395,20 @@ export function SearchPage() {
 
   const availableGenres =
     mediaType === "movie"
-      ? searchGenresQuery.data?.movie_genres ?? []
+      ? (searchGenresQuery.data?.movie_genres ?? [])
       : mediaType === "tv"
-        ? searchGenresQuery.data?.tv_genres ?? []
-        : [];
+        ? (searchGenresQuery.data?.tv_genres ?? [])
+        : [
+            ...(searchGenresQuery.data?.movie_genres ?? []),
+            ...(searchGenresQuery.data?.tv_genres ?? []),
+          ];
+
+  const availableCountries = searchCountriesQuery.data?.countries ?? [];
+  const countryLabel = (code: string) => {
+    const match = availableCountries.find((country) => country.code === code);
+    return match ? match.name : code;
+  };
+  const availableLanguages = searchLanguagesQuery.data?.languages ?? [];
 
   const handleAdd = (item: SearchResult, status: string) => {
     addMutation.mutate({
@@ -395,6 +459,79 @@ export function SearchPage() {
             ))}
           </SelectContent>
         </Select>
+      </FilterField>
+
+      <FilterField label="Genres">
+        {mediaType === "all" ? (
+          <div className="rounded-xl border border-dashed border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            Choose Movie or TV to filter by genre.
+          </div>
+        ) : (
+          <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-3">
+            <Select
+              value={genreMode}
+              onValueChange={(value) => setGenreMode(value as "all" | "any")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Match" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Match all selected</SelectItem>
+                <SelectItem value="any">Match any selected</SelectItem>
+              </SelectContent>
+            </Select>
+            <ScrollArea className="max-h-48 pr-2">
+              <div className="space-y-2">
+                {searchGenresQuery.isLoading ? (
+                  <div className="text-xs text-muted-foreground">Loading genres…</div>
+                ) : null}
+                {!searchGenresQuery.isLoading && availableGenres.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">No genres found.</div>
+                ) : null}
+                {availableGenres.map((genre) => {
+                  const id = String(genre.id);
+                  const checked = selectedGenres.includes(id);
+                  return (
+                    <label key={genre.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-primary"
+                        checked={checked}
+                        onChange={(event) => {
+                          if (event.target.checked) {
+                            setSelectedGenres((prev) => [...prev, id]);
+                          } else {
+                            setSelectedGenres((prev) => prev.filter((val) => val !== id));
+                          }
+                        }}
+                      />
+                      <span>{genre.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+      </FilterField>
+
+      <FilterField label="Origin country">
+        <CountryCombobox
+          value={originCountry}
+          onValueChange={setOriginCountry}
+          options={availableCountries}
+          placeholder="Any"
+          anyLabel="Any"
+        />
+      </FilterField>
+      <FilterField label="Original language">
+        <LanguageCombobox
+          value={originalLanguage}
+          onValueChange={setOriginalLanguage}
+          options={availableLanguages}
+          placeholder="Any"
+          anyLabel="Any"
+        />
       </FilterField>
 
       <div className="grid grid-cols-2 gap-3">
@@ -455,54 +592,6 @@ export function SearchPage() {
         </Select>
       </FilterField>
 
-      <FilterField label="Genres">
-        {mediaType === "all" ? (
-          <div className="rounded-xl border border-dashed border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            Choose Movie or TV to filter by genre.
-          </div>
-        ) : (
-          <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-3">
-            <Select value={genreMode} onValueChange={(value) => setGenreMode(value as "all" | "any")}>
-              <SelectTrigger>
-                <SelectValue placeholder="Match" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Match all selected</SelectItem>
-                <SelectItem value="any">Match any selected</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="space-y-2 lg:max-h-48 lg:overflow-y-auto">
-              {searchGenresQuery.isLoading ? (
-                <div className="text-xs text-muted-foreground">Loading genres…</div>
-              ) : null}
-              {!searchGenresQuery.isLoading && availableGenres.length === 0 ? (
-                <div className="text-xs text-muted-foreground">No genres found.</div>
-              ) : null}
-              {availableGenres.map((genre) => {
-                const id = String(genre.id);
-                const checked = selectedGenres.includes(id);
-                return (
-                  <label key={genre.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-primary"
-                      checked={checked}
-                      onChange={(event) => {
-                        if (event.target.checked) {
-                          setSelectedGenres((prev) => [...prev, id]);
-                        } else {
-                          setSelectedGenres((prev) => prev.filter((val) => val !== id));
-                        }
-                      }}
-                    />
-                    <span>{genre.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </FilterField>
       <Separator />
       <Button
         type="button"
@@ -513,9 +602,12 @@ export function SearchPage() {
           setYearTo("");
           setMinRating("");
           setMinVotes("");
+          setOriginCountry("");
+          setOriginalLanguage("");
           setSort("relevance");
           setGenreMode("all");
           setSelectedGenres([]);
+          setPage(1);
         }}
       >
         Reset
@@ -545,89 +637,178 @@ export function SearchPage() {
 
         <div className="text-xs text-muted-foreground">{renderResultsCount()}</div>
 
-        {searchQuery.isLoading ? <Loading label="Loading..." /> : null}
+        {searchQuery.isLoading || (searchQuery.isFetching && results.length === 0) ? (
+          <LoadingGrid />
+        ) : null}
 
         {!searchQuery.isLoading && !searchQuery.isFetching && !results.length && enabled ? (
-          <EmptyState>No results yet.</EmptyState>
+          <Empty className="border-border/60 bg-card/30">
+            <EmptyHeader>
+              <EmptyTitle>No results yet</EmptyTitle>
+              <EmptyDescription>Try adjusting the filters or search again.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : null}
 
         <CardGrid>
-          {results.map((item) => (
-            <ShowCard
-              key={`${item.media_type}-${item.id}`}
-              title={item.title}
-              year={item.year}
-              posterAlt={item.title}
-              posterPath={item.poster_path}
-              imageBase={imageBase}
-              posterLink={(node) => (
-                <button
-                  type="button"
-                  className="block w-full cursor-pointer text-left"
-                  onClick={() => void handleOpenImdb(item)}
-                  aria-label={`Search IMDb for ${item.title}`}
-                >
-                  {node}
-                </button>
-              )}
-              metaBadges={
-                <>
-                  <Badge variant="secondary">
-                    {item.vote_average ? (
-                      <>
-                        {formatScore(item.vote_average)}
-                        {item.vote_count ? ` (${formatVotes(item.vote_count)})` : ""}
-                      </>
-                    ) : (
-                      "No TMDB score"
-                    )}
-                  </Badge>
-                  <Badge variant="outline">
-                    {item.media_type === "movie"
-                      ? "Movie"
-                      : item.media_type === "tv"
-                        ? "TV"
-                        : item.media_type}
-                  </Badge>
-                </>
-              }
-              genresText={item.genres?.length ? shortGenreList(item.genres) : ""}
-              overview={item.overview}
-              overviewExpanded={expandedOverviews.has(`${item.media_type}-${item.id}`)}
-              onToggleOverview={() => toggleOverview(`${item.media_type}-${item.id}`)}
-              footer={
-                item.in_library ? (
-                  <Badge className="w-fit bg-primary/15 text-primary">In library</Badge>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20"
-                      onClick={() => handleAdd(item, "planned")}
-                      disabled={addMutation.isPending}
-                    >
-                      Plan
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="border-teal-500/40 bg-teal-500/10 text-teal-200 hover:bg-teal-500/20"
-                      onClick={() => handleAdd(item, "watched")}
-                      disabled={addMutation.isPending}
-                    >
-                      Watched
-                    </Button>
-                  </div>
-                )
-              }
-            />
-          ))}
+          {results.map((item) => {
+            const originCountries = item.origin_country ?? [];
+            const primaryCountry = originCountries[0];
+            const countryBadge = primaryCountry
+              ? `${flagEmoji(primaryCountry)} ${primaryCountry}${
+                  originCountries.length > 1 ? ` +${originCountries.length - 1}` : ""
+                }`
+              : "";
+            return (
+              <ShowCard
+                key={`${item.media_type}-${item.id}`}
+                title={item.title}
+                year={item.year}
+                posterAlt={item.title}
+                posterPath={item.poster_path}
+                imageBase={imageBase}
+                posterLink={(node) => (
+                  <button
+                    type="button"
+                    className="block w-full cursor-pointer text-left"
+                    onClick={() => void handleOpenImdb(item)}
+                    aria-label={`Search IMDb for ${item.title}`}
+                  >
+                    {node}
+                  </button>
+                )}
+                metaBadges={
+                  <>
+                    <Badge variant="secondary">
+                      {item.vote_average ? (
+                        <>
+                          {formatScore(item.vote_average)}
+                          {item.vote_count ? ` (${formatVotes(item.vote_count)})` : ""}
+                        </>
+                      ) : (
+                        "No TMDB score"
+                      )}
+                    </Badge>
+                    {countryBadge ? (
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <Badge variant="outline">{countryBadge}</Badge>
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-64">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Origin countries
+                          </div>
+                          <ScrollArea className="mt-2 max-h-28 pr-2">
+                            <div className="space-y-1 text-xs">
+                              {originCountries.length > 0 ? (
+                                originCountries.map((code) => (
+                                  <div key={code} className="flex items-center gap-2">
+                                    <span className="text-base leading-none">
+                                      {flagEmoji(code)}
+                                    </span>
+                                    <span className="flex-1">{countryLabel(code)}</span>
+                                    <span className="text-muted-foreground">{code}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-muted-foreground">No country data.</div>
+                              )}
+                            </div>
+                          </ScrollArea>
+                        </HoverCardContent>
+                      </HoverCard>
+                    ) : null}
+                    <Badge variant="outline">
+                      {item.media_type === "movie"
+                        ? "Movie"
+                        : item.media_type === "tv"
+                          ? "TV"
+                          : item.media_type}
+                    </Badge>
+                  </>
+                }
+                genresText={item.genres?.length ? shortGenreList(item.genres) : ""}
+                overview={item.overview}
+                overviewExpanded={expandedOverviews.has(`${item.media_type}-${item.id}`)}
+                onToggleOverview={() => toggleOverview(`${item.media_type}-${item.id}`)}
+                footer={
+                  item.in_library ? (
+                    <Badge className="w-fit bg-primary/15 text-primary">In library</Badge>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20"
+                        onClick={() => handleAdd(item, "planned")}
+                        disabled={addMutation.isPending}
+                      >
+                        Plan
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="border-teal-500/40 bg-teal-500/10 text-teal-200 hover:bg-teal-500/20"
+                        onClick={() => handleAdd(item, "watched")}
+                        disabled={addMutation.isPending}
+                      >
+                        Watched
+                      </Button>
+                    </div>
+                  )
+                }
+              />
+            );
+          })}
         </CardGrid>
 
-        <div ref={sentinelRef} />
-
-        {isFetchingNextPage ? (
-          <div className="text-center text-xs text-muted-foreground">Loading more…</div>
+        {totalPages > 1 ? (
+          <Pagination className="pt-6">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    if (currentPage <= 1) return;
+                    setPage(currentPage - 1);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                />
+              </PaginationItem>
+              {pageItems.map((item, index) => (
+                <PaginationItem key={`${item}-${index}`}>
+                  {item === "ellipsis" ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink
+                      href="#"
+                      isActive={item === currentPage}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setPage(item);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    >
+                      {item}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    if (currentPage >= totalPages) return;
+                    setPage(currentPage + 1);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         ) : null}
       </div>
     </FiltersPane>

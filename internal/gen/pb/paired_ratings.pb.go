@@ -153,6 +153,7 @@ type Show struct {
 	GfComment     *string                `protobuf:"bytes,16,opt,name=gf_comment,proto3,oneof" json:"gf_comment,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,17,opt,name=created_at,proto3" json:"created_at,omitempty"`
 	UpdatedAt     string                 `protobuf:"bytes,18,opt,name=updated_at,proto3" json:"updated_at,omitempty"`
+	OriginCountry []string               `protobuf:"bytes,19,rep,name=origin_country,proto3" json:"origin_country,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -313,6 +314,13 @@ func (x *Show) GetUpdatedAt() string {
 	return ""
 }
 
+func (x *Show) GetOriginCountry() []string {
+	if x != nil {
+		return x.OriginCountry
+	}
+	return nil
+}
+
 type ShowDetail struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Show          *Show                  `protobuf:"bytes,1,opt,name=show,proto3" json:"show,omitempty"`
@@ -369,6 +377,7 @@ type ListResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Shows         []*Show                `protobuf:"bytes,1,rep,name=shows,proto3" json:"shows,omitempty"`
 	Genres        []string               `protobuf:"bytes,2,rep,name=genres,proto3" json:"genres,omitempty"`
+	Countries     []string               `protobuf:"bytes,3,rep,name=countries,proto3" json:"countries,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -413,6 +422,13 @@ func (x *ListResponse) GetShows() []*Show {
 func (x *ListResponse) GetGenres() []string {
 	if x != nil {
 		return x.Genres
+	}
+	return nil
+}
+
+func (x *ListResponse) GetCountries() []string {
+	if x != nil {
+		return x.Countries
 	}
 	return nil
 }
@@ -462,19 +478,21 @@ func (x *GenresResponse) GetGenres() []string {
 }
 
 type SearchResult struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	MediaType     string                 `protobuf:"bytes,2,opt,name=media_type,proto3" json:"media_type,omitempty"`
-	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Year          string                 `protobuf:"bytes,4,opt,name=year,proto3" json:"year,omitempty"`
-	PosterPath    string                 `protobuf:"bytes,5,opt,name=poster_path,proto3" json:"poster_path,omitempty"`
-	Overview      string                 `protobuf:"bytes,6,opt,name=overview,proto3" json:"overview,omitempty"`
-	VoteAverage   float64                `protobuf:"fixed64,7,opt,name=vote_average,proto3" json:"vote_average,omitempty"`
-	VoteCount     int32                  `protobuf:"varint,8,opt,name=vote_count,proto3" json:"vote_count,omitempty"`
-	InLibrary     bool                   `protobuf:"varint,9,opt,name=in_library,proto3" json:"in_library,omitempty"`
-	Genres        []string               `protobuf:"bytes,10,rep,name=genres,proto3" json:"genres,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	MediaType        string                 `protobuf:"bytes,2,opt,name=media_type,proto3" json:"media_type,omitempty"`
+	Title            string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Year             string                 `protobuf:"bytes,4,opt,name=year,proto3" json:"year,omitempty"`
+	PosterPath       string                 `protobuf:"bytes,5,opt,name=poster_path,proto3" json:"poster_path,omitempty"`
+	Overview         string                 `protobuf:"bytes,6,opt,name=overview,proto3" json:"overview,omitempty"`
+	VoteAverage      float64                `protobuf:"fixed64,7,opt,name=vote_average,proto3" json:"vote_average,omitempty"`
+	VoteCount        int32                  `protobuf:"varint,8,opt,name=vote_count,proto3" json:"vote_count,omitempty"`
+	InLibrary        bool                   `protobuf:"varint,9,opt,name=in_library,proto3" json:"in_library,omitempty"`
+	Genres           []string               `protobuf:"bytes,10,rep,name=genres,proto3" json:"genres,omitempty"`
+	OriginCountry    []string               `protobuf:"bytes,11,rep,name=origin_country,proto3" json:"origin_country,omitempty"`
+	OriginalLanguage string                 `protobuf:"bytes,12,opt,name=original_language,proto3" json:"original_language,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *SearchResult) Reset() {
@@ -577,6 +595,144 @@ func (x *SearchResult) GetGenres() []string {
 	return nil
 }
 
+func (x *SearchResult) GetOriginCountry() []string {
+	if x != nil {
+		return x.OriginCountry
+	}
+	return nil
+}
+
+func (x *SearchResult) GetOriginalLanguage() string {
+	if x != nil {
+		return x.OriginalLanguage
+	}
+	return ""
+}
+
+type SearchRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Q                string                 `protobuf:"bytes,1,opt,name=q,proto3" json:"q,omitempty"`
+	MediaType        string                 `protobuf:"bytes,2,opt,name=media_type,proto3" json:"media_type,omitempty"`
+	YearFrom         string                 `protobuf:"bytes,3,opt,name=year_from,proto3" json:"year_from,omitempty"`
+	YearTo           string                 `protobuf:"bytes,4,opt,name=year_to,proto3" json:"year_to,omitempty"`
+	MinRating        string                 `protobuf:"bytes,5,opt,name=min_rating,proto3" json:"min_rating,omitempty"`
+	MinVotes         string                 `protobuf:"bytes,6,opt,name=min_votes,proto3" json:"min_votes,omitempty"`
+	Sort             string                 `protobuf:"bytes,7,opt,name=sort,proto3" json:"sort,omitempty"`
+	Genres           string                 `protobuf:"bytes,8,opt,name=genres,proto3" json:"genres,omitempty"`
+	OriginCountry    string                 `protobuf:"bytes,9,opt,name=origin_country,proto3" json:"origin_country,omitempty"`
+	OriginalLanguage string                 `protobuf:"bytes,10,opt,name=original_language,proto3" json:"original_language,omitempty"`
+	Page             int32                  `protobuf:"varint,11,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SearchRequest) Reset() {
+	*x = SearchRequest{}
+	mi := &file_paired_ratings_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchRequest) ProtoMessage() {}
+
+func (x *SearchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_paired_ratings_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchRequest.ProtoReflect.Descriptor instead.
+func (*SearchRequest) Descriptor() ([]byte, []int) {
+	return file_paired_ratings_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SearchRequest) GetQ() string {
+	if x != nil {
+		return x.Q
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetMediaType() string {
+	if x != nil {
+		return x.MediaType
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetYearFrom() string {
+	if x != nil {
+		return x.YearFrom
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetYearTo() string {
+	if x != nil {
+		return x.YearTo
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetMinRating() string {
+	if x != nil {
+		return x.MinRating
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetMinVotes() string {
+	if x != nil {
+		return x.MinVotes
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetSort() string {
+	if x != nil {
+		return x.Sort
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetGenres() string {
+	if x != nil {
+		return x.Genres
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetOriginCountry() string {
+	if x != nil {
+		return x.OriginCountry
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetOriginalLanguage() string {
+	if x != nil {
+		return x.OriginalLanguage
+	}
+	return ""
+}
+
+func (x *SearchRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
 type SearchResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Results       []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
@@ -589,7 +745,7 @@ type SearchResponse struct {
 
 func (x *SearchResponse) Reset() {
 	*x = SearchResponse{}
-	mi := &file_paired_ratings_proto_msgTypes[7]
+	mi := &file_paired_ratings_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -601,7 +757,7 @@ func (x *SearchResponse) String() string {
 func (*SearchResponse) ProtoMessage() {}
 
 func (x *SearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[7]
+	mi := &file_paired_ratings_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -614,7 +770,7 @@ func (x *SearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchResponse.ProtoReflect.Descriptor instead.
 func (*SearchResponse) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{7}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SearchResponse) GetResults() []*SearchResult {
@@ -655,7 +811,7 @@ type Genre struct {
 
 func (x *Genre) Reset() {
 	*x = Genre{}
-	mi := &file_paired_ratings_proto_msgTypes[8]
+	mi := &file_paired_ratings_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -667,7 +823,7 @@ func (x *Genre) String() string {
 func (*Genre) ProtoMessage() {}
 
 func (x *Genre) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[8]
+	mi := &file_paired_ratings_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -680,7 +836,7 @@ func (x *Genre) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Genre.ProtoReflect.Descriptor instead.
 func (*Genre) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{8}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Genre) GetId() int32 {
@@ -697,6 +853,110 @@ func (x *Genre) GetName() string {
 	return ""
 }
 
+type Country struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Country) Reset() {
+	*x = Country{}
+	mi := &file_paired_ratings_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Country) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Country) ProtoMessage() {}
+
+func (x *Country) ProtoReflect() protoreflect.Message {
+	mi := &file_paired_ratings_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Country.ProtoReflect.Descriptor instead.
+func (*Country) Descriptor() ([]byte, []int) {
+	return file_paired_ratings_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *Country) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *Country) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type Language struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Language) Reset() {
+	*x = Language{}
+	mi := &file_paired_ratings_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Language) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Language) ProtoMessage() {}
+
+func (x *Language) ProtoReflect() protoreflect.Message {
+	mi := &file_paired_ratings_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Language.ProtoReflect.Descriptor instead.
+func (*Language) Descriptor() ([]byte, []int) {
+	return file_paired_ratings_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *Language) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *Language) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
 type SearchGenresResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MovieGenres   []*Genre               `protobuf:"bytes,1,rep,name=movie_genres,proto3" json:"movie_genres,omitempty"`
@@ -707,7 +967,7 @@ type SearchGenresResponse struct {
 
 func (x *SearchGenresResponse) Reset() {
 	*x = SearchGenresResponse{}
-	mi := &file_paired_ratings_proto_msgTypes[9]
+	mi := &file_paired_ratings_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -719,7 +979,7 @@ func (x *SearchGenresResponse) String() string {
 func (*SearchGenresResponse) ProtoMessage() {}
 
 func (x *SearchGenresResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[9]
+	mi := &file_paired_ratings_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -732,7 +992,7 @@ func (x *SearchGenresResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchGenresResponse.ProtoReflect.Descriptor instead.
 func (*SearchGenresResponse) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{9}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SearchGenresResponse) GetMovieGenres() []*Genre {
@@ -749,6 +1009,94 @@ func (x *SearchGenresResponse) GetTvGenres() []*Genre {
 	return nil
 }
 
+type SearchCountriesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Countries     []*Country             `protobuf:"bytes,1,rep,name=countries,proto3" json:"countries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchCountriesResponse) Reset() {
+	*x = SearchCountriesResponse{}
+	mi := &file_paired_ratings_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchCountriesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchCountriesResponse) ProtoMessage() {}
+
+func (x *SearchCountriesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_paired_ratings_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchCountriesResponse.ProtoReflect.Descriptor instead.
+func (*SearchCountriesResponse) Descriptor() ([]byte, []int) {
+	return file_paired_ratings_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SearchCountriesResponse) GetCountries() []*Country {
+	if x != nil {
+		return x.Countries
+	}
+	return nil
+}
+
+type SearchLanguagesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Languages     []*Language            `protobuf:"bytes,1,rep,name=languages,proto3" json:"languages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchLanguagesResponse) Reset() {
+	*x = SearchLanguagesResponse{}
+	mi := &file_paired_ratings_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchLanguagesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchLanguagesResponse) ProtoMessage() {}
+
+func (x *SearchLanguagesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_paired_ratings_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchLanguagesResponse.ProtoReflect.Descriptor instead.
+func (*SearchLanguagesResponse) Descriptor() ([]byte, []int) {
+	return file_paired_ratings_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SearchLanguagesResponse) GetLanguages() []*Language {
+	if x != nil {
+		return x.Languages
+	}
+	return nil
+}
+
 type SearchResolveResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ImdbUrl       *string                `protobuf:"bytes,1,opt,name=imdb_url,proto3,oneof" json:"imdb_url,omitempty"`
@@ -759,7 +1107,7 @@ type SearchResolveResponse struct {
 
 func (x *SearchResolveResponse) Reset() {
 	*x = SearchResolveResponse{}
-	mi := &file_paired_ratings_proto_msgTypes[10]
+	mi := &file_paired_ratings_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -771,7 +1119,7 @@ func (x *SearchResolveResponse) String() string {
 func (*SearchResolveResponse) ProtoMessage() {}
 
 func (x *SearchResolveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[10]
+	mi := &file_paired_ratings_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -784,7 +1132,7 @@ func (x *SearchResolveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchResolveResponse.ProtoReflect.Descriptor instead.
 func (*SearchResolveResponse) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{10}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SearchResolveResponse) GetImdbUrl() string {
@@ -810,7 +1158,7 @@ type LoginRequest struct {
 
 func (x *LoginRequest) Reset() {
 	*x = LoginRequest{}
-	mi := &file_paired_ratings_proto_msgTypes[11]
+	mi := &file_paired_ratings_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -822,7 +1170,7 @@ func (x *LoginRequest) String() string {
 func (*LoginRequest) ProtoMessage() {}
 
 func (x *LoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[11]
+	mi := &file_paired_ratings_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -835,7 +1183,7 @@ func (x *LoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
 func (*LoginRequest) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{11}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *LoginRequest) GetPassword() string {
@@ -856,7 +1204,7 @@ type AddShowRequest struct {
 
 func (x *AddShowRequest) Reset() {
 	*x = AddShowRequest{}
-	mi := &file_paired_ratings_proto_msgTypes[12]
+	mi := &file_paired_ratings_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -868,7 +1216,7 @@ func (x *AddShowRequest) String() string {
 func (*AddShowRequest) ProtoMessage() {}
 
 func (x *AddShowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[12]
+	mi := &file_paired_ratings_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -881,7 +1229,7 @@ func (x *AddShowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddShowRequest.ProtoReflect.Descriptor instead.
 func (*AddShowRequest) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{12}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *AddShowRequest) GetTmdbId() int64 {
@@ -917,7 +1265,7 @@ type RatingsRequest struct {
 
 func (x *RatingsRequest) Reset() {
 	*x = RatingsRequest{}
-	mi := &file_paired_ratings_proto_msgTypes[13]
+	mi := &file_paired_ratings_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -929,7 +1277,7 @@ func (x *RatingsRequest) String() string {
 func (*RatingsRequest) ProtoMessage() {}
 
 func (x *RatingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[13]
+	mi := &file_paired_ratings_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -942,7 +1290,7 @@ func (x *RatingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RatingsRequest.ProtoReflect.Descriptor instead.
 func (*RatingsRequest) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{13}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RatingsRequest) GetBfRating() int32 {
@@ -982,7 +1330,7 @@ type RefreshResponse struct {
 
 func (x *RefreshResponse) Reset() {
 	*x = RefreshResponse{}
-	mi := &file_paired_ratings_proto_msgTypes[14]
+	mi := &file_paired_ratings_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -994,7 +1342,7 @@ func (x *RefreshResponse) String() string {
 func (*RefreshResponse) ProtoMessage() {}
 
 func (x *RefreshResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[14]
+	mi := &file_paired_ratings_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1007,7 +1355,7 @@ func (x *RefreshResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshResponse.ProtoReflect.Descriptor instead.
 func (*RefreshResponse) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{14}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RefreshResponse) GetUpdated() int32 {
@@ -1027,7 +1375,7 @@ type ExportPayload struct {
 
 func (x *ExportPayload) Reset() {
 	*x = ExportPayload{}
-	mi := &file_paired_ratings_proto_msgTypes[15]
+	mi := &file_paired_ratings_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1039,7 +1387,7 @@ func (x *ExportPayload) String() string {
 func (*ExportPayload) ProtoMessage() {}
 
 func (x *ExportPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[15]
+	mi := &file_paired_ratings_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1052,7 +1400,7 @@ func (x *ExportPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportPayload.ProtoReflect.Descriptor instead.
 func (*ExportPayload) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{15}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ExportPayload) GetExportedAt() string {
@@ -1088,7 +1436,7 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\n" +
 	"\b_gf_name\"%\n" +
 	"\rErrorResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"\xcd\x05\n" +
+	"\x05error\x18\x01 \x01(\tR\x05error\"\xf5\x05\n" +
 	"\x04Show\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x18\n" +
 	"\atmdb_id\x18\x02 \x01(\x03R\atmdb_id\x12\x1e\n" +
@@ -1121,7 +1469,8 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"created_at\x12\x1e\n" +
 	"\n" +
 	"updated_at\x18\x12 \x01(\tR\n" +
-	"updated_atB\a\n" +
+	"updated_at\x12&\n" +
+	"\x0eorigin_country\x18\x13 \x03(\tR\x0eorigin_countryB\a\n" +
 	"\x05_yearB\t\n" +
 	"\a_genresB\v\n" +
 	"\t_overviewB\x0e\n" +
@@ -1140,12 +1489,13 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"ShowDetail\x12*\n" +
 	"\x04show\x18\x01 \x01(\v2\x16.pairedratings.v1.ShowR\x04show\x12\x1f\n" +
 	"\bimdb_url\x18\x02 \x01(\tH\x00R\bimdb_url\x88\x01\x01B\v\n" +
-	"\t_imdb_url\"T\n" +
+	"\t_imdb_url\"r\n" +
 	"\fListResponse\x12,\n" +
 	"\x05shows\x18\x01 \x03(\v2\x16.pairedratings.v1.ShowR\x05shows\x12\x16\n" +
-	"\x06genres\x18\x02 \x03(\tR\x06genres\"(\n" +
+	"\x06genres\x18\x02 \x03(\tR\x06genres\x12\x1c\n" +
+	"\tcountries\x18\x03 \x03(\tR\tcountries\"(\n" +
 	"\x0eGenresResponse\x12\x16\n" +
-	"\x06genres\x18\x01 \x03(\tR\x06genres\"\xa2\x02\n" +
+	"\x06genres\x18\x01 \x03(\tR\x06genres\"\xf8\x02\n" +
 	"\fSearchResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1e\n" +
 	"\n" +
@@ -1163,7 +1513,26 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"in_library\x18\t \x01(\bR\n" +
 	"in_library\x12\x16\n" +
 	"\x06genres\x18\n" +
-	" \x03(\tR\x06genres\"\xa6\x01\n" +
+	" \x03(\tR\x06genres\x12&\n" +
+	"\x0eorigin_country\x18\v \x03(\tR\x0eorigin_country\x12,\n" +
+	"\x11original_language\x18\f \x01(\tR\x11original_language\"\xc9\x02\n" +
+	"\rSearchRequest\x12\f\n" +
+	"\x01q\x18\x01 \x01(\tR\x01q\x12\x1e\n" +
+	"\n" +
+	"media_type\x18\x02 \x01(\tR\n" +
+	"media_type\x12\x1c\n" +
+	"\tyear_from\x18\x03 \x01(\tR\tyear_from\x12\x18\n" +
+	"\ayear_to\x18\x04 \x01(\tR\ayear_to\x12\x1e\n" +
+	"\n" +
+	"min_rating\x18\x05 \x01(\tR\n" +
+	"min_rating\x12\x1c\n" +
+	"\tmin_votes\x18\x06 \x01(\tR\tmin_votes\x12\x12\n" +
+	"\x04sort\x18\a \x01(\tR\x04sort\x12\x16\n" +
+	"\x06genres\x18\b \x01(\tR\x06genres\x12&\n" +
+	"\x0eorigin_country\x18\t \x01(\tR\x0eorigin_country\x12,\n" +
+	"\x11original_language\x18\n" +
+	" \x01(\tR\x11original_language\x12\x12\n" +
+	"\x04page\x18\v \x01(\x05R\x04page\"\xa6\x01\n" +
 	"\x0eSearchResponse\x128\n" +
 	"\aresults\x18\x01 \x03(\v2\x1e.pairedratings.v1.SearchResultR\aresults\x12\x12\n" +
 	"\x04page\x18\x02 \x01(\x05R\x04page\x12 \n" +
@@ -1171,10 +1540,20 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\rtotal_results\x18\x04 \x01(\x05R\rtotal_results\"+\n" +
 	"\x05Genre\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"1\n" +
+	"\aCountry\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"2\n" +
+	"\bLanguage\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"\x8a\x01\n" +
 	"\x14SearchGenresResponse\x12;\n" +
 	"\fmovie_genres\x18\x01 \x03(\v2\x17.pairedratings.v1.GenreR\fmovie_genres\x125\n" +
-	"\ttv_genres\x18\x02 \x03(\v2\x17.pairedratings.v1.GenreR\ttv_genres\"s\n" +
+	"\ttv_genres\x18\x02 \x03(\v2\x17.pairedratings.v1.GenreR\ttv_genres\"R\n" +
+	"\x17SearchCountriesResponse\x127\n" +
+	"\tcountries\x18\x01 \x03(\v2\x19.pairedratings.v1.CountryR\tcountries\"S\n" +
+	"\x17SearchLanguagesResponse\x128\n" +
+	"\tlanguages\x18\x01 \x03(\v2\x1a.pairedratings.v1.LanguageR\tlanguages\"s\n" +
 	"\x15SearchResolveResponse\x12\x1f\n" +
 	"\bimdb_url\x18\x01 \x01(\tH\x00R\bimdb_url\x88\x01\x01\x12\x1f\n" +
 	"\btmdb_url\x18\x02 \x01(\tH\x01R\btmdb_url\x88\x01\x01B\v\n" +
@@ -1221,37 +1600,44 @@ func file_paired_ratings_proto_rawDescGZIP() []byte {
 	return file_paired_ratings_proto_rawDescData
 }
 
-var file_paired_ratings_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_paired_ratings_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_paired_ratings_proto_goTypes = []any{
-	(*SessionResponse)(nil),       // 0: pairedratings.v1.SessionResponse
-	(*ErrorResponse)(nil),         // 1: pairedratings.v1.ErrorResponse
-	(*Show)(nil),                  // 2: pairedratings.v1.Show
-	(*ShowDetail)(nil),            // 3: pairedratings.v1.ShowDetail
-	(*ListResponse)(nil),          // 4: pairedratings.v1.ListResponse
-	(*GenresResponse)(nil),        // 5: pairedratings.v1.GenresResponse
-	(*SearchResult)(nil),          // 6: pairedratings.v1.SearchResult
-	(*SearchResponse)(nil),        // 7: pairedratings.v1.SearchResponse
-	(*Genre)(nil),                 // 8: pairedratings.v1.Genre
-	(*SearchGenresResponse)(nil),  // 9: pairedratings.v1.SearchGenresResponse
-	(*SearchResolveResponse)(nil), // 10: pairedratings.v1.SearchResolveResponse
-	(*LoginRequest)(nil),          // 11: pairedratings.v1.LoginRequest
-	(*AddShowRequest)(nil),        // 12: pairedratings.v1.AddShowRequest
-	(*RatingsRequest)(nil),        // 13: pairedratings.v1.RatingsRequest
-	(*RefreshResponse)(nil),       // 14: pairedratings.v1.RefreshResponse
-	(*ExportPayload)(nil),         // 15: pairedratings.v1.ExportPayload
+	(*SessionResponse)(nil),         // 0: pairedratings.v1.SessionResponse
+	(*ErrorResponse)(nil),           // 1: pairedratings.v1.ErrorResponse
+	(*Show)(nil),                    // 2: pairedratings.v1.Show
+	(*ShowDetail)(nil),              // 3: pairedratings.v1.ShowDetail
+	(*ListResponse)(nil),            // 4: pairedratings.v1.ListResponse
+	(*GenresResponse)(nil),          // 5: pairedratings.v1.GenresResponse
+	(*SearchResult)(nil),            // 6: pairedratings.v1.SearchResult
+	(*SearchRequest)(nil),           // 7: pairedratings.v1.SearchRequest
+	(*SearchResponse)(nil),          // 8: pairedratings.v1.SearchResponse
+	(*Genre)(nil),                   // 9: pairedratings.v1.Genre
+	(*Country)(nil),                 // 10: pairedratings.v1.Country
+	(*Language)(nil),                // 11: pairedratings.v1.Language
+	(*SearchGenresResponse)(nil),    // 12: pairedratings.v1.SearchGenresResponse
+	(*SearchCountriesResponse)(nil), // 13: pairedratings.v1.SearchCountriesResponse
+	(*SearchLanguagesResponse)(nil), // 14: pairedratings.v1.SearchLanguagesResponse
+	(*SearchResolveResponse)(nil),   // 15: pairedratings.v1.SearchResolveResponse
+	(*LoginRequest)(nil),            // 16: pairedratings.v1.LoginRequest
+	(*AddShowRequest)(nil),          // 17: pairedratings.v1.AddShowRequest
+	(*RatingsRequest)(nil),          // 18: pairedratings.v1.RatingsRequest
+	(*RefreshResponse)(nil),         // 19: pairedratings.v1.RefreshResponse
+	(*ExportPayload)(nil),           // 20: pairedratings.v1.ExportPayload
 }
 var file_paired_ratings_proto_depIdxs = []int32{
-	2, // 0: pairedratings.v1.ShowDetail.show:type_name -> pairedratings.v1.Show
-	2, // 1: pairedratings.v1.ListResponse.shows:type_name -> pairedratings.v1.Show
-	6, // 2: pairedratings.v1.SearchResponse.results:type_name -> pairedratings.v1.SearchResult
-	8, // 3: pairedratings.v1.SearchGenresResponse.movie_genres:type_name -> pairedratings.v1.Genre
-	8, // 4: pairedratings.v1.SearchGenresResponse.tv_genres:type_name -> pairedratings.v1.Genre
-	2, // 5: pairedratings.v1.ExportPayload.shows:type_name -> pairedratings.v1.Show
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	2,  // 0: pairedratings.v1.ShowDetail.show:type_name -> pairedratings.v1.Show
+	2,  // 1: pairedratings.v1.ListResponse.shows:type_name -> pairedratings.v1.Show
+	6,  // 2: pairedratings.v1.SearchResponse.results:type_name -> pairedratings.v1.SearchResult
+	9,  // 3: pairedratings.v1.SearchGenresResponse.movie_genres:type_name -> pairedratings.v1.Genre
+	9,  // 4: pairedratings.v1.SearchGenresResponse.tv_genres:type_name -> pairedratings.v1.Genre
+	10, // 5: pairedratings.v1.SearchCountriesResponse.countries:type_name -> pairedratings.v1.Country
+	11, // 6: pairedratings.v1.SearchLanguagesResponse.languages:type_name -> pairedratings.v1.Language
+	2,  // 7: pairedratings.v1.ExportPayload.shows:type_name -> pairedratings.v1.Show
+	8,  // [8:8] is the sub-list for method output_type
+	8,  // [8:8] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_paired_ratings_proto_init() }
@@ -1262,15 +1648,15 @@ func file_paired_ratings_proto_init() {
 	file_paired_ratings_proto_msgTypes[0].OneofWrappers = []any{}
 	file_paired_ratings_proto_msgTypes[2].OneofWrappers = []any{}
 	file_paired_ratings_proto_msgTypes[3].OneofWrappers = []any{}
-	file_paired_ratings_proto_msgTypes[10].OneofWrappers = []any{}
-	file_paired_ratings_proto_msgTypes[13].OneofWrappers = []any{}
+	file_paired_ratings_proto_msgTypes[15].OneofWrappers = []any{}
+	file_paired_ratings_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_paired_ratings_proto_rawDesc), len(file_paired_ratings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

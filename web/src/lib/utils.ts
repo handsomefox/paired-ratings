@@ -45,3 +45,25 @@ export function shortGenreList(genres?: string[] | null) {
   if (!genres || genres.length === 0) return "";
   return genres.slice(0, 2).join(", ");
 }
+
+export function flagEmoji(countryCode?: string | null) {
+  if (!countryCode) return "";
+  const code = countryCode.trim().toUpperCase();
+  if (code.length !== 2) return "";
+  const first = code.charCodeAt(0);
+  const second = code.charCodeAt(1);
+  if (first < 65 || first > 90 || second < 65 || second > 90) return "";
+  const base = 0x1f1e6;
+  return String.fromCodePoint(base + (first - 65), base + (second - 65));
+}
+
+export function flagEmojiFromLanguageCode(languageCode?: string | null) {
+  if (!languageCode) return "";
+  const lang = languageCode.trim().toLowerCase();
+  if (!/^[a-z]{2,3}$/.test(lang)) return "";
+
+  const loc = new Intl.Locale(lang).maximize();
+  const region = loc.region; // e.g. "US" for "en", "UA" for "uk" (implementation data-driven)
+
+  return region ? flagEmoji(region) : "";
+}

@@ -24,6 +24,7 @@ import { Button } from "./components/ui/button";
 import { withViewTransition } from "./lib/view-transitions";
 import { Toaster } from "./components/ui/sonner";
 import { toast } from "sonner";
+import { TooltipProvider } from "./components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -268,9 +269,11 @@ declare module "@tanstack/react-router" {
 export default function App(): ReactNode {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <Toaster richColors />
-      {import.meta.env.DEV ? <ReactQueryDevtools initialIsOpen={false} /> : null}
+      <TooltipProvider delayDuration={200}>
+        <RouterProvider router={router} />
+        <Toaster richColors />
+        {import.meta.env.DEV ? <ReactQueryDevtools initialIsOpen={false} /> : null}
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

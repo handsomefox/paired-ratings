@@ -2,9 +2,10 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { ApiShow } from "@/lib/api";
-import { combinedRating, formatScore, formatVotes } from "@/lib/utils";
+import { combinedRating, flagEmoji, formatScore, formatVotes } from "@/lib/utils";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Loading } from "@/components/loading";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
@@ -21,6 +22,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { withViewTransition } from "@/lib/view-transitions";
 import { toast } from "sonner";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const ratingValues = Array.from({ length: 10 }, (_, index) => index + 1);
 
@@ -31,6 +35,7 @@ type DetailContentProps = {
   imdbUrl?: string;
   bfName: string;
   gfName: string;
+  originCountry: string[];
   onBack: () => void;
 };
 
@@ -89,6 +94,28 @@ function DetailContent({
     bfComment: show.bf_comment ?? "",
     gfComment: show.gf_comment ?? "",
   }));
+
+  const countriesQuery = useQuery({
+    queryKey: ["search-countries"],
+    queryFn: api.searchCountries,
+    staleTime: 1000 * 60 * 60 * 24,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
+  });
+
+  const countryNames = countriesQuery.data?.countries ?? [];
+  const countryLabel = (code: string) =>
+    countryNames.find((country) => country.code === code)?.name ?? code;
+
+  const originCountries = show.origin_country ?? [];
+  const primaryCountry = originCountries[0];
+  const countryBadge = primaryCountry
+    ? `${flagEmoji(primaryCountry)} ${primaryCountry}${
+        originCountries.length > 1 ? ` +${originCountries.length - 1}` : ""
+      }`
+    : "";
 
   const isDirty = useMemo(() => {
     return (
@@ -255,6 +282,34 @@ function DetailContent({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {countryBadge ? (
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <Badge variant="outline">{countryBadge}</Badge>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-64">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Origin countries
+                  </div>
+                  <ScrollArea className="mt-2 max-h-28 pr-2">
+                    <div className="space-y-1 text-xs">
+                      {originCountries.length > 0 ? (
+                        originCountries.map((code) => (
+                          <div key={code} className="flex items-center gap-2">
+                            <span className="text-base leading-none">{flagEmoji(code)}</span>
+                            <span className="flex-1">{countryLabel(code)}</span>
+                            <span className="text-muted-foreground">{code}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-muted-foreground">No country data.</div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </HoverCardContent>
+              </HoverCard>
+            ) : null}
+
             {imdbUrl ? (
               <a
                 href={imdbUrl}
@@ -475,7 +530,14 @@ export function DetailPage() {
 
   const show = showQuery.data?.show;
   if (!show) {
-    return <div className="text-sm text-muted-foreground">Show not found.</div>;
+    return (
+      <Empty className="border-border/60 bg-card/30">
+        <EmptyHeader>
+          <EmptyTitle>Show not found</EmptyTitle>
+          <EmptyDescription>Try going back to the library.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
   return (
@@ -484,6 +546,7 @@ export function DetailPage() {
       show={show}
       showId={Number(showId)}
       imageBase={imageBase}
+      originCountry={show.origin_country}
       imdbUrl={showQuery.data?.imdb_url}
       bfName={bfName}
       gfName={gfName}

@@ -118,6 +118,26 @@ func fromSQLNull[T any](v sql.Null[T]) *T {
 	return nil
 }
 
+func splitCommaValues(v sql.Null[string]) []string {
+	if !v.Valid {
+		return nil
+	}
+	raw := strings.TrimSpace(v.V)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		out = append(out, part)
+	}
+	return out
+}
+
 func ptr[T any](v T) *T { return &v }
 
 func toInt32(val int) int32 {

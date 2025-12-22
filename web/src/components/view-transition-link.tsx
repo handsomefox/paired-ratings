@@ -4,7 +4,12 @@ import { isModifiedClick, withViewTransition } from "@/lib/view-transitions";
 
 type ViewTransitionLinkProps = LinkComponentProps;
 
-export function ViewTransitionLink({ onClick, children, ...props }: ViewTransitionLinkProps) {
+export function ViewTransitionLink({
+  onClick,
+  children,
+  preload = false,
+  ...props
+}: ViewTransitionLinkProps) {
   const router = useRouter();
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
@@ -29,7 +34,7 @@ export function ViewTransitionLink({ onClick, children, ...props }: ViewTransiti
   };
 
   return (
-    <Link {...props} onClick={handleClick}>
+    <Link {...props} preload={preload} onClick={handleClick}>
       {children}
     </Link>
   );

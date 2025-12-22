@@ -22,15 +22,17 @@ type Client struct {
 }
 
 type SearchResult struct {
-	MediaType   string `json:"media_type"`
-	Title       string
-	Year        string
-	PosterPath  string  `json:"poster_path"`
-	Overview    string  `json:"overview"`
-	ID          int64   `json:"id"`
-	VoteAverage float64 `json:"vote_average"`
-	VoteCount   int     `json:"vote_count"`
-	GenreIDs    []int   `json:"genre_ids"`
+	MediaType        string   `json:"media_type"`
+	Title            string   `json:"title"`
+	Year             string   `json:"year"`
+	PosterPath       string   `json:"poster_path"`
+	Overview         string   `json:"overview"`
+	ID               int64    `json:"id"`
+	VoteAverage      float64  `json:"vote_average"`
+	VoteCount        int      `json:"vote_count"`
+	GenreIDs         []int    `json:"genre_ids"`
+	OriginCountry    []string `json:"origin_country"`
+	OriginalLanguage string   `json:"original_language"`
 }
 
 type SearchPage struct {
@@ -42,17 +44,19 @@ type SearchPage struct {
 
 type searchResponse struct {
 	Results []struct {
-		MediaType    string  `json:"media_type"`
-		Title        string  `json:"title"`
-		Name         string  `json:"name"`
-		ReleaseDate  string  `json:"release_date"`
-		FirstAirDate string  `json:"first_air_date"`
-		PosterPath   string  `json:"poster_path"`
-		Overview     string  `json:"overview"`
-		ID           int64   `json:"id"`
-		VoteAverage  float64 `json:"vote_average"`
-		VoteCount    int     `json:"vote_count"`
-		GenreIDs     []int   `json:"genre_ids"`
+		MediaType        string   `json:"media_type"`
+		Title            string   `json:"title"`
+		Name             string   `json:"name"`
+		ReleaseDate      string   `json:"release_date"`
+		FirstAirDate     string   `json:"first_air_date"`
+		PosterPath       string   `json:"poster_path"`
+		Overview         string   `json:"overview"`
+		ID               int64    `json:"id"`
+		VoteAverage      float64  `json:"vote_average"`
+		VoteCount        int      `json:"vote_count"`
+		GenreIDs         []int    `json:"genre_ids"`
+		OriginCountry    []string `json:"origin_country"`
+		OriginalLanguage string   `json:"original_language"`
 	} `json:"results"`
 	Page         int `json:"page"`
 	TotalPages   int `json:"total_pages"`
@@ -60,13 +64,17 @@ type searchResponse struct {
 }
 
 type detailResponse struct {
-	Title        string `json:"title"`
-	Name         string `json:"name"`
-	ReleaseDate  string `json:"release_date"`
-	FirstAirDate string `json:"first_air_date"`
-	PosterPath   string `json:"poster_path"`
-	Overview     string `json:"overview"`
-	ExternalIDs  struct {
+	Title               string   `json:"title"`
+	Name                string   `json:"name"`
+	ReleaseDate         string   `json:"release_date"`
+	FirstAirDate        string   `json:"first_air_date"`
+	PosterPath          string   `json:"poster_path"`
+	Overview            string   `json:"overview"`
+	OriginCountry       []string `json:"origin_country"`
+	ProductionCountries []struct {
+		ISO3166_1 string `json:"iso_3166_1"`
+	} `json:"production_countries"`
+	ExternalIDs struct {
 		IMDbID string `json:"imdb_id"`
 	} `json:"external_ids"`
 	Genres []struct {
@@ -92,25 +100,28 @@ func New(apiKey, readToken string) *Client {
 }
 
 type Detail struct {
-	MediaType   string
-	Title       string
-	Year        string
-	Overview    string
-	PosterPath  string
-	IMDbID      string
-	Genres      []string
-	TMDBID      int64
-	VoteAverage float64
-	VoteCount   int
+	MediaType     string
+	Title         string
+	Year          string
+	Overview      string
+	PosterPath    string
+	IMDbID        string
+	Genres        []string
+	OriginCountry []string
+	TMDBID        int64
+	VoteAverage   float64
+	VoteCount     int
 }
 
 type DiscoverFilters struct {
-	YearFrom  *int
-	YearTo    *int
-	MinRating *float64
-	MinVotes  *int
-	Genres    string
-	Sort      string
+	YearFrom         *int
+	YearTo           *int
+	MinRating        *float64
+	MinVotes         *int
+	Genres           string
+	Sort             string
+	OriginCountry    string
+	OriginalLanguage string
 }
 
 type Genre struct {
@@ -120,6 +131,27 @@ type Genre struct {
 
 type genreResponse struct {
 	Genres []Genre `json:"genres"`
+}
+
+type Country struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+type countryResponse []struct {
+	ISO3166_1   string `json:"iso_3166_1"`
+	EnglishName string `json:"english_name"`
+}
+
+type Language struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+type languageResponse []struct {
+	ISO639_1    string `json:"iso_639_1"`
+	EnglishName string `json:"english_name"`
+	Name        string `json:"name"`
 }
 
 func (c *Client) SearchPage(ctx context.Context, query string, page int) (SearchPage, error) {
@@ -168,6 +200,12 @@ func (c *Client) DiscoverPage(ctx context.Context, mediaType string, filters Dis
 	if strings.TrimSpace(filters.Genres) != "" {
 		values.Set("with_genres", strings.TrimSpace(filters.Genres))
 	}
+	if strings.TrimSpace(filters.OriginCountry) != "" {
+		values.Set("with_origin_country", strings.TrimSpace(filters.OriginCountry))
+	}
+	if strings.TrimSpace(filters.OriginalLanguage) != "" {
+		values.Set("with_original_language", strings.TrimSpace(filters.OriginalLanguage))
+	}
 
 	dateFromKey := "primary_release_date.gte"
 	dateToKey := "primary_release_date.lte"
@@ -203,6 +241,53 @@ func (c *Client) FetchGenres(ctx context.Context, mediaType string) ([]Genre, er
 	return payload.Genres, nil
 }
 
+func (c *Client) FetchCountries(ctx context.Context) ([]Country, error) {
+	values := url.Values{}
+	c.maybeSetAPIKey(values)
+	endpoint := baseURL + "/configuration/countries?" + values.Encode()
+
+	var payload countryResponse
+	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
+		return nil, err
+	}
+
+	out := make([]Country, 0, len(payload))
+	for _, item := range payload {
+		code := strings.TrimSpace(item.ISO3166_1)
+		name := strings.TrimSpace(item.EnglishName)
+		if code == "" {
+			continue
+		}
+		out = append(out, Country{Code: code, Name: name})
+	}
+	return out, nil
+}
+
+func (c *Client) FetchLanguages(ctx context.Context) ([]Language, error) {
+	values := url.Values{}
+	c.maybeSetAPIKey(values)
+	endpoint := baseURL + "/configuration/languages?" + values.Encode()
+
+	var payload languageResponse
+	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
+		return nil, err
+	}
+
+	out := make([]Language, 0, len(payload))
+	for _, item := range payload {
+		code := strings.TrimSpace(item.ISO639_1)
+		name := strings.TrimSpace(item.EnglishName)
+		if name == "" {
+			name = strings.TrimSpace(item.Name)
+		}
+		if code == "" {
+			continue
+		}
+		out = append(out, Language{Code: code, Name: name})
+	}
+	return out, nil
+}
+
 func (c *Client) FetchDetails(ctx context.Context, id int64, mediaType string) (*Detail, error) {
 	if mediaType != "movie" && mediaType != "tv" {
 		return nil, errors.New("invalid media type")
@@ -220,15 +305,16 @@ func (c *Client) FetchDetails(ctx context.Context, id int64, mediaType string) (
 	}
 
 	detail := &Detail{
-		TMDBID:      payload.ID,
-		MediaType:   mediaType,
-		PosterPath:  payload.PosterPath,
-		Overview:    payload.Overview,
-		Genres:      nil,
-		VoteAverage: payload.VoteAverage,
-		VoteCount:   payload.VoteCount,
-		IMDbID:      payload.ExternalIDs.IMDbID,
-		Year:        yearFromDate(payload.ReleaseDate),
+		TMDBID:        payload.ID,
+		MediaType:     mediaType,
+		PosterPath:    payload.PosterPath,
+		Overview:      payload.Overview,
+		Genres:        nil,
+		OriginCountry: nil,
+		VoteAverage:   payload.VoteAverage,
+		VoteCount:     payload.VoteCount,
+		IMDbID:        payload.ExternalIDs.IMDbID,
+		Year:          yearFromDate(payload.ReleaseDate),
 	}
 
 	if mediaType == "tv" {
@@ -243,6 +329,24 @@ func (c *Client) FetchDetails(ctx context.Context, id int64, mediaType string) (
 			continue
 		}
 		detail.Genres = append(detail.Genres, g.Name)
+	}
+
+	if len(payload.OriginCountry) > 0 {
+		for _, code := range payload.OriginCountry {
+			code = strings.TrimSpace(code)
+			if code == "" {
+				continue
+			}
+			detail.OriginCountry = append(detail.OriginCountry, code)
+		}
+	} else if len(payload.ProductionCountries) > 0 {
+		for _, country := range payload.ProductionCountries {
+			code := strings.TrimSpace(country.ISO3166_1)
+			if code == "" {
+				continue
+			}
+			detail.OriginCountry = append(detail.OriginCountry, code)
+		}
 	}
 
 	return detail, nil
@@ -269,13 +373,15 @@ func (c *Client) fetchSearch(ctx context.Context, endpoint, mediaTypeOverride st
 		}
 
 		res := SearchResult{
-			ID:          r.ID,
-			MediaType:   mediaType,
-			PosterPath:  r.PosterPath,
-			Overview:    r.Overview,
-			VoteAverage: r.VoteAverage,
-			VoteCount:   r.VoteCount,
-			GenreIDs:    r.GenreIDs,
+			ID:               r.ID,
+			MediaType:        mediaType,
+			PosterPath:       r.PosterPath,
+			Overview:         r.Overview,
+			VoteAverage:      r.VoteAverage,
+			VoteCount:        r.VoteCount,
+			GenreIDs:         r.GenreIDs,
+			OriginCountry:    r.OriginCountry,
+			OriginalLanguage: r.OriginalLanguage,
 		}
 
 		if mediaType == "movie" {

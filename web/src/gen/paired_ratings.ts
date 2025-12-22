@@ -38,6 +38,7 @@ export interface Show {
   gf_comment?: string | undefined;
   created_at: string;
   updated_at: string;
+  origin_country: string[];
 }
 
 export interface ShowDetail {
@@ -48,6 +49,7 @@ export interface ShowDetail {
 export interface ListResponse {
   shows: Show[];
   genres: string[];
+  countries: string[];
 }
 
 export interface GenresResponse {
@@ -65,6 +67,22 @@ export interface SearchResult {
   vote_count: number;
   in_library: boolean;
   genres: string[];
+  origin_country: string[];
+  original_language: string;
+}
+
+export interface SearchRequest {
+  q: string;
+  media_type: string;
+  year_from: string;
+  year_to: string;
+  min_rating: string;
+  min_votes: string;
+  sort: string;
+  genres: string;
+  origin_country: string;
+  original_language: string;
+  page: number;
 }
 
 export interface SearchResponse {
@@ -79,9 +97,27 @@ export interface Genre {
   name: string;
 }
 
+export interface Country {
+  code: string;
+  name: string;
+}
+
+export interface Language {
+  code: string;
+  name: string;
+}
+
 export interface SearchGenresResponse {
   movie_genres: Genre[];
   tv_genres: Genre[];
+}
+
+export interface SearchCountriesResponse {
+  countries: Country[];
+}
+
+export interface SearchLanguagesResponse {
+  languages: Language[];
 }
 
 export interface SearchResolveResponse {
