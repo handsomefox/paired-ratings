@@ -80,6 +80,11 @@ message SearchGenresResponse {
   repeated Genre tv_genres = 2 [json_name = "tv_genres"];
 }
 
+message SearchResolveResponse {
+  optional string imdb_url = 1 [json_name = "imdb_url"];
+  optional string tmdb_url = 2 [json_name = "tmdb_url"];
+}
+
 message LoginRequest {
   string password = 1 [json_name = "password"];
 }

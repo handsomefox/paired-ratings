@@ -7,6 +7,7 @@ export type ListResponse = pb.ListResponse;
 export type SearchResult = pb.SearchResult;
 export type SearchResponse = pb.SearchResponse;
 export type SearchGenresResponse = pb.SearchGenresResponse;
+export type SearchResolveResponse = pb.SearchResolveResponse;
 export type LoginRequest = pb.LoginRequest;
 export type AddShowRequest = pb.AddShowRequest;
 export type RatingsRequest = pb.RatingsRequest;
@@ -75,6 +76,10 @@ export const api = {
   search: (params: URLSearchParams) =>
     jsonRequest<SearchResponse>(`/api/search?${params.toString()}`),
   searchGenres: () => jsonRequest<SearchGenresResponse>("/api/search/genres"),
+  searchResolve: (tmdbId: number, mediaType: string) =>
+    jsonRequest<SearchResolveResponse>(
+      `/api/search/resolve?tmdb_id=${tmdbId}&media_type=${mediaType}`,
+    ),
   refreshTMDB: () =>
     jsonRequest<RefreshResponse>("/api/refresh-tmdb", {
       method: "POST",

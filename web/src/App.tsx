@@ -65,6 +65,10 @@ const RootLayout = () => {
     }
   }, [authed, sessionQuery.isLoading, state.location.pathname, navigate]);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [state.location.pathname]);
+
   if (sessionQuery.isLoading) {
     return (
       <main className="container py-16">

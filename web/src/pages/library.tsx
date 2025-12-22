@@ -6,8 +6,8 @@ import { combinedRating, formatScore, formatVotes, ratingText, shortGenres } fro
 import { Loading } from "@/components/loading";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ShowCard } from "@/components/show-card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -300,7 +300,7 @@ export function LibraryPage() {
               Filters
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[320px] bg-card text-foreground">
+          <SheetContent side="left" className="w-[320px] overflow-y-auto bg-card text-foreground">
             <SheetHeader>
               <SheetTitle>Filters</SheetTitle>
             </SheetHeader>
@@ -326,73 +326,57 @@ export function LibraryPage() {
             </div>
           ) : null}
           {shows.map((show) => (
-            <Card
+            <ShowCard
               key={show.id}
-              className="group overflow-hidden border-border/60 bg-card/70 shadow-lg"
-            >
-              <div className="relative">
+              title={
                 <ViewTransitionLink to="/show/$showId" params={{ showId: String(show.id) }}>
-                  <div className="aspect-[2/3] overflow-hidden bg-muted/40">
-                    {show.poster_path ? (
-                      <img
-                        src={`${imageBase}${show.poster_path}`}
-                        alt={show.title}
-                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs uppercase tracking-wide text-muted-foreground">
-                        No poster
-                      </div>
-                    )}
-                  </div>
+                  {show.title}
                 </ViewTransitionLink>
-                <div className="absolute right-3 top-3">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full">
-                        <span className="sr-only">Open menu</span>
-                        <span className="text-lg leading-none">⋯</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setPendingDelete(show)}>
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-              <CardContent className="space-y-3 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-semibold leading-tight">
-                      <ViewTransitionLink to="/show/$showId" params={{ showId: String(show.id) }}>
-                        {show.title}
-                      </ViewTransitionLink>
-                    </h3>
-                    {show.year ? (
-                      <div className="text-xs text-muted-foreground">{show.year}</div>
-                    ) : null}
-                  </div>
-                  <Badge variant="outline" className={cn("border", statusBadge(show.status))}>
-                    {show.status || "tbd"}
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <Badge variant="secondary" className="gap-1">
-                    {show.tmdb_rating ? (
-                      <>
-                        <span>{formatScore(show.tmdb_rating)}</span>
-                        {show.tmdb_votes ? <span>({formatVotes(show.tmdb_votes)})</span> : null}
-                      </>
-                    ) : (
-                      "No TMDB score"
-                    )}
-                  </Badge>
-                  {show.genres ? (
-                    <span className="text-muted-foreground">{shortGenres(show.genres)}</span>
-                  ) : null}
-                </div>
+              }
+              year={show.year}
+              posterAlt={show.title}
+              posterPath={show.poster_path}
+              imageBase={imageBase}
+              posterLink={(node) => (
+                <ViewTransitionLink to="/show/$showId" params={{ showId: String(show.id) }}>
+                  {node}
+                </ViewTransitionLink>
+              )}
+              topRight={
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full">
+                      <span className="sr-only">Open menu</span>
+                      <span className="text-lg leading-none">⋯</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setPendingDelete(show)}>
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              }
+              statusBadge={
+                <Badge variant="outline" className={cn("border", statusBadge(show.status))}>
+                  {show.status || "tbd"}
+                </Badge>
+              }
+              metaBadges={
+                <Badge variant="secondary" className="gap-1">
+                  {show.tmdb_rating ? (
+                    <>
+                      <span>{formatScore(show.tmdb_rating)}</span>
+                      {show.tmdb_votes ? <span>({formatVotes(show.tmdb_votes)})</span> : null}
+                    </>
+                  ) : (
+                    "No TMDB score"
+                  )}
+                </Badge>
+              }
+              genresText={show.genres ? shortGenres(show.genres) : ""}
+              overview={show.overview}
+              footer={
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <div className="inline-flex items-center gap-1 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-teal-200">
                     <span>★</span>
@@ -403,12 +387,12 @@ export function LibraryPage() {
                     <strong>{ratingText(show.gf_rating)}</strong>
                   </div>
                   <div className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-foreground">
-                    <span className="uppercase tracking-wide text-muted-foreground">Avg</span>
+                    <span>★</span>
                     <strong>{combinedRating(show.bf_rating, show.gf_rating)}</strong>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              }
+            />
           ))}
         </section>
       </div>

@@ -749,6 +749,58 @@ func (x *SearchGenresResponse) GetTvGenres() []*Genre {
 	return nil
 }
 
+type SearchResolveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ImdbUrl       *string                `protobuf:"bytes,1,opt,name=imdb_url,proto3,oneof" json:"imdb_url,omitempty"`
+	TmdbUrl       *string                `protobuf:"bytes,2,opt,name=tmdb_url,proto3,oneof" json:"tmdb_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchResolveResponse) Reset() {
+	*x = SearchResolveResponse{}
+	mi := &file_paired_ratings_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchResolveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchResolveResponse) ProtoMessage() {}
+
+func (x *SearchResolveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_paired_ratings_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchResolveResponse.ProtoReflect.Descriptor instead.
+func (*SearchResolveResponse) Descriptor() ([]byte, []int) {
+	return file_paired_ratings_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SearchResolveResponse) GetImdbUrl() string {
+	if x != nil && x.ImdbUrl != nil {
+		return *x.ImdbUrl
+	}
+	return ""
+}
+
+func (x *SearchResolveResponse) GetTmdbUrl() string {
+	if x != nil && x.TmdbUrl != nil {
+		return *x.TmdbUrl
+	}
+	return ""
+}
+
 type LoginRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Password      string                 `protobuf:"bytes,1,opt,name=password,proto3" json:"password,omitempty"`
@@ -758,7 +810,7 @@ type LoginRequest struct {
 
 func (x *LoginRequest) Reset() {
 	*x = LoginRequest{}
-	mi := &file_paired_ratings_proto_msgTypes[10]
+	mi := &file_paired_ratings_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -770,7 +822,7 @@ func (x *LoginRequest) String() string {
 func (*LoginRequest) ProtoMessage() {}
 
 func (x *LoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[10]
+	mi := &file_paired_ratings_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -783,7 +835,7 @@ func (x *LoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
 func (*LoginRequest) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{10}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *LoginRequest) GetPassword() string {
@@ -804,7 +856,7 @@ type AddShowRequest struct {
 
 func (x *AddShowRequest) Reset() {
 	*x = AddShowRequest{}
-	mi := &file_paired_ratings_proto_msgTypes[11]
+	mi := &file_paired_ratings_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -816,7 +868,7 @@ func (x *AddShowRequest) String() string {
 func (*AddShowRequest) ProtoMessage() {}
 
 func (x *AddShowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[11]
+	mi := &file_paired_ratings_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -829,7 +881,7 @@ func (x *AddShowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddShowRequest.ProtoReflect.Descriptor instead.
 func (*AddShowRequest) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{11}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AddShowRequest) GetTmdbId() int64 {
@@ -865,7 +917,7 @@ type RatingsRequest struct {
 
 func (x *RatingsRequest) Reset() {
 	*x = RatingsRequest{}
-	mi := &file_paired_ratings_proto_msgTypes[12]
+	mi := &file_paired_ratings_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -877,7 +929,7 @@ func (x *RatingsRequest) String() string {
 func (*RatingsRequest) ProtoMessage() {}
 
 func (x *RatingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[12]
+	mi := &file_paired_ratings_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -890,7 +942,7 @@ func (x *RatingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RatingsRequest.ProtoReflect.Descriptor instead.
 func (*RatingsRequest) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{12}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RatingsRequest) GetBfRating() int32 {
@@ -930,7 +982,7 @@ type RefreshResponse struct {
 
 func (x *RefreshResponse) Reset() {
 	*x = RefreshResponse{}
-	mi := &file_paired_ratings_proto_msgTypes[13]
+	mi := &file_paired_ratings_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -942,7 +994,7 @@ func (x *RefreshResponse) String() string {
 func (*RefreshResponse) ProtoMessage() {}
 
 func (x *RefreshResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[13]
+	mi := &file_paired_ratings_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -955,7 +1007,7 @@ func (x *RefreshResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshResponse.ProtoReflect.Descriptor instead.
 func (*RefreshResponse) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{13}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RefreshResponse) GetUpdated() int32 {
@@ -975,7 +1027,7 @@ type ExportPayload struct {
 
 func (x *ExportPayload) Reset() {
 	*x = ExportPayload{}
-	mi := &file_paired_ratings_proto_msgTypes[14]
+	mi := &file_paired_ratings_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -987,7 +1039,7 @@ func (x *ExportPayload) String() string {
 func (*ExportPayload) ProtoMessage() {}
 
 func (x *ExportPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[14]
+	mi := &file_paired_ratings_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1000,7 +1052,7 @@ func (x *ExportPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportPayload.ProtoReflect.Descriptor instead.
 func (*ExportPayload) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{14}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ExportPayload) GetExportedAt() string {
@@ -1122,7 +1174,12 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"\x8a\x01\n" +
 	"\x14SearchGenresResponse\x12;\n" +
 	"\fmovie_genres\x18\x01 \x03(\v2\x17.pairedratings.v1.GenreR\fmovie_genres\x125\n" +
-	"\ttv_genres\x18\x02 \x03(\v2\x17.pairedratings.v1.GenreR\ttv_genres\"*\n" +
+	"\ttv_genres\x18\x02 \x03(\v2\x17.pairedratings.v1.GenreR\ttv_genres\"s\n" +
+	"\x15SearchResolveResponse\x12\x1f\n" +
+	"\bimdb_url\x18\x01 \x01(\tH\x00R\bimdb_url\x88\x01\x01\x12\x1f\n" +
+	"\btmdb_url\x18\x02 \x01(\tH\x01R\btmdb_url\x88\x01\x01B\v\n" +
+	"\t_imdb_urlB\v\n" +
+	"\t_tmdb_url\"*\n" +
 	"\fLoginRequest\x12\x1a\n" +
 	"\bpassword\x18\x01 \x01(\tR\bpassword\"b\n" +
 	"\x0eAddShowRequest\x12\x18\n" +
@@ -1164,23 +1221,24 @@ func file_paired_ratings_proto_rawDescGZIP() []byte {
 	return file_paired_ratings_proto_rawDescData
 }
 
-var file_paired_ratings_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_paired_ratings_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_paired_ratings_proto_goTypes = []any{
-	(*SessionResponse)(nil),      // 0: pairedratings.v1.SessionResponse
-	(*ErrorResponse)(nil),        // 1: pairedratings.v1.ErrorResponse
-	(*Show)(nil),                 // 2: pairedratings.v1.Show
-	(*ShowDetail)(nil),           // 3: pairedratings.v1.ShowDetail
-	(*ListResponse)(nil),         // 4: pairedratings.v1.ListResponse
-	(*GenresResponse)(nil),       // 5: pairedratings.v1.GenresResponse
-	(*SearchResult)(nil),         // 6: pairedratings.v1.SearchResult
-	(*SearchResponse)(nil),       // 7: pairedratings.v1.SearchResponse
-	(*Genre)(nil),                // 8: pairedratings.v1.Genre
-	(*SearchGenresResponse)(nil), // 9: pairedratings.v1.SearchGenresResponse
-	(*LoginRequest)(nil),         // 10: pairedratings.v1.LoginRequest
-	(*AddShowRequest)(nil),       // 11: pairedratings.v1.AddShowRequest
-	(*RatingsRequest)(nil),       // 12: pairedratings.v1.RatingsRequest
-	(*RefreshResponse)(nil),      // 13: pairedratings.v1.RefreshResponse
-	(*ExportPayload)(nil),        // 14: pairedratings.v1.ExportPayload
+	(*SessionResponse)(nil),       // 0: pairedratings.v1.SessionResponse
+	(*ErrorResponse)(nil),         // 1: pairedratings.v1.ErrorResponse
+	(*Show)(nil),                  // 2: pairedratings.v1.Show
+	(*ShowDetail)(nil),            // 3: pairedratings.v1.ShowDetail
+	(*ListResponse)(nil),          // 4: pairedratings.v1.ListResponse
+	(*GenresResponse)(nil),        // 5: pairedratings.v1.GenresResponse
+	(*SearchResult)(nil),          // 6: pairedratings.v1.SearchResult
+	(*SearchResponse)(nil),        // 7: pairedratings.v1.SearchResponse
+	(*Genre)(nil),                 // 8: pairedratings.v1.Genre
+	(*SearchGenresResponse)(nil),  // 9: pairedratings.v1.SearchGenresResponse
+	(*SearchResolveResponse)(nil), // 10: pairedratings.v1.SearchResolveResponse
+	(*LoginRequest)(nil),          // 11: pairedratings.v1.LoginRequest
+	(*AddShowRequest)(nil),        // 12: pairedratings.v1.AddShowRequest
+	(*RatingsRequest)(nil),        // 13: pairedratings.v1.RatingsRequest
+	(*RefreshResponse)(nil),       // 14: pairedratings.v1.RefreshResponse
+	(*ExportPayload)(nil),         // 15: pairedratings.v1.ExportPayload
 }
 var file_paired_ratings_proto_depIdxs = []int32{
 	2, // 0: pairedratings.v1.ShowDetail.show:type_name -> pairedratings.v1.Show
@@ -1204,14 +1262,15 @@ func file_paired_ratings_proto_init() {
 	file_paired_ratings_proto_msgTypes[0].OneofWrappers = []any{}
 	file_paired_ratings_proto_msgTypes[2].OneofWrappers = []any{}
 	file_paired_ratings_proto_msgTypes[3].OneofWrappers = []any{}
-	file_paired_ratings_proto_msgTypes[12].OneofWrappers = []any{}
+	file_paired_ratings_proto_msgTypes[10].OneofWrappers = []any{}
+	file_paired_ratings_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_paired_ratings_proto_rawDesc), len(file_paired_ratings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

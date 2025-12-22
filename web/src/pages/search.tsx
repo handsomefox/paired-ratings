@@ -6,8 +6,8 @@ import type { SearchResponse, SearchResult } from "@/lib/api";
 import { Loading } from "@/components/loading";
 import { formatScore, formatVotes, shortGenreList } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ShowCard } from "@/components/show-card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -57,6 +57,7 @@ export function SearchPage() {
   const [minVotes, setMinVotes] = useState(initialParams.get("min_votes") ?? "");
   const [sort, setSort] = useState(initialParams.get("sort") ?? "relevance");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [expandedOverviews, setExpandedOverviews] = useState<Set<string>>(() => new Set());
   const [genreMode, setGenreMode] = useState<"all" | "any">(() =>
     (initialParams.get("genres") ?? "").includes("|") ? "any" : "all",
   );
@@ -147,6 +148,19 @@ export function SearchPage() {
       debouncedFilters.genres,
     ],
   );
+
+  useEffect(() => {
+    setExpandedOverviews(new Set());
+  }, [
+    searchKey.q,
+    searchKey.media_type,
+    searchKey.year_from,
+    searchKey.year_to,
+    searchKey.min_rating,
+    searchKey.min_votes,
+    searchKey.sort,
+    searchKey.genres,
+  ]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -330,6 +344,32 @@ export function SearchPage() {
     });
   };
 
+  const handleOpenImdb = async (item: SearchResult) => {
+    try {
+      const resolved = await api.searchResolve(item.id, item.media_type);
+      const target = resolved.imdb_url || resolved.tmdb_url;
+      if (!target) {
+        toast.error("No external link found.");
+        return;
+      }
+      window.open(target, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Failed to open IMDb.");
+    }
+  };
+
+  const toggleOverview = (key: string) => {
+    setExpandedOverviews((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   const FiltersForm = (
     <div className="space-y-5">
       <div className="space-y-2">
@@ -442,7 +482,7 @@ export function SearchPage() {
                 <SelectItem value="any">Match any selected</SelectItem>
               </SelectContent>
             </Select>
-            <div className="max-h-48 space-y-2 overflow-y-auto">
+            <div className="max-h-[45vh] space-y-2 overflow-y-auto lg:max-h-48">
               {searchGenresQuery.isLoading ? (
                 <div className="text-xs text-muted-foreground">Loading genres…</div>
               ) : null}
@@ -503,11 +543,14 @@ export function SearchPage() {
               Filters
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-[320px] bg-card text-foreground">
+          <SheetContent
+            side="left"
+            className="flex h-full w-[320px] flex-col bg-card text-foreground"
+          >
             <SheetHeader>
               <SheetTitle>Filters</SheetTitle>
             </SheetHeader>
-            <div className="mt-6">{FiltersForm}</div>
+            <div className="mt-6 flex-1 overflow-y-auto pr-1">{FiltersForm}</div>
           </SheetContent>
         </Sheet>
       </div>
@@ -523,16 +566,14 @@ export function SearchPage() {
         </aside>
 
         <div className="space-y-4">
-          <form
-            className="flex justify-center lg:justify-start"
-            onSubmit={(event) => event.preventDefault()}
-          >
+          <form className="flex w-full justify-center" onSubmit={(event) => event.preventDefault()}>
             <Input
               type="text"
               name="q"
               placeholder="Search TMDB"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              autoFocus
               className="w-full max-w-md"
             />
           </form>
@@ -549,32 +590,25 @@ export function SearchPage() {
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {results.map((item) => (
-              <Card
+              <ShowCard
                 key={`${item.media_type}-${item.id}`}
-                className="group overflow-hidden border-border/60 bg-card/70 shadow-lg"
-              >
-                <div className="aspect-[2/3] overflow-hidden bg-muted/40">
-                  {item.poster_path ? (
-                    <img
-                      src={`${imageBase}${item.poster_path}`}
-                      alt={item.title}
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs uppercase tracking-wide text-muted-foreground">
-                      No poster
-                    </div>
-                  )}
-                </div>
-
-                <CardContent className="space-y-3 p-3">
-                  <div>
-                    <div className="text-base font-semibold leading-tight">{item.title}</div>
-                    <div className="text-xs text-muted-foreground">{item.year}</div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                title={item.title}
+                year={item.year}
+                posterAlt={item.title}
+                posterPath={item.poster_path}
+                imageBase={imageBase}
+                posterLink={(node) => (
+                  <button
+                    type="button"
+                    className="block w-full cursor-pointer text-left"
+                    onClick={() => void handleOpenImdb(item)}
+                    aria-label={`Search IMDb for ${item.title}`}
+                  >
+                    {node}
+                  </button>
+                )}
+                metaBadges={
+                  <>
                     <Badge variant="secondary">
                       {item.vote_average ? (
                         <>
@@ -592,21 +626,21 @@ export function SearchPage() {
                           ? "TV"
                           : item.media_type}
                     </Badge>
-                    {item.genres?.length ? (
-                      <span className="text-muted-foreground">{shortGenreList(item.genres)}</span>
-                    ) : null}
-                  </div>
-
-                  <p className="line-clamp-3 text-xs text-muted-foreground">{item.overview}</p>
-
-                  {item.in_library ? (
+                  </>
+                }
+                genresText={item.genres?.length ? shortGenreList(item.genres) : ""}
+                overview={item.overview}
+                overviewExpanded={expandedOverviews.has(`${item.media_type}-${item.id}`)}
+                onToggleOverview={() => toggleOverview(`${item.media_type}-${item.id}`)}
+                footer={
+                  item.in_library ? (
                     <Badge className="w-fit bg-primary/15 text-primary">In library</Badge>
                   ) : (
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="border-teal-500/40 bg-teal-500/10 text-teal-200 hover:bg-teal-500/20"
+                        className="border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20"
                         onClick={() => handleAdd(item, "planned")}
                         disabled={addMutation.isPending}
                       >
@@ -614,16 +648,16 @@ export function SearchPage() {
                       </Button>
                       <Button
                         size="sm"
-                        className="border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20"
+                        className="border-teal-500/40 bg-teal-500/10 text-teal-200 hover:bg-teal-500/20"
                         onClick={() => handleAdd(item, "watched")}
                         disabled={addMutation.isPending}
                       >
                         Watched
                       </Button>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  )
+                }
+              />
             ))}
           </div>
 

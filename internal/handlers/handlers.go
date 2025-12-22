@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -71,6 +72,7 @@ type searchPage struct {
 	TotalResults int
 }
 
+
 func New(cfg *Config) (*Handler, error) {
 	if cfg.Store == nil {
 		return nil, errors.New("store is required")
@@ -112,6 +114,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Method(http.MethodPost, "/logout", Adapt(h.postLogout))
 		r.Method(http.MethodGet, "/search", Adapt(h.getSearch))
 		r.Method(http.MethodGet, "/search/genres", Adapt(h.getSearchGenres))
+		r.Method(http.MethodGet, "/search/resolve", Adapt(h.getSearchResolve))
 		r.Method(http.MethodGet, "/genres", Adapt(h.getGenres))
 
 		r.Route("/shows", func(r chi.Router) {
@@ -486,6 +489,41 @@ func (h *Handler) getSearchGenres(w http.ResponseWriter, r *http.Request) error 
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+	return nil
+}
+
+func (h *Handler) getSearchResolve(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+	tmdbIDRaw := strings.TrimSpace(r.URL.Query().Get("tmdb_id"))
+	if tmdbIDRaw == "" {
+		return badRequest("tmdb_id required")
+	}
+	tmdbID, err := strconv.ParseInt(tmdbIDRaw, 10, 64)
+	if err != nil || tmdbID <= 0 {
+		return badRequest("invalid tmdb_id")
+	}
+
+	mediaType := strings.TrimSpace(r.URL.Query().Get("media_type"))
+	if mediaType != "movie" && mediaType != "tv" {
+		return badRequest("invalid media_type")
+	}
+
+	detail, err := h.tmdb.FetchDetails(ctx, tmdbID, mediaType)
+	if err != nil {
+		slog.Warn("search resolve failed", slog.Any("err", err))
+		return internal(err)
+	}
+
+	tmdbURL := fmt.Sprintf("https://www.themoviedb.org/%s/%d", mediaType, tmdbID)
+	imdbURL := ""
+	if strings.TrimSpace(detail.IMDbID) != "" {
+		imdbURL = fmt.Sprintf("https://www.imdb.com/title/%s", detail.IMDbID)
+	}
+
+	writeJSON(w, http.StatusOK, &pb.SearchResolveResponse{
+		ImdbUrl: optionalString(imdbURL),
+		TmdbUrl: optionalString(tmdbURL),
+	})
 	return nil
 }
 

@@ -12,7 +12,7 @@
     --card-foreground: 210 40% 96%;
     --popover: 222 24% 12%;
     --popover-foreground: 210 40% 96%;
-    --primary: 176 78% 45%;
+    --primary: 176 78% 38%;
     --primary-foreground: 210 40% 98%;
     --secondary: 260 22% 20%;
     --secondary-foreground: 210 40% 96%;
@@ -39,6 +39,21 @@
       radial-gradient(circle at 12% 12%, rgba(20, 184, 166, 0.18), transparent 35%),
       radial-gradient(circle at 88% 16%, rgba(168, 85, 247, 0.2), transparent 40%),
       linear-gradient(160deg, rgba(12, 18, 33, 0.8), rgba(2, 6, 23, 0.92));
+  }
+
+  html {
+    font-size: 18px;
+  }
+
+  input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
 
   h1,

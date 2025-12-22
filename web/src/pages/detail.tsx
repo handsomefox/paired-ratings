@@ -302,14 +302,14 @@ function DetailContent({
             <button
               type="button"
               onClick={() => refreshMutation.mutate()}
-              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs font-semibold transition hover:brightness-110 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs font-semibold transition hover:brightness-110 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
             >
               Refresh TMDB
             </button>
             <button
               type="button"
               onClick={() => clearRatingsMutation.mutate()}
-              className="inline-flex items-center gap-2 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 hover:text-red-100"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 hover:text-red-100"
             >
               Clear ratings
             </button>
@@ -354,7 +354,7 @@ function DetailContent({
               {bfEditing ? (
                 <Textarea
                   rows={3}
-                  placeholder={`Leave a comment for ${bfName}`}
+                  placeholder={`Leave a comment by ${bfName}`}
                   value={bfComment}
                   onChange={(event) => setBfComment(event.target.value)}
                   className="resize-none border-teal-500/40 focus-visible:ring-2 focus-visible:ring-teal-400/60"
@@ -394,7 +394,7 @@ function DetailContent({
               {gfEditing ? (
                 <Textarea
                   rows={3}
-                  placeholder={`Leave a comment for ${gfName}`}
+                  placeholder={`Leave a comment by ${gfName}`}
                   value={gfComment}
                   onChange={(event) => setGfComment(event.target.value)}
                   className="resize-none border-purple-500/40 focus-visible:ring-2 focus-visible:ring-purple-400/60"

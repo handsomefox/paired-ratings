@@ -84,6 +84,11 @@ export interface SearchGenresResponse {
   tv_genres: Genre[];
 }
 
+export interface SearchResolveResponse {
+  imdb_url?: string | undefined;
+  tmdb_url?: string | undefined;
+}
+
 export interface LoginRequest {
   password: string;
 }
