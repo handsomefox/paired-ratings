@@ -64,9 +64,9 @@ export function GenericCombobox({
           className={cn("w-full justify-between font-normal", className)}
           disabled={disabled}
         >
-          <span className="min-w-0 flex-1 truncate">
-            {selected ? renderLabel(selected) : placeholder}
-          </span>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            {selected ? renderLabel(selected) : <span className="truncate">{placeholder}</span>}
+          </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>

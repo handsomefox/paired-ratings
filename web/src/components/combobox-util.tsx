@@ -18,11 +18,10 @@ export function OptionLabel({
   code: string;
 }) {
   return (
-    <span className="inline-flex min-w-0 items-center gap-2">
-      <EmojiCell emoji={emoji} />
-      <span className="min-w-0 truncate">
-        {primary} ({code})
-      </span>
-    </span>
+    <div className="flex min-w-0 items-center gap-2">
+      {emoji ? <span className="shrink-0">{emoji}</span> : null}
+      <span className="min-w-0 flex-1 truncate">{primary}</span>
+      <span className="shrink-0 text-muted-foreground">{code}</span>
+    </div>
   );
 }
