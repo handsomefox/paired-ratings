@@ -103,19 +103,19 @@ const FiltersPane = ({
             side="left"
             className="flex h-[100svh] w-[320px] flex-col overflow-hidden bg-card text-foreground"
           >
-          <SheetHeader>
-            <SheetTitle>{title}</SheetTitle>
-          </SheetHeader>
-          <div
-            className="mt-6 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-3 lg:pr-2"
-            style={{ WebkitOverflowScrolling: "touch" }}
-            ref={scrollRef}
-          >
-            {filters}
-          </div>
-        </SheetContent>
-      </Sheet>
-    </div>
+            <SheetHeader>
+              <SheetTitle>{title}</SheetTitle>
+            </SheetHeader>
+            <div
+              className="mt-6 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-3 lg:pr-2"
+              style={{ WebkitOverflowScrolling: "touch" }}
+              ref={scrollRef}
+            >
+              {filters}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
 
       <div className={cn("grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]", gridClassName)}>
         <aside className="hidden lg:block">

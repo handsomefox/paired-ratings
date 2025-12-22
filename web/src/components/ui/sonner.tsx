@@ -1,5 +1,5 @@
-import { Toaster as Sonner } from "sonner";
 import type { ComponentProps } from "react";
+import { Toaster as Sonner } from "sonner";
 
 import { cn } from "@/lib/utils";
 

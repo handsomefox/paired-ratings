@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
-import { useRouterState } from "@tanstack/react-router";
-import { cn } from "@/lib/utils";
 import { ViewTransitionLink } from "@/components/view-transition-link";
+import { cn } from "@/lib/utils";
+import { useRouterState } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 
 type NavLinkProps = {
   to: "/" | "/search";

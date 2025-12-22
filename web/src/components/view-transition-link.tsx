@@ -1,6 +1,6 @@
-import type { MouseEvent } from "react";
-import { Link, type LinkComponentProps, useRouter } from "@tanstack/react-router";
 import { isModifiedClick, withViewTransition } from "@/lib/view-transitions";
+import { Link, type LinkComponentProps, useRouter } from "@tanstack/react-router";
+import type { MouseEvent } from "react";
 
 type ViewTransitionLinkProps = LinkComponentProps;
 

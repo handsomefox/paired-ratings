@@ -1,6 +1,6 @@
-import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -69,52 +69,49 @@ const SelectContent = React.forwardRef<
   } as React.CSSProperties;
 
   return (
-  <SelectPrimitive.Portal>
-    <SelectPrimitive.Content
-      ref={ref}
-      className={cn(
-        "relative z-50 max-h-[var(--select-content-max-height)] min-w-[8rem] overflow-hidden rounded-md border border-border/60 bg-card/95 text-foreground shadow-lg backdrop-blur data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[--radix-select-content-transform-origin]",
-        position === "popper" &&
-          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-        className,
-      )}
-      position={position}
-      style={contentStyle}
-      onKeyDown={(event) => {
-        if (event.key === "Tab") {
-          event.preventDefault();
-          const options = Array.from(
-            (event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>(
-              '[role="option"]',
-            ),
-          );
-          if (options.length > 0) {
-            const active = document.activeElement as HTMLElement | null;
-            const index = active ? options.indexOf(active) : -1;
-            const nextIndex = event.shiftKey
-              ? Math.max(0, index > 0 ? index - 1 : 0)
-              : Math.min(options.length - 1, index + 1);
-            options[nextIndex]?.focus();
-          }
-          return;
-        }
-        onKeyDown?.(event);
-      }}
-      {...props}
-    >
-      <SelectScrollUpButton />
-      <SelectPrimitive.Viewport
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Content
+        ref={ref}
         className={cn(
-          "max-h-[calc(var(--select-content-max-height)-2rem)] overflow-y-auto p-1",
+          "relative z-50 max-h-[var(--select-content-max-height)] min-w-[8rem] overflow-hidden rounded-md border border-border/60 bg-card/95 text-foreground shadow-lg backdrop-blur data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[--radix-select-content-transform-origin]",
           position === "popper" &&
-            "w-full min-w-[var(--radix-select-trigger-width)]",
+            "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+          className,
         )}
+        position={position}
+        style={contentStyle}
+        onKeyDown={(event) => {
+          if (event.key === "Tab") {
+            event.preventDefault();
+            const options = Array.from(
+              (event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="option"]'),
+            );
+            if (options.length > 0) {
+              const active = document.activeElement as HTMLElement | null;
+              const index = active ? options.indexOf(active) : -1;
+              const nextIndex = event.shiftKey
+                ? Math.max(0, index > 0 ? index - 1 : 0)
+                : Math.min(options.length - 1, index + 1);
+              options[nextIndex]?.focus();
+            }
+            return;
+          }
+          onKeyDown?.(event);
+        }}
+        {...props}
       >
-        {children}
-      </SelectPrimitive.Viewport>
-      <SelectScrollDownButton />
-    </SelectPrimitive.Content>
-  </SelectPrimitive.Portal>
+        <SelectScrollUpButton />
+        <SelectPrimitive.Viewport
+          className={cn(
+            "max-h-[calc(var(--select-content-max-height)-2rem)] overflow-y-auto p-1",
+            position === "popper" && "w-full min-w-[var(--radix-select-trigger-width)]",
+          )}
+        >
+          {children}
+        </SelectPrimitive.Viewport>
+        <SelectScrollDownButton />
+      </SelectPrimitive.Content>
+    </SelectPrimitive.Portal>
   );
 });
 SelectContent.displayName = SelectPrimitive.Content.displayName;
@@ -167,13 +164,13 @@ SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
 
 export {
   Select,
-  SelectGroup,
-  SelectValue,
-  SelectTrigger,
   SelectContent,
-  SelectLabel,
+  SelectGroup,
   SelectItem,
-  SelectSeparator,
-  SelectScrollUpButton,
+  SelectLabel,
   SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
 };

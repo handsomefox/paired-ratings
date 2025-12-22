@@ -11,7 +11,12 @@ type FilterFieldProps = {
 
 const FilterField = ({ label, children, className, labelClassName }: FilterFieldProps) => (
   <div className={cn("space-y-2", className)}>
-    <label className={cn("text-xs font-semibold uppercase tracking-wide text-muted-foreground", labelClassName)}>
+    <label
+      className={cn(
+        "text-xs font-semibold uppercase tracking-wide text-muted-foreground",
+        labelClassName,
+      )}
+    >
       {label}
     </label>
     {children}

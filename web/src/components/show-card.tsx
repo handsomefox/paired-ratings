@@ -1,7 +1,7 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 type ShowCardProps = {
   title: ReactNode;
@@ -80,7 +80,12 @@ export function ShowCard({
   );
 
   return (
-    <Card className={cn("group flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg", className)}>
+    <Card
+      className={cn(
+        "group flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg",
+        className,
+      )}
+    >
       <div className="relative">
         {posterLink ? posterLink(poster) : poster}
         {topRight ? <div className="absolute right-3 top-3">{topRight}</div> : null}
@@ -94,10 +99,10 @@ export function ShowCard({
           {statusBadge ?? null}
         </div>
 
-        {metaBadges ? <div className="flex flex-wrap items-center gap-2 text-xs">{metaBadges}</div> : null}
-        {genresText ? (
-          <div className="text-xs text-muted-foreground">{genresText}</div>
+        {metaBadges ? (
+          <div className="flex flex-wrap items-center gap-2 text-xs">{metaBadges}</div>
         ) : null}
+        {genresText ? <div className="text-xs text-muted-foreground">{genresText}</div> : null}
 
         {overview ? (
           <div className="space-y-1">

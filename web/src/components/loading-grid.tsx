@@ -1,6 +1,6 @@
+import CardGrid from "@/components/card-grid";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import CardGrid from "@/components/card-grid";
 
 type LoadingGridProps = {
   count?: number;
@@ -15,7 +15,10 @@ export function LoadingGrid({ count = 8, className }: LoadingGridProps) {
   return (
     <CardGrid className={className}>
       {items.map((id) => (
-        <Card key={id} className="flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg">
+        <Card
+          key={id}
+          className="flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg"
+        >
           <Skeleton className="aspect-[2/3] w-full rounded-none" />
           <CardContent className="flex flex-1 flex-col gap-3 p-3">
             <div className="space-y-2">
