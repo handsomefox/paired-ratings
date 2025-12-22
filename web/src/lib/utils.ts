@@ -2,40 +2,23 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 const DEFAULT_REGION_BY_LANG: Record<string, string> = {
-  ar: "SA",
-  bg: "BG",
-  cs: "CZ",
-  da: "DK",
-  de: "DE",
-  el: "GR",
-  en: "US",
-  es: "ES",
-  fi: "FI",
-  fr: "FR",
-  he: "IL",
-  hi: "IN",
-  hu: "HU",
-  id: "ID",
-  it: "IT",
-  ja: "JP",
-  ko: "KR",
-  nl: "NL",
-  no: "NO",
-  pl: "PL",
-  pt: "BR",
-  rn: "BI",
-  ro: "RO",
-  ru: "RU",
-  rw: "RW",
-  sk: "SK",
-  su: "RU",
-  sv: "SE",
-  sw: "TZ",
-  th: "TH",
-  tr: "TR",
-  uk: "UA",
-  vi: "VN",
-  zh: "TW",
+  AR: "SA",
+  CS: "CZ",
+  DA: "DK",
+  EL: "GR",
+  EN: "US",
+  HE: "IL",
+  HI: "IN",
+  KO: "KR",
+  NO: "NO",
+  PT: "BR",
+  RN: "BI",
+  SU: "RU",
+  SV: "SE",
+  SW: "TZ",
+  UK: "UA",
+  VI: "VN",
+  ZH: "TW",
 };
 
 export function cn(...inputs: ClassValue[]) {
@@ -95,21 +78,15 @@ export function flagEmoji(countryCode?: string | null) {
 export function flagEmojiFromLanguageCode(languageCode?: string | null) {
   if (!languageCode) return "";
 
-  const raw = languageCode.trim();
-  if (!raw) return "";
-
-  // If caller ever passes a BCP47 tag like "pt-BR", prefer the explicit region.
-  // TMDB config uses ISO639_1, but this keeps the function robust.
-  const tag = raw.replace("_", "-");
-  const m = tag.match(/^[a-zA-Z]{2,3}-(?<region>[a-zA-Z]{2})\b/);
-  const region = m?.groups?.region?.toUpperCase();
-  if (region) return flagEmoji(region);
-
-  if (region == "RU") return String.fromCodePoint(0x1f4a9);
-
-  const lang = raw.toLowerCase();
+  const lang = languageCode.trim().toLowerCase();
   if (!/^[a-z]{2,3}$/.test(lang)) return "";
 
-  const fallbackRegion = DEFAULT_REGION_BY_LANG[lang];
-  return fallbackRegion ? flagEmoji(fallbackRegion) : "";
+  const locale = new Intl.Locale(lang).maximize();
+  let region = locale.region;
+  if (!region) {
+    region = DEFAULT_REGION_BY_LANG[lang.toUpperCase()];
+  }
+  if (region == "RU") return String.fromCodePoint(0x1f4a9);
+
+  return region ? flagEmoji(region) : "";
 }
