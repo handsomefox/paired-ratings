@@ -64,14 +64,16 @@ export function GenericCombobox({
           className={cn("w-full justify-between font-normal", className)}
           disabled={disabled}
         >
-          <span className="truncate">{selected ? renderLabel(selected) : placeholder}</span>
+          <span className="min-w-0 flex-1 truncate">
+            {selected ? renderLabel(selected) : placeholder}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
 
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />{" "}
+          <CommandInput placeholder={searchPlaceholder} />
           <CommandList
             className="max-h-[min(15rem,calc(100svh-12rem))] overflow-y-auto overscroll-contain touch-pan-y"
             style={{ WebkitOverflowScrolling: "touch" }}
@@ -84,11 +86,12 @@ export function GenericCombobox({
                   onValueChange("");
                   setOpen(false);
                 }}
+                className="flex items-center"
               >
-                <span>{anyLabel}</span>
+                <span className="min-w-0 flex-1 truncate">{anyLabel}</span>
                 <Check
                   className={cn(
-                    "ml-auto h-4 w-4",
+                    "ml-2 h-4 w-4 shrink-0",
                     normalizedValue === anyValue ? "opacity-100" : "opacity-0",
                   )}
                 />
@@ -102,11 +105,12 @@ export function GenericCombobox({
                     onValueChange(normalizeOnSelect(option.code));
                     setOpen(false);
                   }}
+                  className="flex items-center"
                 >
-                  <span className="flex-1">{renderLabel(option)}</span>
+                  <span className="min-w-0 flex-1 truncate">{renderLabel(option)}</span>
                   <Check
                     className={cn(
-                      "ml-auto h-4 w-4",
+                      "ml-2 h-4 w-4 shrink-0",
                       normalizedValue === option.code ? "opacity-100" : "opacity-0",
                     )}
                   />
