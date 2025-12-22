@@ -480,7 +480,7 @@ export function SearchPage() {
                 <SelectItem value="any">Match any selected</SelectItem>
               </SelectContent>
             </Select>
-            <ScrollArea className="max-h-48 pr-2">
+            <ScrollArea className="h-48 pr-2">
               <div className="space-y-2">
                 {searchGenresQuery.isLoading ? (
                   <div className="text-xs text-muted-foreground">Loading genres…</div>
