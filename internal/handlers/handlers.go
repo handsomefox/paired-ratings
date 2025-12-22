@@ -571,7 +571,7 @@ func (h *Handler) getSearchResolve(w http.ResponseWriter, r *http.Request) error
 	tmdbURL := fmt.Sprintf("https://www.themoviedb.org/%s/%d", mediaType, tmdbID)
 	imdbURL := ""
 	if strings.TrimSpace(detail.IMDbID) != "" {
-		imdbURL = fmt.Sprintf("https://www.imdb.com/title/%s", detail.IMDbID)
+		imdbURL = "https://www.imdb.com/title/" + detail.IMDbID
 	}
 
 	writeJSON(w, http.StatusOK, &pb.SearchResolveResponse{
