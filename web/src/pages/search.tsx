@@ -29,11 +29,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import type { SearchRequest, SearchResponse, SearchResult } from "@/lib/api";
+import type { SearchResponse, SearchResult } from "@/lib/api";
 import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { formatScore, formatVotes, shortGenreList } from "@/lib/utils";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -53,8 +53,6 @@ const mediaTypeOptions = [
 type MediaType = (typeof mediaTypeOptions)[number]["value"];
 type Sort = (typeof sortOptions)[number]["value"];
 
-type SearchKey = Omit<SearchRequest, "page">;
-
 function sanitizeMediaType(raw: string | null | undefined): MediaType {
   const v = (raw ?? "").toLowerCase().trim();
   return v === "tv" ? "tv" : "movie";
@@ -65,10 +63,51 @@ function sanitizeSort(raw: string | null | undefined): Sort {
   return sortOptions.some((o) => o.value === v) ? (v as Sort) : "relevance";
 }
 
+function parseGenres(raw: string): { mode: "all" | "any"; selected: string[] } {
+  const value = (raw ?? "").trim();
+  if (!value) return { mode: "all", selected: [] };
+
+  const any = value.includes("|");
+  const parts = value
+    .split(any ? "|" : ",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  return { mode: any ? "any" : "all", selected: parts };
+}
+
+function buildBaseParams(args: {
+  mediaType: MediaType;
+  trimmedQuery: string;
+  yearFrom: string;
+  yearTo: string;
+  minRating: string;
+  minVotes: string;
+  sort: Sort;
+  genres: string;
+  originCountry: string;
+  originalLanguage: string;
+}): URLSearchParams {
+  const p = new URLSearchParams();
+  p.set("media_type", args.mediaType);
+
+  if (args.trimmedQuery) p.set("q", args.trimmedQuery);
+  if (args.yearFrom) p.set("year_from", args.yearFrom);
+  if (args.yearTo) p.set("year_to", args.yearTo);
+  if (args.minRating) p.set("min_rating", args.minRating);
+  if (args.minVotes) p.set("min_votes", args.minVotes);
+  if (args.sort && args.sort !== "relevance") p.set("sort", args.sort);
+  if (args.genres) p.set("genres", args.genres);
+  if (args.originCountry) p.set("origin_country", args.originCountry);
+  if (args.originalLanguage) p.set("original_language", args.originalLanguage);
+
+  return p;
+}
+
 export function SearchPage() {
   const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
 
-  const [query, setQuery] = useState(initialParams.get("q") ?? "");
+  const [queryInput, setQueryInput] = useState(initialParams.get("q") ?? "");
   const [mediaType, setMediaType] = useState<MediaType>(() =>
     sanitizeMediaType(initialParams.get("media_type")),
   );
@@ -89,19 +128,23 @@ export function SearchPage() {
   const [sort, setSort] = useState<Sort>(() => sanitizeSort(initialParams.get("sort")));
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [expandedOverviews, setExpandedOverviews] = useState<Set<string>>(() => new Set());
-  const [genreMode, setGenreMode] = useState<"all" | "any">(() =>
-    (initialParams.get("genres") ?? "").includes("|") ? "any" : "all",
+
+  const initialGenres = useMemo(
+    () => parseGenres(initialParams.get("genres") ?? ""),
+    [initialParams],
   );
-  const [selectedGenres, setSelectedGenres] = useState<string[]>(() => {
-    const raw = initialParams.get("genres") ?? "";
-    if (!raw) return [];
-    return raw
-      .split(raw.includes("|") ? "|" : ",")
-      .map((part) => part.trim())
-      .filter(Boolean);
-  });
+  const [genreMode, setGenreMode] = useState<"all" | "any">(initialGenres.mode);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>(initialGenres.selected);
 
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFiltersOpen(false);
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, []);
 
   const sessionQuery = useQuery({
     queryKey: ["session"],
@@ -143,100 +186,57 @@ export function SearchPage() {
     retry: 1,
   });
 
-  useEffect(() => {
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setFiltersOpen(false);
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, []);
-
   const imageBase = sessionQuery.data?.image_base ?? "";
+
+  const debouncedQuery = useDebouncedValue(queryInput, 600);
+  const trimmedQuery = debouncedQuery.trim();
 
   const genreQuery = useMemo(() => {
     if (!selectedGenres.length) return "";
     return selectedGenres.join(genreMode === "any" ? "|" : ",");
   }, [selectedGenres, genreMode]);
 
-  const debouncedQuery = useDebouncedValue(query, 600);
-  const trimmedQuery = debouncedQuery.trim();
-
-  useEffect(() => {
-    setPage((prev) => (prev === 1 ? prev : 1));
-  }, [
-    trimmedQuery,
-    mediaType,
-    yearFrom,
-    yearTo,
-    minRating,
-    minVotes,
-    sort,
-    genreQuery,
-    originCountry,
-    originalLanguage,
-  ]);
-
-  const searchKey: SearchKey = useMemo(
-    () => ({
-      q: trimmedQuery,
-      media_type: mediaType,
-      year_from: yearFrom,
-      year_to: yearTo,
-      min_rating: minRating,
-      min_votes: minVotes,
-      sort,
-      genres: genreQuery,
-      origin_country: originCountry,
-      original_language: originalLanguage,
-    }),
-    [
-      trimmedQuery,
+  const baseParamsString = useMemo(() => {
+    return buildBaseParams({
       mediaType,
+      trimmedQuery,
       yearFrom,
       yearTo,
       minRating,
       minVotes,
       sort,
-      genreQuery,
+      genres: genreQuery,
       originCountry,
       originalLanguage,
-    ],
-  );
-
-  useEffect(() => {
-    setExpandedOverviews(new Set());
+    }).toString();
   }, [
-    searchKey.q,
-    searchKey.media_type,
-    searchKey.year_from,
-    searchKey.year_to,
-    searchKey.min_rating,
-    searchKey.min_votes,
-    searchKey.sort,
-    searchKey.genres,
-    searchKey.origin_country,
-    searchKey.original_language,
-    page,
+    mediaType,
+    trimmedQuery,
+    yearFrom,
+    yearTo,
+    minRating,
+    minVotes,
+    sort,
+    genreQuery,
+    originCountry,
+    originalLanguage,
   ]);
 
-  useEffect(() => {
-    const params = new URLSearchParams();
-
-    params.set("media_type", mediaType);
-    if (trimmedQuery) params.set("q", trimmedQuery);
-    if (yearFrom) params.set("year_from", yearFrom);
-    if (yearTo) params.set("year_to", yearTo);
-    if (minRating) params.set("min_rating", minRating);
-    if (minVotes) params.set("min_votes", minVotes);
-    if (sort && sort !== "relevance") params.set("sort", sort);
-    if (genreQuery) params.set("genres", genreQuery);
-    if (originCountry) params.set("origin_country", originCountry);
-    if (originalLanguage) params.set("original_language", originalLanguage);
-    if (page > 1) params.set("page", String(page));
-
-    const next = params.toString();
-    const url = next ? `/search?${next}` : "/search";
-    window.history.replaceState(null, "", url);
+  const fullParamsString = useMemo(() => {
+    const p = buildBaseParams({
+      mediaType,
+      trimmedQuery,
+      yearFrom,
+      yearTo,
+      minRating,
+      minVotes,
+      sort,
+      genres: genreQuery,
+      originCountry,
+      originalLanguage,
+    });
+    if (page > 1) p.set("page", String(page));
+    return p.toString();
   }, [
     mediaType,
     trimmedQuery,
@@ -251,29 +251,29 @@ export function SearchPage() {
     page,
   ]);
 
-  const buildParams = () => {
-    const params = new URLSearchParams();
+  // Reset page when filters (excluding page) change
+  const prevBaseRef = useRef(baseParamsString);
+  useEffect(() => {
+    if (prevBaseRef.current !== baseParamsString) {
+      prevBaseRef.current = baseParamsString;
+      setPage(1);
+    }
+  }, [baseParamsString]);
 
-    params.set("media_type", mediaType);
-    if (trimmedQuery) params.set("q", trimmedQuery);
-    if (yearFrom) params.set("year_from", yearFrom);
-    if (yearTo) params.set("year_to", yearTo);
-    if (minRating) params.set("min_rating", minRating);
-    if (minVotes) params.set("min_votes", minVotes);
-    if (sort && sort !== "relevance") params.set("sort", sort);
-    if (genreQuery) params.set("genres", genreQuery);
-    if (originCountry) params.set("origin_country", originCountry);
-    if (originalLanguage) params.set("original_language", originalLanguage);
-    if (page > 1) params.set("page", String(page));
+  // Clear expanded overviews when query changes or page changes
+  useEffect(() => {
+    setExpandedOverviews(new Set());
+  }, [baseParamsString, page]);
 
-    return params;
-  };
+  // URL sync
+  useEffect(() => {
+    const url = fullParamsString ? `/search?${fullParamsString}` : "/search";
+    window.history.replaceState(null, "", url);
+  }, [fullParamsString]);
 
   const searchQuery = useQuery<SearchResponse, Error>({
-    queryKey: ["search", searchKey, page],
-    enabled: true,
-    queryFn: () => api.search(buildParams()),
-    placeholderData: keepPreviousData,
+    queryKey: ["search", fullParamsString],
+    queryFn: () => api.search(new URLSearchParams(fullParamsString)),
     staleTime: 30_000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -281,12 +281,22 @@ export function SearchPage() {
     retry: 1,
   });
 
+  // If backend clamps page, keep state consistent (only after data arrives)
+  useEffect(() => {
+    const serverPage = searchQuery.data?.page;
+    if (serverPage && serverPage !== page) setPage(serverPage);
+  }, [searchQuery.data?.page, page]);
+
+  useEffect(() => {
+    if (searchQuery.isError) toast.error("Failed to load search results.");
+  }, [searchQuery.isError]);
+
   const addMutation = useMutation({
     mutationFn: api.addShow,
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["shows"] });
 
-      queryClient.setQueryData<SearchResponse>(["search", searchKey, page], (old) => {
+      queryClient.setQueryData<SearchResponse>(["search", fullParamsString], (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -310,28 +320,19 @@ export function SearchPage() {
 
   const totalResults = searchQuery.data?.total_results ?? 0;
   const totalPages = searchQuery.data?.total_pages ?? 0;
-  const currentPage = searchQuery.data?.page ?? page;
 
-  useEffect(() => {
-    if (searchQuery.isError) toast.error("Failed to load search results.");
-  }, [searchQuery.isError]);
+  const pageItems = useMemo(() => {
+    if (!totalPages || totalPages <= 1) return [];
+    return getPageItems(totalPages, page, 3);
+  }, [totalPages, page]);
 
-  const renderResultsCount = () => {
-    if (!searchQuery.data && searchQuery.isLoading) return "";
-    const loaded = results.length;
-    const total = totalResults;
-
-    if (total && total !== loaded) {
-      return `Total results ${total}, showing ${loaded}`;
-    }
-
-    return `Total results ${loaded}`;
+  const goToPage = (next: number) => {
+    const clamped = totalPages ? Math.max(1, Math.min(totalPages, next)) : Math.max(1, next);
+    if (clamped === page) return;
+    setPage(clamped);
+    setExpandedOverviews(new Set());
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  const pageItems = useMemo(
-    () => getPageItems(totalPages, currentPage, 3),
-    [totalPages, currentPage],
-  );
 
   const didMountRef = useRef(false);
   useEffect(() => {
@@ -376,13 +377,18 @@ export function SearchPage() {
   const toggleOverview = (key: string) => {
     setExpandedOverviews((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
+  };
+
+  const renderResultsCount = () => {
+    if (searchQuery.isLoading) return "";
+    const loaded = results.length;
+    const total = totalResults;
+    if (total && total !== loaded) return `Total results ${total}, showing ${loaded}`;
+    return `Total results ${loaded}`;
   };
 
   const FiltersForm = (
@@ -432,11 +438,8 @@ export function SearchPage() {
                       className="h-4 w-4 accent-primary"
                       checked={checked}
                       onChange={(event) => {
-                        if (event.target.checked) {
-                          setSelectedGenres((prev) => [...prev, id]);
-                        } else {
-                          setSelectedGenres((prev) => prev.filter((val) => val !== id));
-                        }
+                        if (event.target.checked) setSelectedGenres((prev) => [...prev, id]);
+                        else setSelectedGenres((prev) => prev.filter((val) => val !== id));
                       }}
                     />
                     <span>{genre.name}</span>
@@ -537,6 +540,7 @@ export function SearchPage() {
         variant="ghost"
         onClick={() => {
           setMediaType("movie");
+          setQueryInput("");
           setYearFrom("");
           setYearTo("");
           setMinRating("");
@@ -554,8 +558,7 @@ export function SearchPage() {
     </div>
   );
 
-  const isInitialLoading =
-    searchQuery.isLoading || (searchQuery.isFetching && results.length === 0);
+  const isLoading = searchQuery.isLoading;
 
   return (
     <FiltersPane
@@ -570,8 +573,8 @@ export function SearchPage() {
             type="text"
             name="q"
             placeholder="Search TMDB"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={queryInput}
+            onChange={(event) => setQueryInput(event.target.value)}
             autoFocus
             className="w-full max-w-md"
           />
@@ -579,9 +582,9 @@ export function SearchPage() {
 
         <div className="text-xs text-muted-foreground">{renderResultsCount()}</div>
 
-        {isInitialLoading ? <LoadingGrid /> : null}
+        {isLoading ? <LoadingGrid /> : null}
 
-        {!searchQuery.isLoading && !searchQuery.isFetching && !results.length ? (
+        {!isLoading && !results.length ? (
           <Empty className="border-border/60 bg-card/30">
             <EmptyHeader>
               <EmptyTitle>No results yet</EmptyTitle>
@@ -673,12 +676,10 @@ export function SearchPage() {
               <PaginationItem>
                 <PaginationPrevious
                   href="#"
-                  className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
+                  className={page <= 1 ? "pointer-events-none opacity-50" : ""}
                   onClick={(event) => {
                     event.preventDefault();
-                    if (currentPage <= 1) return;
-                    setPage(currentPage - 1);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    goToPage(page - 1);
                   }}
                 />
               </PaginationItem>
@@ -690,11 +691,10 @@ export function SearchPage() {
                   ) : (
                     <PaginationLink
                       href="#"
-                      isActive={item === currentPage}
+                      isActive={item === page}
                       onClick={(event) => {
                         event.preventDefault();
-                        setPage(item);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
+                        goToPage(item);
                       }}
                     >
                       {item}
@@ -706,12 +706,10 @@ export function SearchPage() {
               <PaginationItem>
                 <PaginationNext
                   href="#"
-                  className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+                  className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
                   onClick={(event) => {
                     event.preventDefault();
-                    if (currentPage >= totalPages) return;
-                    setPage(currentPage + 1);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    goToPage(page + 1);
                   }}
                 />
               </PaginationItem>
