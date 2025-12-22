@@ -54,7 +54,7 @@ export function GenericCombobox({
   const selected = useMemo(() => options.find((option) => option.code === value), [options, value]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           type="button"
