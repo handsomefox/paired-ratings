@@ -397,7 +397,7 @@ func (c *Client) fetchSearch(ctx context.Context, endpoint, mediaTypeOverride st
 	return SearchPage{
 		Results:      out,
 		Page:         payload.Page,
-		TotalPages:   payload.TotalPages,
+		TotalPages:   min(payload.TotalPages, 500),
 		TotalResults: payload.TotalResults,
 	}, nil
 }
