@@ -241,6 +241,7 @@ function DetailContent({
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
+              <OriginCountriesChip codes={show.origin_country} />
               <button
                 type="button"
                 className={cn(
@@ -257,8 +258,6 @@ function DetailContent({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <OriginCountriesChip codes={show.origin_country} />
-
             {imdbUrl ? (
               <a
                 href={imdbUrl}
