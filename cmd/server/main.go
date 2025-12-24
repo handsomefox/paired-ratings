@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -28,14 +29,15 @@ const (
 )
 
 type appConfig struct {
-	port           string
-	dbPath         string
-	tmdbAPIKey     string
-	password       string
-	imageBase      string
-	bfName         string
-	gfName         string
-	allowedOrigins []string
+	port                 string
+	dbPath               string
+	tmdbAPIKey           string
+	password             string
+	imageBase            string
+	bfName               string
+	gfName               string
+	allowedOrigins       []string
+	disableStaticContent bool
 }
 
 func loadConfig() (appConfig, error) {
@@ -52,6 +54,11 @@ func loadConfig() (appConfig, error) {
 
 	port := envOr("PORT", defaultPort)
 
+	disableStaticContent, err := strconv.ParseBool(envOr("DISABLE_STATIC", "false"))
+	if err != nil {
+		return appConfig{}, err
+	}
+
 	origins := []string{
 		"https://paired-ratings-production.up.railway.app",
 	}
@@ -63,14 +70,15 @@ func loadConfig() (appConfig, error) {
 	}
 
 	return appConfig{
-		port:           port,
-		dbPath:         dbPath,
-		tmdbAPIKey:     apiKey,
-		password:       password,
-		imageBase:      envOr("TMDB_IMAGE_BASE", defaultImageBase),
-		bfName:         envOr("BF_NAME", "Boyfriend"),
-		gfName:         envOr("GF_NAME", "Girlfriend"),
-		allowedOrigins: origins,
+		port:                 port,
+		dbPath:               dbPath,
+		tmdbAPIKey:           apiKey,
+		password:             password,
+		imageBase:            envOr("TMDB_IMAGE_BASE", defaultImageBase),
+		bfName:               envOr("BF_NAME", "Boyfriend"),
+		gfName:               envOr("GF_NAME", "Girlfriend"),
+		allowedOrigins:       origins,
+		disableStaticContent: disableStaticContent,
 	}, nil
 }
 
@@ -110,15 +118,6 @@ func run() error {
 		return fmt.Errorf("failed to init handlers: %w", err)
 	}
 
-	distFS, err := web.Dist()
-	if err != nil {
-		return fmt.Errorf("failed to load embedded web dist: %w", err)
-	}
-	spa, err := handlers.SPA(distFS)
-	if err != nil {
-		return err
-	}
-
 	r := chi.NewRouter()
 	r.Use(
 		httplog.RequestLogger(slog.Default(), &httplog.Options{
@@ -147,7 +146,19 @@ func run() error {
 	r.Route("/api", func(api chi.Router) {
 		app.RegisterRoutes(api)
 	})
-	r.Handle("/*", spa)
+
+	if !cfg.disableStaticContent {
+		slog.Info("Serving static content")
+		distFS, err := web.Dist()
+		if err != nil {
+			return fmt.Errorf("failed to load embedded web dist: %w", err)
+		}
+		spa, err := handlers.SPA(distFS)
+		if err != nil {
+			return err
+		}
+		r.Handle("/*", spa)
+	}
 
 	addr := ":" + cfg.port
 	slog.Info("Listening", slog.String("addr", addr))

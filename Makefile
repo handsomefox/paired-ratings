@@ -1,7 +1,4 @@
-.PHONY: build fmt lint dev web-dev web-build proto
-
-build: web-build
-	go build ./cmd/server
+.PHONY: fmt lint build dev watch watch-dev proto
 
 fmt:
 	gofumpt -w ./
@@ -9,15 +6,21 @@ fmt:
 lint:
 	golangci-lint run ./...
 
-dev: web-build
+build:
+	cd web && bun install && bun run build
+	go build ./cmd/server
+
+dev:
+	cd web && bun install && bun run build
 	@DB_PATH=$${DB_PATH:-./data/website-rating.db} \
 	go run ./cmd/server
 
-web-dev:
-	cd web && bun install && bun run dev
+watch:
+	@DB_PATH=$${DB_PATH:-./data/website-rating.db} \
+	DISABLE_STATIC=true air
 
-web-build:
-	cd web && bun install && bun run build
+watch-web:
+	cd web && bun install && bun run dev
 
 proto:
 	@mkdir -p web/src/gen
