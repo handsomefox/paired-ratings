@@ -37,13 +37,12 @@ type Handler struct {
 }
 
 type Config struct {
-	Store       *store.Store
-	TMDB        *tmdb.Client
-	Password    string
-	ImageBase   string
-	BfName      string
-	GfName      string
-	DisableAuth bool
+	Store     *store.Store
+	TMDB      *tmdb.Client
+	Password  string
+	ImageBase string
+	BfName    string
+	GfName    string
 }
 
 type genreCache struct {
@@ -107,9 +106,6 @@ func New(cfg *Config) (*Handler, error) {
 	gfName := strings.TrimSpace(cfg.GfName)
 	if gfName == "" {
 		gfName = "Girlfriend"
-	}
-	if cfg.DisableAuth {
-		slog.Info("Disabling auth")
 	}
 
 	return &Handler{
