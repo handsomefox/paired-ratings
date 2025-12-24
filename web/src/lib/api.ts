@@ -37,7 +37,8 @@ async function jsonRequest<T>(input: RequestInfo, init?: RequestInit): Promise<T
 }
 
 export const api = {
-  session: () => jsonRequest<SessionResponse>("/api/session"),
+  session: ({ signal }: { signal?: AbortSignal } = {}) =>
+    jsonRequest<SessionResponse>("/api/session", { signal }),
   login: (payload: LoginRequest) =>
     jsonRequest<SessionResponse>("/api/login", {
       method: "POST",
