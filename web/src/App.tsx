@@ -3,7 +3,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
   Outlet,
   RouterProvider,
-  createRootRoute,
+  createRootRouteWithContext,
   createRoute,
   createRouter,
   redirect,
@@ -104,46 +104,42 @@ const RootLayout = () => {
   );
 };
 
-const rootRoute = createRootRoute({
+const requireSession = async (queryClient: QueryClient) => {
+  const session = await queryClient.ensureQueryData({
+    queryKey: ["session"],
+    queryFn: ({ signal }) => api.session({ signal }),
+    staleTime: 60_000,
+  });
+
+  if (!session.authenticated) {
+    throw redirect({ to: "/login" });
+  }
+
+  return session;
+};
+
+const rootRoute = createRootRouteWithContext<AppContext>()({
   component: RootLayout,
 });
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  beforeLoad: async () => {
-    const session = await api.session().catch(() => ({ authenticated: false }));
-    if (!session.authenticated) {
-      throw redirect({ to: "/login" });
-    }
-    return session;
-  },
+  beforeLoad: async ({ context }) => requireSession(context.queryClient),
   component: LibraryPage,
 });
 
 const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/search",
-  beforeLoad: async () => {
-    const session = await api.session().catch(() => ({ authenticated: false }));
-    if (!session.authenticated) {
-      throw redirect({ to: "/login" });
-    }
-    return session;
-  },
+  beforeLoad: async ({ context }) => requireSession(context.queryClient),
   component: SearchPage,
 });
 
 const detailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/show/$showId",
-  beforeLoad: async ({ params }) => {
-    const session = await api.session().catch(() => ({ authenticated: false }));
-    if (!session.authenticated) {
-      throw redirect({ to: "/login" });
-    }
-    return { session, showId: Number(params.showId) };
-  },
+  beforeLoad: async ({ context }) => requireSession(context.queryClient),
   component: DetailPage,
 });
 
