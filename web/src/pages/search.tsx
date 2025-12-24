@@ -329,7 +329,7 @@ export function SearchPage() {
 
   const pageItems = useMemo(() => {
     if (!totalPages || totalPages <= 1) return [];
-    return getPageItems(totalPages, page, 3);
+    return getPageItems(totalPages, page, 2);
   }, [totalPages, page]);
 
   const goToPage = (next: number) => {
