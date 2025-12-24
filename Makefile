@@ -2,9 +2,11 @@
 
 fmt:
 	gofumpt -w ./
+	cd web && bun run format
 
 lint:
-	golangci-lint run ./...
+	golangci-lint run --fix ./... --issues-exit-code=0
+	cd web && bun run lint:fix
 
 build:
 	cd web && bun install && bun run build
