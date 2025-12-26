@@ -28,7 +28,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -413,9 +419,7 @@ export function LibraryPage() {
                       />
                     </>
                   }
-                  footer={
-                    <RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />
-                  }
+                  footer={<RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />}
                   genresText={show.genres ? shortGenres(show.genres) : ""}
                   overview={show.overview}
                 />

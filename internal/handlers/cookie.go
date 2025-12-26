@@ -8,8 +8,10 @@ import (
 	"github.com/handsomefox/website-rating/internal/env"
 )
 
-const authCookieName = "auth"
-const authCookieDays = 90
+const (
+	authCookieName = "auth"
+	authCookieDays = 90
+)
 
 func (h *Handler) isAuthenticated(r *http.Request) bool {
 	c, err := r.Cookie(authCookieName)

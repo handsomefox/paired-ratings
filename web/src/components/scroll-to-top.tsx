@@ -47,9 +47,7 @@ export function ScrollToTop({ className, threshold = 320 }: ScrollToTopProps) {
       aria-label="Scroll to top"
       className={cn(
         "fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] right-4 z-40 h-11 w-11 rounded-full border-border/60 bg-card/80 shadow-lg backdrop-blur transition-all sm:right-6",
-        visible
-          ? "translate-y-0 opacity-100"
-          : "pointer-events-none translate-y-2 opacity-0",
+        visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0",
         className,
       )}
     >

@@ -65,7 +65,7 @@ export function ShowCard({
   }, [overview, isExpanded]);
 
   const poster = (
-    <div className="h-[320px] overflow-hidden bg-muted/40 sm:h-auto sm:aspect-[2/3]">
+    <div className="h-[320px] overflow-hidden bg-muted/40 sm:aspect-[2/3] sm:h-auto">
       {posterPath ? (
         <img
           src={`${imageBase}${posterPath}`}
@@ -82,16 +82,16 @@ export function ShowCard({
   );
 
   return (
-      <Card
-        className={cn(
-          "group flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg",
-          className,
-        )}
-      >
-        <div className="relative">
-          {posterLink ? posterLink(poster) : poster}
-          {topRight ? <div className="absolute right-3 top-3">{topRight}</div> : null}
-        </div>
+    <Card
+      className={cn(
+        "group flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg",
+        className,
+      )}
+    >
+      <div className="relative">
+        {posterLink ? posterLink(poster) : poster}
+        {topRight ? <div className="absolute right-3 top-3">{topRight}</div> : null}
+      </div>
       <CardContent className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4">
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-3">
@@ -132,10 +132,7 @@ export function ShowCard({
           <div className="mt-auto space-y-2">
             {metaBadges ? (
               <div
-                className={cn(
-                  "grid w-full gap-2 text-xs",
-                  metaBadgesClassName ?? "grid-cols-2",
-                )}
+                className={cn("grid w-full gap-2 text-xs", metaBadgesClassName ?? "grid-cols-2")}
               >
                 {metaBadges}
               </div>

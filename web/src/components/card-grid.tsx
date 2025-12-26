@@ -10,7 +10,7 @@ type CardGridProps = {
 const CardGrid = ({ children, className }: CardGridProps) => (
   <div
     className={cn(
-      "grid w-full min-w-0 gap-4 grid-cols-1 sm:gap-5 sm:grid-cols-2 lg:grid-cols-4",
+      "grid w-full min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4",
       className,
     )}
   >
