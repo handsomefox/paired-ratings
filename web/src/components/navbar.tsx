@@ -1,4 +1,4 @@
-import { useRouter } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
 import { Download, Home, LogOut, Menu, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { NavLink } from "./nav-link";
@@ -13,8 +13,8 @@ type NavbarProps = {
 };
 
 export function Navbar({ onExport, onLogout }: NavbarProps) {
-  const router = useRouter();
-  const currentPath = router.state.location.pathname;
+  const { location } = useRouterState();
+  const currentPath = location.pathname;
   const isLibrary = currentPath === "/";
   const isSearch = currentPath === "/search";
 
@@ -47,7 +47,7 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
             to="/"
             className="flex items-center gap-3"
             onClick={(e) => {
-              if (router.state.location.pathname === "/") {
+              if (location.pathname === "/") {
                 e.preventDefault();
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }
@@ -78,9 +78,13 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
         <div className="flex items-center gap-2">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="rounded-full md:hidden">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-11 w-11 rounded-full md:hidden"
+              >
                 <span className="sr-only">Open menu</span>
-                <Menu className="h-4 w-4" />
+                <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
             <SheetContent
