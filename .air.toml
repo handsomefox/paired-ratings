@@ -7,7 +7,7 @@ testdata_dir = "testdata"
 cmd = "true"
 delay = 1000
 entrypoint = ["make", "dev"]
-include_ext = ["go", "html", "css", "env", "tpl", "tmpl"]
+include_ext = ["go", "html", "css", "env", "tpl", "tmpl", "js", "jsx", "ts", "tsx"]
 exclude_dir = [
     "assets",
     "tmp",
