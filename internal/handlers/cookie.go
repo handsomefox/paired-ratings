@@ -3,11 +3,13 @@ package handlers
 import (
 	"crypto/subtle"
 	"net/http"
+	"time"
 
 	"github.com/handsomefox/website-rating/internal/env"
 )
 
 const authCookieName = "auth"
+const authCookieDays = 90
 
 func (h *Handler) isAuthenticated(r *http.Request) bool {
 	c, err := r.Cookie(authCookieName)
@@ -21,10 +23,13 @@ func (h *Handler) isAuthenticated(r *http.Request) bool {
 }
 
 func setAuthCookie(w http.ResponseWriter, r *http.Request, value string) {
+	expiration := time.Now().Add(time.Hour * 24 * authCookieDays)
 	http.SetCookie(w, &http.Cookie{
 		Name:     authCookieName,
 		Value:    value,
 		Path:     "/",
+		Expires:  expiration,
+		MaxAge:   int((time.Hour * 24 * authCookieDays).Seconds()),
 		HttpOnly: true,
 		SameSite: sameSite(),
 		Secure:   secure(),
