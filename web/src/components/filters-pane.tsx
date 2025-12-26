@@ -124,10 +124,12 @@ const FiltersPane = ({
               {filters}
             </div>
 
-            <div className="absolute inset-x-0 bottom-2 flex justify-center border-t bg-card p-4 lg:hidden">
-              <Button className="mx-auto min-w-[8rem] px-6" onClick={() => onOpenChange(false)}>
-                Done
-              </Button>
+            <div className="absolute inset-x-0 bottom-2 border-t bg-card p-4 lg:hidden">
+              <div className="mx-6 px-4">
+                <Button className="w-full" onClick={() => onOpenChange(false)}>
+                  Done
+                </Button>
+              </div>
             </div>
           </SheetContent>
         </Sheet>
