@@ -3,7 +3,15 @@ import { Download, Home, LogOut, Menu, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { NavLink } from "./nav-link";
 import { Button } from "./ui/button";
-import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "./ui/sheet";
 import { cn } from "@/lib/utils";
 import { ViewTransitionLink } from "./view-transition-link";
 
@@ -78,11 +86,7 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
         <div className="flex items-center gap-2">
           <Sheet>
             <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-11 w-11 rounded-full md:hidden"
-              >
+              <Button variant="outline" size="icon" className="h-11 w-11 rounded-full md:hidden">
                 <span className="sr-only">Open menu</span>
                 <Menu className="h-5 w-5" />
               </Button>
@@ -93,6 +97,9 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
             >
               <SheetHeader>
                 <SheetTitle>Quick actions</SheetTitle>
+                <SheetDescription className="sr-only">
+                  Navigate between pages or run account actions.
+                </SheetDescription>
               </SheetHeader>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <SheetClose asChild>

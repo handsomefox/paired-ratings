@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -801,6 +802,9 @@ export function SearchPage() {
                     <DialogContent className="bottom-[calc(env(safe-area-inset-bottom)+var(--keyboard-inset,0px)+1rem)] top-auto w-[90vw] max-w-xs translate-y-0 sm:bottom-auto sm:top-1/2 sm:translate-y-[-50%]">
                       <DialogHeader>
                         <DialogTitle>Jump to page</DialogTitle>
+                        <DialogDescription className="sr-only">
+                          Enter a page number to move to that result page.
+                        </DialogDescription>
                       </DialogHeader>
                       <form className="space-y-4" onSubmit={handleJumpSubmit}>
                         <div className="space-y-2">

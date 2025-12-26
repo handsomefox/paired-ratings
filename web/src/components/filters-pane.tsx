@@ -1,7 +1,14 @@
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 type FiltersPaneProps = {
@@ -105,6 +112,9 @@ const FiltersPane = ({
           >
             <SheetHeader>
               <SheetTitle>{title}</SheetTitle>
+              <SheetDescription className="sr-only">
+                Adjust filter options and close the panel when finished.
+              </SheetDescription>
             </SheetHeader>
             <div
               ref={scrollRef}
@@ -114,7 +124,7 @@ const FiltersPane = ({
               {filters}
             </div>
 
-            <div className="absolute inset-x-0 bottom-2 border-t bg-card p-4 lg:hidden">
+            <div className="absolute inset-x-0 bottom-2 flex justify-center border-t bg-card p-4 lg:hidden">
               <Button className="mx-auto min-w-[8rem] px-6" onClick={() => onOpenChange(false)}>
                 Done
               </Button>
