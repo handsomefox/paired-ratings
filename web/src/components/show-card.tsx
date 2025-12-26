@@ -13,6 +13,7 @@ type ShowCardProps = {
   topRight?: ReactNode;
   statusBadge?: ReactNode;
   metaBadges?: ReactNode;
+  metaBadgesClassName?: string;
   genresText?: string | null;
   overview?: string | null;
   footer?: ReactNode;
@@ -31,6 +32,7 @@ export function ShowCard({
   topRight,
   statusBadge,
   metaBadges,
+  metaBadgesClassName,
   genresText,
   overview,
   footer,
@@ -63,7 +65,7 @@ export function ShowCard({
   }, [overview, isExpanded]);
 
   const poster = (
-    <div className="aspect-[2/3] overflow-hidden bg-muted/40">
+    <div className="h-[320px] overflow-hidden bg-muted/40 sm:h-auto sm:aspect-[2/3]">
       {posterPath ? (
         <img
           src={`${imageBase}${posterPath}`}
@@ -80,54 +82,67 @@ export function ShowCard({
   );
 
   return (
-    <Card
-      className={cn(
-        "group flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg",
-        className,
-      )}
-    >
-      <div className="relative">
-        {posterLink ? posterLink(poster) : poster}
-        {topRight ? <div className="absolute right-3 top-3">{topRight}</div> : null}
-      </div>
-      <CardContent className="flex flex-1 flex-col gap-3 p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-base font-semibold leading-tight">{title}</div>
-            {year ? <div className="text-xs text-muted-foreground">{year}</div> : null}
+      <Card
+        className={cn(
+          "group flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg",
+          className,
+        )}
+      >
+        <div className="relative">
+          {posterLink ? posterLink(poster) : poster}
+          {topRight ? <div className="absolute right-3 top-3">{topRight}</div> : null}
+        </div>
+      <CardContent className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4">
+        <div className="space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-base font-semibold leading-tight">{title}</div>
+              {year ? <div className="text-xs text-muted-foreground">{year}</div> : null}
+            </div>
+            {statusBadge ?? null}
           </div>
-          {statusBadge ?? null}
+
+          {genresText ? <div className="text-xs text-muted-foreground">{genresText}</div> : null}
+
+          {overview ? (
+            <div className="space-y-1">
+              <p
+                ref={overviewRef}
+                className={`text-xs text-muted-foreground ${
+                  isExpanded ? "" : "line-clamp-3 min-h-[3.6em]"
+                }`}
+              >
+                {overview}
+              </p>
+              {canToggle ? (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-primary/80 underline underline-offset-2 transition hover:text-primary"
+                  onClick={handleToggle}
+                  aria-expanded={isExpanded}
+                >
+                  {isExpanded ? "Show less" : "Show more"}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
-        {metaBadges ? (
-          <div className="flex flex-wrap items-center gap-2 text-xs">{metaBadges}</div>
-        ) : null}
-        {genresText ? <div className="text-xs text-muted-foreground">{genresText}</div> : null}
-
-        {overview ? (
-          <div className="space-y-1">
-            <p
-              ref={overviewRef}
-              className={`text-xs text-muted-foreground ${
-                isExpanded ? "" : "line-clamp-3 min-h-[3.6em]"
-              }`}
-            >
-              {overview}
-            </p>
-            {canToggle ? (
-              <button
-                type="button"
-                className="text-xs font-semibold text-primary/80 underline underline-offset-2 transition hover:text-primary"
-                onClick={handleToggle}
-                aria-expanded={isExpanded}
+        {metaBadges || footer ? (
+          <div className="mt-auto space-y-2">
+            {metaBadges ? (
+              <div
+                className={cn(
+                  "grid w-full gap-2 text-xs",
+                  metaBadgesClassName ?? "grid-cols-2",
+                )}
               >
-                {isExpanded ? "Show less" : "Show more"}
-              </button>
+                {metaBadges}
+              </div>
             ) : null}
+            {footer ? <div>{footer}</div> : null}
           </div>
         ) : null}
-
-        {footer ? <div className="mt-auto">{footer}</div> : null}
       </CardContent>
     </Card>
   );

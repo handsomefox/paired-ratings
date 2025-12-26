@@ -5,11 +5,19 @@ import FiltersPane from "@/components/filters-pane";
 import { FiltersPaneContent } from "@/components/filters-pane-content";
 import { LanguageCombobox } from "@/components/language-combobox";
 import { LoadingGrid } from "@/components/loading-grid";
-import { OriginCountriesChip } from "@/components/origin-countries-chip";
+import { LanguageBadge } from "@/components/language-badge";
 import { ShowCard } from "@/components/show-card";
+import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
+import { ViewTransitionLink } from "@/components/view-transition-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -40,10 +48,11 @@ import { Separator } from "@/components/ui/separator";
 import type { SearchResponse, SearchResult } from "@/lib/api";
 import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { useKeyboardInset } from "@/lib/use-keyboard-inset";
 import { useMediaQuery } from "@/lib/use-media-query";
-import { cn } from "@/lib/utils";
-import { formatScore, formatVotes, shortGenreList } from "@/lib/utils";
+import { cn, shortGenreList } from "@/lib/utils";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search as SearchIcon } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -138,6 +147,8 @@ export function SearchPage() {
   const [sort, setSort] = useState<Sort>(() => sanitizeSort(initialParams.get("sort")));
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [expandedOverviews, setExpandedOverviews] = useState<Set<string>>(() => new Set());
+
+  useKeyboardInset();
 
   const initialGenres = useMemo(
     () => parseGenres(initialParams.get("genres") ?? ""),
@@ -340,6 +351,25 @@ export function SearchPage() {
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpValue, setJumpValue] = useState("");
 
+  const needsLibraryMap = useMemo(() => results.some((item) => item.in_library), [results]);
+  const libraryMapQuery = useQuery({
+    queryKey: ["library-map"],
+    queryFn: () => api.listShows(new URLSearchParams()),
+    enabled: needsLibraryMap,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: 1,
+  });
+  const libraryMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const show of libraryMapQuery.data?.shows ?? []) {
+      map.set(`${show.media_type}:${show.tmdb_id}`, show.id);
+    }
+    return map;
+  }, [libraryMapQuery.data]);
+
   const pageItems = useMemo(() => {
     if (!totalPages || totalPages <= 1) return [];
     const siblingCount = isCompactPagination ? 1 : 2;
@@ -351,7 +381,10 @@ export function SearchPage() {
     if (clamped === page) return;
     setPage(clamped);
     setExpandedOverviews(new Set());
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "auto" : "smooth" });
   };
 
   const handleJumpSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -617,6 +650,9 @@ export function SearchPage() {
         {!isLoading && !results.length ? (
           <Empty className="border-border/60 bg-card/30">
             <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <SearchIcon />
+              </EmptyMedia>
               <EmptyTitle>No results yet</EmptyTitle>
               <EmptyDescription>Try adjusting the filters or search again.</EmptyDescription>
             </EmptyHeader>
@@ -626,7 +662,11 @@ export function SearchPage() {
         {isInitialLoading ? <LoadingGrid /> : null}
         <CardGrid className={`transition-opacity ${isFetching ? "opacity-60" : "opacity-100"}`}>
           {results.map((item) => {
-            const originCountries = item.origin_country ?? [];
+            const libraryKey = `${item.media_type}:${item.id}`;
+            const libraryId = libraryMap.get(libraryKey);
+            const languageLabel =
+              availableLanguages.find((lang) => lang.code === item.original_language)?.name ??
+              item.original_language?.toUpperCase();
             return (
               <ShowCard
                 key={`${item.media_type}-${item.id}`}
@@ -647,18 +687,19 @@ export function SearchPage() {
                 )}
                 metaBadges={
                   <>
-                    <Badge variant="secondary">
-                      {item.vote_average ? (
-                        <>
-                          {formatScore(item.vote_average)}
-                          {item.vote_count ? ` (${formatVotes(item.vote_count)})` : ""}
-                        </>
-                      ) : (
-                        "No TMDB score"
+                    <TmdbRatingBadge
+                      rating={item.vote_average}
+                      votes={item.vote_count}
+                      className="col-span-2 flex w-full justify-center"
+                    />
+                    <LanguageBadge code={item.original_language} label={languageLabel} />
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "flex justify-center",
+                        item.original_language ? "w-full" : "col-span-2 w-1/2 justify-self-center",
                       )}
-                    </Badge>
-                    <OriginCountriesChip codes={originCountries} />
-                    <Badge variant="outline">
+                    >
                       {item.media_type === "movie"
                         ? "Movie"
                         : item.media_type === "tv"
@@ -667,27 +708,49 @@ export function SearchPage() {
                     </Badge>
                   </>
                 }
+                metaBadgesClassName="grid-cols-2"
                 genresText={item.genres?.length ? shortGenreList(item.genres) : ""}
                 overview={item.overview}
                 overviewExpanded={expandedOverviews.has(`${item.media_type}-${item.id}`)}
                 onToggleOverview={() => toggleOverview(`${item.media_type}-${item.id}`)}
                 footer={
                   item.in_library ? (
-                    <Badge className="w-fit bg-primary/15 text-primary">In library</Badge>
+                    libraryId ? (
+                      <ViewTransitionLink
+                        to="/show/$showId"
+                        params={{ showId: String(libraryId) }}
+                        className="block w-full"
+                      >
+                        <Badge
+                          variant="outline"
+                          className="h-8 w-full justify-center gap-1 rounded-md border-primary/40 bg-primary/15 px-3 text-xs text-primary hover:bg-primary/20"
+                        >
+                          In Library
+                        </Badge>
+                      </ViewTransitionLink>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="h-8 w-full justify-center gap-1 rounded-md border-primary/40 bg-primary/15 px-3 text-xs text-primary"
+                      >
+                        In Library
+                      </Badge>
+                    )
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="grid w-full grid-cols-2 gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20"
+                        className="w-full border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20"
                         onClick={() => handleAdd(item, "planned")}
                         disabled={addMutation.isPending}
                       >
                         Plan
                       </Button>
                       <Button
+                        variant="outline"
                         size="sm"
-                        className="border-teal-500/40 bg-teal-500/10 text-teal-200 hover:bg-teal-500/20"
+                        className="w-full border-teal-500/40 bg-teal-500/10 text-teal-200 hover:bg-teal-500/20"
                         onClick={() => handleAdd(item, "watched")}
                         disabled={addMutation.isPending}
                       >
@@ -709,10 +772,7 @@ export function SearchPage() {
                   <PaginationPrevious
                     href="#"
                     size="icon"
-                    className={cn(
-                      "pl-0 pr-0",
-                      page <= 1 ? "pointer-events-none opacity-50" : "",
-                    )}
+                    className={cn("pl-0 pr-0", page <= 1 ? "pointer-events-none opacity-50" : "")}
                     onClick={(event) => {
                       event.preventDefault();
                       goToPage(page - 1);
@@ -738,13 +798,16 @@ export function SearchPage() {
                         {page} / {totalPages}
                       </button>
                     </DialogTrigger>
-                    <DialogContent className="w-[90vw] max-w-xs">
+                    <DialogContent className="bottom-[calc(env(safe-area-inset-bottom)+var(--keyboard-inset,0px)+1rem)] top-auto w-[90vw] max-w-xs translate-y-0 sm:bottom-auto sm:top-1/2 sm:translate-y-[-50%]">
                       <DialogHeader>
                         <DialogTitle>Jump to page</DialogTitle>
                       </DialogHeader>
                       <form className="space-y-4" onSubmit={handleJumpSubmit}>
                         <div className="space-y-2">
-                          <label className="text-sm font-medium text-foreground" htmlFor="jump-page">
+                          <label
+                            className="text-sm font-medium text-foreground"
+                            htmlFor="jump-page"
+                          >
                             Page number (1-{totalPages})
                           </label>
                           <Input

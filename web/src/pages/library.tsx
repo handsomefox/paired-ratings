@@ -8,6 +8,7 @@ import { LoadingGrid } from "@/components/loading-grid";
 import { OriginCountriesChip } from "@/components/origin-countries-chip";
 import RatingChips from "@/components/rating-chips";
 import { ShowCard } from "@/components/show-card";
+import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -41,10 +42,11 @@ import { ViewTransitionLink } from "@/components/view-transition-link";
 import type { ApiShow } from "@/lib/api";
 import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-import { cn, formatScore, formatVotes, shortGenres } from "@/lib/utils";
+import { cn, shortGenres } from "@/lib/utils";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Film } from "lucide-react";
 
 const baseStatusOptions = [
   { value: "all", label: "All" },
@@ -298,7 +300,8 @@ export function LibraryPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
-          variant="secondary"
+          variant="outline"
+          className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
           onClick={() => refreshMutation.mutate()}
           disabled={refreshMutation.isPending}
         >
@@ -347,6 +350,9 @@ export function LibraryPage() {
           {isEmpty ? (
             <Empty className="border-border/60 bg-card/30">
               <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Film />
+                </EmptyMedia>
                 <EmptyTitle>No shows yet</EmptyTitle>
                 <EmptyDescription>Use “Add” to pull from TMDB.</EmptyDescription>
               </EmptyHeader>
@@ -395,23 +401,20 @@ export function LibraryPage() {
                   }
                   metaBadges={
                     <>
-                      <Badge variant="secondary" className="gap-1">
-                        {show.tmdb_rating ? (
-                          <>
-                            <span>{formatScore(show.tmdb_rating)}</span>
-                            {show.tmdb_votes ? <span>({formatVotes(show.tmdb_votes)})</span> : null}
-                          </>
-                        ) : (
-                          "No TMDB score"
-                        )}
-                      </Badge>
-                      <OriginCountriesChip codes={originCountries} />
+                      <TmdbRatingBadge
+                        rating={show.tmdb_rating}
+                        votes={show.tmdb_votes}
+                        className="flex w-full justify-center"
+                      />
+                      <OriginCountriesChip
+                        codes={originCountries}
+                        className="w-full"
+                        badgeClassName="flex w-full justify-center"
+                      />
                     </>
                   }
                   footer={
-                    <div className="flex flex-wrap items-center gap-2">
-                      <RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />
-                    </div>
+                    <RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />
                   }
                   genresText={show.genres ? shortGenres(show.genres) : ""}
                   overview={show.overview}

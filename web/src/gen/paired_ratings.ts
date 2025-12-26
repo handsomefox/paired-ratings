@@ -67,7 +67,6 @@ export interface SearchResult {
   vote_count: number;
   in_library: boolean;
   genres: string[];
-  origin_country: string[];
   original_language: string;
 }
 

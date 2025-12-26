@@ -81,6 +81,14 @@ export function formatVotes(value?: number | null) {
   return String(value);
 }
 
+export function tmdbRatingTone(value?: number | null) {
+  if (!value || value <= 0) return "border-border/60 bg-muted/40 text-muted-foreground";
+  if (value >= 8.0) return "border-amber-300/50 bg-amber-400/20 text-amber-100";
+  if (value >= 7.0) return "border-sky-300/50 bg-sky-500/15 text-sky-100";
+  if (value >= 5.0) return "border-orange-500/40 bg-orange-600/15 text-orange-200";
+  return "border-border/60 bg-card/50 text-foreground";
+}
+
 export function ratingText(value?: number | null) {
   if (!value) return "-";
   return String(value);

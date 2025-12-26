@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { Loading } from "./components/loading";
 import { Navbar } from "./components/navbar";
+import { ScrollToTop } from "./components/scroll-to-top";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { api } from "./lib/api";
@@ -100,6 +101,7 @@ const RootLayout = () => {
       <main className="container py-6 md:py-8">
         <Outlet />
       </main>
+      {authed ? <ScrollToTop /> : null}
     </div>
   );
 };

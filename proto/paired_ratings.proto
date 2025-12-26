@@ -63,7 +63,7 @@ message SearchResult {
   int32 vote_count = 8 [json_name = "vote_count"];
   bool in_library = 9 [json_name = "in_library"];
   repeated string genres = 10 [json_name = "genres"];
-  repeated string origin_country = 11 [json_name = "origin_country"];
+  reserved 11;
   string original_language = 12 [json_name = "original_language"];
 }
 

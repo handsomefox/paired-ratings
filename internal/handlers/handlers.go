@@ -674,7 +674,6 @@ func (h *Handler) getSearch(w http.ResponseWriter, r *http.Request) error {
 			VoteCount:        toInt32(item.VoteCount),
 			InLibrary:        inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
 			Genres:           genreNamesFor(item, movieGenres, tvGenres),
-			OriginCountry:    item.OriginCountry,
 			OriginalLanguage: item.OriginalLanguage,
 		})
 	}

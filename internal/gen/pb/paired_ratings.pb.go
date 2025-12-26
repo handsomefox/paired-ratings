@@ -489,7 +489,6 @@ type SearchResult struct {
 	VoteCount        int32                  `protobuf:"varint,8,opt,name=vote_count,proto3" json:"vote_count,omitempty"`
 	InLibrary        bool                   `protobuf:"varint,9,opt,name=in_library,proto3" json:"in_library,omitempty"`
 	Genres           []string               `protobuf:"bytes,10,rep,name=genres,proto3" json:"genres,omitempty"`
-	OriginCountry    []string               `protobuf:"bytes,11,rep,name=origin_country,proto3" json:"origin_country,omitempty"`
 	OriginalLanguage string                 `protobuf:"bytes,12,opt,name=original_language,proto3" json:"original_language,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -591,13 +590,6 @@ func (x *SearchResult) GetInLibrary() bool {
 func (x *SearchResult) GetGenres() []string {
 	if x != nil {
 		return x.Genres
-	}
-	return nil
-}
-
-func (x *SearchResult) GetOriginCountry() []string {
-	if x != nil {
-		return x.OriginCountry
 	}
 	return nil
 }
@@ -1495,7 +1487,7 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\x06genres\x18\x02 \x03(\tR\x06genres\x12\x1c\n" +
 	"\tcountries\x18\x03 \x03(\tR\tcountries\"(\n" +
 	"\x0eGenresResponse\x12\x16\n" +
-	"\x06genres\x18\x01 \x03(\tR\x06genres\"\xf8\x02\n" +
+	"\x06genres\x18\x01 \x03(\tR\x06genres\"\xd6\x02\n" +
 	"\fSearchResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1e\n" +
 	"\n" +
@@ -1513,9 +1505,8 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"in_library\x18\t \x01(\bR\n" +
 	"in_library\x12\x16\n" +
 	"\x06genres\x18\n" +
-	" \x03(\tR\x06genres\x12&\n" +
-	"\x0eorigin_country\x18\v \x03(\tR\x0eorigin_country\x12,\n" +
-	"\x11original_language\x18\f \x01(\tR\x11original_language\"\xc9\x02\n" +
+	" \x03(\tR\x06genres\x12,\n" +
+	"\x11original_language\x18\f \x01(\tR\x11original_languageJ\x04\b\v\x10\f\"\xc9\x02\n" +
 	"\rSearchRequest\x12\f\n" +
 	"\x01q\x18\x01 \x01(\tR\x01q\x12\x1e\n" +
 	"\n" +
