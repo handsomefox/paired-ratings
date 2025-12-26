@@ -12,6 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Pagination,
   PaginationContent,
   PaginationEllipsis,
@@ -32,9 +40,11 @@ import { Separator } from "@/components/ui/separator";
 import type { SearchResponse, SearchResult } from "@/lib/api";
 import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { useMediaQuery } from "@/lib/use-media-query";
+import { cn } from "@/lib/utils";
 import { formatScore, formatVotes, shortGenreList } from "@/lib/utils";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const sortOptions = [
@@ -326,11 +336,15 @@ export function SearchPage() {
 
   const totalResults = searchQuery.data?.total_results ?? 0;
   const totalPages = searchQuery.data?.total_pages ?? 0;
+  const isCompactPagination = useMediaQuery("(max-width: 640px)");
+  const [jumpOpen, setJumpOpen] = useState(false);
+  const [jumpValue, setJumpValue] = useState("");
 
   const pageItems = useMemo(() => {
     if (!totalPages || totalPages <= 1) return [];
-    return getPageItems(totalPages, page, 2);
-  }, [totalPages, page]);
+    const siblingCount = isCompactPagination ? 1 : 2;
+    return getPageItems(totalPages, page, siblingCount, 1);
+  }, [totalPages, page, isCompactPagination]);
 
   const goToPage = (next: number) => {
     const clamped = totalPages ? Math.max(1, Math.min(totalPages, next)) : Math.max(1, next);
@@ -338,6 +352,16 @@ export function SearchPage() {
     setPage(clamped);
     setExpandedOverviews(new Set());
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleJumpSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!jumpValue.trim()) return;
+    const parsed = Number(jumpValue);
+    if (!Number.isFinite(parsed)) return;
+    const clamped = Math.max(1, Math.min(totalPages || 1, Math.floor(parsed)));
+    setJumpOpen(false);
+    goToPage(clamped);
   };
 
   const didMountRef = useRef(false);
@@ -679,48 +703,129 @@ export function SearchPage() {
 
         {totalPages > 1 ? (
           <Pagination className="pt-6">
-            <PaginationContent className="flex-wrap justify-center">
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  className={page <= 1 ? "pointer-events-none opacity-50" : ""}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    goToPage(page - 1);
-                  }}
-                />
-              </PaginationItem>
-
-              {pageItems.map((item, index) => (
-                <PaginationItem key={`${item}-${index}`}>
-                  {item === "ellipsis" ? (
-                    <PaginationEllipsis />
-                  ) : (
-                    <PaginationLink
-                      href="#"
-                      isActive={item === page}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        goToPage(item);
-                      }}
-                    >
-                      {item}
-                    </PaginationLink>
-                  )}
+            {isCompactPagination ? (
+              <PaginationContent className="w-full justify-between px-2">
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    size="icon"
+                    className={cn(
+                      "pl-0 pr-0",
+                      page <= 1 ? "pointer-events-none opacity-50" : "",
+                    )}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      goToPage(page - 1);
+                    }}
+                  />
                 </PaginationItem>
-              ))}
 
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    goToPage(page + 1);
-                  }}
-                />
-              </PaginationItem>
-            </PaginationContent>
+                <PaginationItem>
+                  <Dialog
+                    open={jumpOpen}
+                    onOpenChange={(open) => {
+                      setJumpOpen(open);
+                      if (open) {
+                        setJumpValue(String(page));
+                      }
+                    }}
+                  >
+                    <DialogTrigger asChild>
+                      <button
+                        type="button"
+                        className="rounded-md border border-border/60 bg-card/40 px-3 py-2 text-sm tabular-nums"
+                      >
+                        {page} / {totalPages}
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="w-[90vw] max-w-xs">
+                      <DialogHeader>
+                        <DialogTitle>Jump to page</DialogTitle>
+                      </DialogHeader>
+                      <form className="space-y-4" onSubmit={handleJumpSubmit}>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground" htmlFor="jump-page">
+                            Page number (1-{totalPages})
+                          </label>
+                          <Input
+                            id="jump-page"
+                            name="jump-page"
+                            type="number"
+                            min={1}
+                            max={totalPages}
+                            inputMode="numeric"
+                            autoFocus
+                            value={jumpValue}
+                            onChange={(event) => setJumpValue(event.target.value)}
+                          />
+                        </div>
+                        <DialogFooter>
+                          <Button type="submit">Go</Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </PaginationItem>
+
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    size="icon"
+                    className={cn(
+                      "pl-0 pr-0",
+                      page >= totalPages ? "pointer-events-none opacity-50" : "",
+                    )}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      goToPage(page + 1);
+                    }}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            ) : (
+              <PaginationContent className="flex-wrap justify-center">
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      goToPage(page - 1);
+                    }}
+                  />
+                </PaginationItem>
+
+                {pageItems.map((item, index) => (
+                  <PaginationItem key={`${item}-${index}`}>
+                    {item === "ellipsis" ? (
+                      <PaginationEllipsis />
+                    ) : (
+                      <PaginationLink
+                        href="#"
+                        isActive={item === page}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          goToPage(item);
+                        }}
+                      >
+                        {item}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))}
+
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      goToPage(page + 1);
+                    }}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            )}
           </Pagination>
         ) : null}
       </FiltersPaneContent>
