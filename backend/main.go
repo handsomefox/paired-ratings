@@ -11,7 +11,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/go-chi/httplog/v3"
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/handsomefox/website-rating/backend/env"
@@ -100,14 +99,7 @@ func run() error {
 
 	r := chi.NewRouter()
 	r.Use(
-		httplog.RequestLogger(slog.Default(), &httplog.Options{
-			Level:         slog.LevelWarn,
-			RecoverPanics: true,
-			Schema:        httplog.SchemaECS.Concise(true),
-			Skip: func(req *http.Request, respStatus int) bool {
-				return req.URL.Path == "/ping"
-			},
-		}),
+		middleware.Recoverer,
 		middleware.Heartbeat("/ping"),
 		middleware.RealIP,
 		middleware.RequestID,

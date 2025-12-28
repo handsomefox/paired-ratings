@@ -29,37 +29,45 @@ func Adapt(h HandlerWithErr) http.Handler {
 		if err := h(w, r); err != nil {
 			status := http.StatusInternalServerError
 			message := err.Error()
+
 			var statusErr *Error
 			if errors.As(err, &statusErr) {
 				status = statusErr.Status
 				message = statusErr.Message
 			}
 
-			logAttrs := []slog.Attr{
-				logger.Error(err),
-				logger.Status(status),
-				logger.Method(r.Method),
-				logger.Path(r.URL.Path),
-				logger.RequestID(middleware.GetReqID(r.Context())),
-				logger.Duration(time.Since(start)),
-			}
-
-			level := slog.LevelWarn
-			if status >= http.StatusInternalServerError {
-				level = slog.LevelError
-			}
-			slog.Default().LogAttrs(r.Context(), level, "request failed", logAttrs...)
-
+			logRequest(r, start, status, err)
 			writeJSON(w, status, &pb.ErrorResponse{Error: message})
-		} else {
-			logAttrs := []slog.Attr{
-				logger.Status(http.StatusOK),
-				logger.Method(r.Method),
-				logger.Path(r.URL.Path),
-				logger.RequestID(middleware.GetReqID(r.Context())),
-				logger.Duration(time.Since(start)),
-			}
-			slog.Default().LogAttrs(r.Context(), slog.LevelInfo, "request succeeded", logAttrs...)
+			return
 		}
+
+		logRequest(r, start, http.StatusOK, nil)
 	})
+}
+
+func logRequest(r *http.Request, start time.Time, status int, err error) {
+	if r.URL.Path == "/ping" {
+		return
+	}
+
+	logAttrs := []slog.Attr{
+		logger.Status(status),
+		logger.Method(r.Method),
+		logger.Path(r.URL.Path),
+		logger.RequestID(middleware.GetReqID(r.Context())),
+		logger.Duration(time.Since(start)),
+	}
+
+	level := slog.LevelInfo
+	message := "request succeeded"
+	if err != nil {
+		level = slog.LevelWarn
+		message = "request failed"
+		logAttrs = append(logAttrs, logger.Error(err))
+		if status >= http.StatusInternalServerError {
+			level = slog.LevelError
+		}
+	}
+
+	slog.LogAttrs(r.Context(), level, message, logAttrs...)
 }
