@@ -18,9 +18,9 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/handsomefox/website-rating/internal/gen/pb"
-	"github.com/handsomefox/website-rating/internal/store"
-	"github.com/handsomefox/website-rating/internal/tmdb"
+	"github.com/handsomefox/website-rating/backend/gen/pb"
+	"github.com/handsomefox/website-rating/backend/store"
+	"github.com/handsomefox/website-rating/backend/tmdb"
 )
 
 type Handler struct {

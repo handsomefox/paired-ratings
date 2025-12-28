@@ -1,6 +1,6 @@
 # Paired Ratings Web
 
-The frontend lives in `web/` and is built with Vite + React + TypeScript + Tailwind. Production builds are output to `internal/web/dist` and embedded into the Go binary.
+The frontend lives in `frontend/` and is built with Vite + React + TypeScript + Tailwind. Production builds are output to `backend/web/dist` and embedded into the Go binary.
 
 ## Scripts
 
@@ -25,4 +25,4 @@ API shapes come from `proto/paired_ratings.proto`. Regenerate types with:
 make proto
 ```
 
-The generated types live in `web/src/gen`.
+The generated types live in `frontend/src/gen`.

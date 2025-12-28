@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/handsomefox/website-rating/internal/gen/pb"
+	"github.com/handsomefox/website-rating/backend/gen/pb"
 )
 
 func (h *Handler) MiddlewareRequireAuth(next http.Handler) http.Handler {

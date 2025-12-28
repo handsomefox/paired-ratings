@@ -35,8 +35,9 @@ ENV=local
 ## Common Commands
 
 - `make dev`: build the frontend and run the server locally.
-- `make web-dev`: run the Vite dev server.
-- `make web-build`: build the frontend (outputs `internal/web/dist`).
+- `make watch-frontend`: run the Vite dev server.
+- `make watch-backend`: run the Go API in watch mode (no embedded static).
+- `make build`: build the frontend (outputs `backend/web/dist`) and the Go server.
 - `make fmt`: format Go code with `gofumpt`.
 - `make lint`: run `golangci-lint`.
 - `make proto`: generate Go + TS types from `proto/paired_ratings.proto`.

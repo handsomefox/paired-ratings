@@ -1,34 +1,41 @@
-.PHONY: fmt lint build dev watch watch-dev proto
+.PHONY: fmt lint build dev watch watch-frontend watch-backend watch-web proto
 
 fmt:
 	gofumpt -w ./
-	cd web && bun run format
+	cd frontend && bun run format
 
 lint:
 	golangci-lint run --fix ./... --issues-exit-code=0
-	cd web && bun run lint:fix
+	cd frontend && bun run lint:fix
 
 build:
-	cd web && bun install && bun run build
-	go build ./cmd/server
+	cd frontend && bun install && bun run build
+	@mkdir -p bin
+	go build -o ./bin/server ./backend
 
 dev:
-	cd web && bun install && bun run build
+	cd frontend && bun install && bun run build
 	@DB_PATH=$${DB_PATH:-./data/website-rating.db} \
-	go run ./cmd/server
+	go run ./backend
+
+watch-backend:
+	@DB_PATH=$${DB_PATH:-./data/website-rating.db} \
+	DISABLE_STATIC=true air -c backend/.air.toml
+
+watch-frontend:
+	cd frontend && bun install && bun run dev
 
 watch:
-	@DB_PATH=$${DB_PATH:-./data/website-rating.db} \
-	DISABLE_STATIC=true air
+	@$(MAKE) watch-backend
 
 watch-web:
-	cd web && bun install && bun run dev
+	@$(MAKE) watch-frontend
 
 proto:
-	@mkdir -p web/src/gen
-	@PATH=$$(pwd)/web/node_modules/.bin:$$PATH \
+	@mkdir -p frontend/src/gen
+	@PATH=$$(pwd)/frontend/node_modules/.bin:$$PATH \
 		protoc -I=proto \
-			--go_out=internal/gen/pb --go_opt=paths=source_relative \
-			--ts_proto_out=web/src/gen \
+			--go_out=backend/gen/pb --go_opt=paths=source_relative \
+			--ts_proto_out=frontend/src/gen \
 		--ts_proto_opt=esModuleInterop=true,forceLong=number,useOptionals=none,snakeToCamel=false,outputServices=none,onlyTypes=true \
 			proto/paired_ratings.proto

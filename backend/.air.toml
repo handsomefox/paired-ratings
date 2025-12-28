@@ -1,21 +1,15 @@
 #:schema https://json.schemastore.org/any.json
 
-root = "."
+root = ".."
 testdata_dir = "testdata"
 
 [build]
-cmd = "true"
+cmd = "go run ./backend"
 delay = 1000
-entrypoint = ["make", "dev"]
-include_ext = ["go", "html", "css", "env", "tpl", "tmpl", "js", "jsx", "ts", "tsx"]
+include_dir = ["backend"]
+include_ext = ["go", "html", "css", "env", "tpl", "tmpl"]
 exclude_dir = [
-    "assets",
-    "tmp",
-    "vendor",
-    "data",
-    "testdata",
-    "internal/web/dist/",
-    "web/node_modules",
+    "backend/web/dist",
 ]
 exclude_regex = ["_test.go", ".pb.go"]
 log = "build-errors.log"

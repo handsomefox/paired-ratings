@@ -40,4 +40,7 @@ AGENTS.md
 
 # Data
 /data
-/internal/web/dist/*
+
+# Build output
+/bin
+/backend/web/dist/*

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/handsomefox/website-rating/internal/gen/pb"
+	"github.com/handsomefox/website-rating/backend/gen/pb"
 )
 
 type HandlerWithErr func(w http.ResponseWriter, r *http.Request) error
