@@ -110,6 +110,9 @@ func run() error {
 			AllowCredentials: true,
 			MaxAge:           600,
 		}),
+		middleware.CleanPath,
+		middleware.Timeout(10*time.Second),
+		middleware.Compress(5, "text/css", "application/javascript", "text/javascript"),
 	)
 
 	r.Route("/api", func(api chi.Router) {
