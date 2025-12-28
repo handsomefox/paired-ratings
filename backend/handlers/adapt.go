@@ -23,8 +23,8 @@ func (e Error) Error() string {
 	return e.Message + " code=" + strconv.FormatInt(int64(e.Status), 10)
 }
 
-func Adapt(h HandlerWithErr) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func Adapt(h HandlerWithErr, options ...Option) http.Handler {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		if err := h(w, r); err != nil {
 			status := http.StatusInternalServerError
@@ -43,6 +43,23 @@ func Adapt(h HandlerWithErr) http.Handler {
 
 		logRequest(r, start, http.StatusOK, nil)
 	})
+
+	return applyOptions(handler, options...)
+}
+
+type Option func(handler http.Handler) http.Handler
+
+func WithCompression(handler http.Handler) http.Handler {
+	compressor := middleware.Compress(5, "application/json")
+	return compressor(handler)
+}
+
+func applyOptions(h http.HandlerFunc, options ...Option) http.Handler {
+	var handler http.Handler = h
+	for _, option := range options {
+		handler = option(handler)
+	}
+	return handler
 }
 
 func logRequest(r *http.Request, start time.Time, status int, err error) {

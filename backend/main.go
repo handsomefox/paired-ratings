@@ -112,7 +112,6 @@ func run() error {
 		}),
 		middleware.CleanPath,
 		middleware.Timeout(10*time.Second),
-		middleware.Compress(5, "text/css", "application/javascript", "text/javascript"),
 	)
 
 	r.Route("/api", func(api chi.Router) {
@@ -129,7 +128,17 @@ func run() error {
 			if err != nil {
 				return err
 			}
-			r.Handle("/*", spa)
+			compressSPA := middleware.Compress(
+				5,
+				"text/html",
+				"text/css",
+				"application/javascript",
+				"image/svg+xml",
+				"text/plain",
+				"application/xml",
+				"text/xml",
+			)
+			r.Handle("/*", compressSPA(spa))
 		}
 	}
 

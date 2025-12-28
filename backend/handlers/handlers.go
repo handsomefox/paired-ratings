@@ -72,15 +72,15 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Use(h.MiddlewareRequireAuth)
 
 		r.Method(http.MethodPost, "/logout", Adapt(h.postLogout))
-		r.Method(http.MethodGet, "/search", Adapt(h.getSearch))
-		r.Method(http.MethodGet, "/search/genres", Adapt(h.getSearchGenres))
-		r.Method(http.MethodGet, "/search/countries", Adapt(h.getSearchCountries))
-		r.Method(http.MethodGet, "/search/languages", Adapt(h.getSearchLanguages))
+		r.Method(http.MethodGet, "/search", Adapt(h.getSearch, WithCompression))
+		r.Method(http.MethodGet, "/search/genres", Adapt(h.getSearchGenres, WithCompression))
+		r.Method(http.MethodGet, "/search/countries", Adapt(h.getSearchCountries, WithCompression))
+		r.Method(http.MethodGet, "/search/languages", Adapt(h.getSearchLanguages, WithCompression))
 		r.Method(http.MethodGet, "/search/resolve", Adapt(h.getSearchResolve))
-		r.Method(http.MethodGet, "/genres", Adapt(h.getGenres))
+		r.Method(http.MethodGet, "/genres", Adapt(h.getGenres, WithCompression))
 
 		r.Route("/shows", func(r chi.Router) {
-			r.Method(http.MethodGet, "/", Adapt(h.getShows))
+			r.Method(http.MethodGet, "/", Adapt(h.getShows, WithCompression))
 			r.Method(http.MethodPost, "/", Adapt(h.postShows))
 
 			r.Route("/{id:[0-9]+}", func(r chi.Router) {
@@ -94,7 +94,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 			})
 		})
 
-		r.Method(http.MethodPost, "/export", Adapt(h.postExport))
+		r.Method(http.MethodPost, "/export", Adapt(h.postExport, WithCompression))
 		r.Method(http.MethodPost, "/refresh-tmdb", Adapt(h.postRefreshTMDBAll))
 	})
 }
