@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/handsomefox/website-rating/backend/gen/pb"
-	"github.com/handsomefox/website-rating/backend/logger"
-	"github.com/handsomefox/website-rating/backend/store"
-	"github.com/handsomefox/website-rating/backend/tmdb"
+	"github.com/handsomefox/paired-ratings/backend/gen/pb"
+	"github.com/handsomefox/paired-ratings/backend/logger"
+	"github.com/handsomefox/paired-ratings/backend/store"
+	"github.com/handsomefox/paired-ratings/backend/tmdb"
 )
 
 type genreCache struct {

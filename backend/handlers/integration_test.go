@@ -11,9 +11,9 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/handsomefox/website-rating/backend/gen/pb"
-	"github.com/handsomefox/website-rating/backend/store"
-	"github.com/handsomefox/website-rating/backend/tmdb"
+	"github.com/handsomefox/paired-ratings/backend/gen/pb"
+	"github.com/handsomefox/paired-ratings/backend/store"
+	"github.com/handsomefox/paired-ratings/backend/tmdb"
 	"github.com/stretchr/testify/require"
 )
 

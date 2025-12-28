@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package pairedratings.v1;
 
-option go_package = "github.com/handsomefox/website-rating/backend/gen/pb";
+option go_package = "github.com/handsomefox/paired-ratings/backend/gen/pb";
 
 message SessionResponse {
   optional bool authenticated = 1 [json_name = "authenticated"];

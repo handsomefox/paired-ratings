@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/handsomefox/website-rating/backend/env"
+	"github.com/handsomefox/paired-ratings/backend/env"
 )
 
 const (

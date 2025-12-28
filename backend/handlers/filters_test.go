@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/handsomefox/website-rating/backend/gen/pb"
-	"github.com/handsomefox/website-rating/backend/tmdb"
+	"github.com/handsomefox/paired-ratings/backend/gen/pb"
+	"github.com/handsomefox/paired-ratings/backend/tmdb"
 	"github.com/stretchr/testify/require"
 )
 

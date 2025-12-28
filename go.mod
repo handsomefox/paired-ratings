@@ -1,4 +1,4 @@
-module github.com/handsomefox/website-rating
+module github.com/handsomefox/paired-ratings
 
 go 1.25.5
 

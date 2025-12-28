@@ -13,12 +13,12 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/kelseyhightower/envconfig"
 
-	"github.com/handsomefox/website-rating/backend/env"
-	"github.com/handsomefox/website-rating/backend/handlers"
-	"github.com/handsomefox/website-rating/backend/logger"
-	"github.com/handsomefox/website-rating/backend/store"
-	"github.com/handsomefox/website-rating/backend/tmdb"
-	"github.com/handsomefox/website-rating/backend/web"
+	"github.com/handsomefox/paired-ratings/backend/env"
+	"github.com/handsomefox/paired-ratings/backend/handlers"
+	"github.com/handsomefox/paired-ratings/backend/logger"
+	"github.com/handsomefox/paired-ratings/backend/store"
+	"github.com/handsomefox/paired-ratings/backend/tmdb"
+	"github.com/handsomefox/paired-ratings/backend/web"
 
 	_ "github.com/joho/godotenv/autoload"
 )

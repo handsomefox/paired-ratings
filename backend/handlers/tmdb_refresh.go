@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/handsomefox/website-rating/backend/gen/pb"
+	"github.com/handsomefox/paired-ratings/backend/gen/pb"
 )
 
 func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) error {

@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/handsomefox/website-rating/backend/store"
-	"github.com/handsomefox/website-rating/backend/tmdb"
+	"github.com/handsomefox/paired-ratings/backend/store"
+	"github.com/handsomefox/paired-ratings/backend/tmdb"
 )
 
 type Handler struct {

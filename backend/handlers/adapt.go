@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/handsomefox/website-rating/backend/gen/pb"
-	"github.com/handsomefox/website-rating/backend/logger"
+	"github.com/handsomefox/paired-ratings/backend/gen/pb"
+	"github.com/handsomefox/paired-ratings/backend/logger"
 )
 
 type HandlerWithErr func(w http.ResponseWriter, r *http.Request) error

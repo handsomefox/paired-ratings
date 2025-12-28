@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/handsomefox/website-rating/backend/gen/pb"
+	"github.com/handsomefox/paired-ratings/backend/gen/pb"
 )
 
 func (h *Handler) getSession(w http.ResponseWriter, r *http.Request) error {

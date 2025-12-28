@@ -1577,7 +1577,7 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\aupdated\x18\x01 \x01(\x05R\aupdated\"_\n" +
 	"\rExportPayload\x12 \n" +
 	"\vexported_at\x18\x01 \x01(\tR\vexported_at\x12,\n" +
-	"\x05shows\x18\x02 \x03(\v2\x16.pairedratings.v1.ShowR\x05showsB6Z4github.com/handsomefox/website-rating/backend/gen/pbb\x06proto3"
+	"\x05shows\x18\x02 \x03(\v2\x16.pairedratings.v1.ShowR\x05showsB6Z4github.com/handsomefox/paired-ratings/backend/gen/pbb\x06proto3"
 
 var (
 	file_paired_ratings_proto_rawDescOnce sync.Once

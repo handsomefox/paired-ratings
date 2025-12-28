@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/handsomefox/website-rating/backend/logger"
+	"github.com/handsomefox/paired-ratings/backend/logger"
 )
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
