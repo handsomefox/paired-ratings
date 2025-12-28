@@ -128,17 +128,7 @@ func run() error {
 			if err != nil {
 				return err
 			}
-			compressSPA := middleware.Compress(
-				5,
-				"text/html",
-				"text/css",
-				"application/javascript",
-				"image/svg+xml",
-				"text/plain",
-				"application/xml",
-				"text/xml",
-			)
-			r.Handle("/*", compressSPA(spa))
+			r.Handle("/*", spa)
 		}
 	}
 

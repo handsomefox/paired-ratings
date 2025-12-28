@@ -80,7 +80,7 @@ func TestApplySearchSortRating(t *testing.T) {
 }
 
 func TestParseListFilters(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/shows?status=planned&genre=Drama&origin_country=us&sort=year&unrated=1&year_from=2020&year_to=2021", nil)
+	req := httptest.NewRequest(http.MethodGet, "/shows?status=planned&genre=Drama&origin_country=us&sort=year&unrated=1&year_from=2020&year_to=2021", http.NoBody)
 
 	filters := parseListFilters(req)
 	require.Equal(t, "planned", filters.Status)
@@ -95,7 +95,7 @@ func TestParseListFilters(t *testing.T) {
 }
 
 func TestParseSearchRequest(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/search?q=foo&media_type=tv&year_from=2020&year_to=2021&min_rating=7.2&min_votes=50&sort=rating&genres=12|16&origin_country=US&original_language=EN&page=3", nil)
+	req := httptest.NewRequest(http.MethodGet, "/search?q=foo&media_type=tv&year_from=2020&year_to=2021&min_rating=7.2&min_votes=50&sort=rating&genres=12|16&origin_country=US&original_language=EN&page=3", http.NoBody)
 
 	parsed := parseSearchRequest(req)
 	require.Equal(t, "foo", parsed.Q)

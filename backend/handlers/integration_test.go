@@ -57,7 +57,7 @@ func TestAdaptErrorResponse(t *testing.T) {
 	})
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	h.ServeHTTP(rec, req)
 
 	resp := rec.Result()
@@ -74,7 +74,7 @@ func TestAdaptInternalError(t *testing.T) {
 	})
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	h.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusInternalServerError, rec.Result().StatusCode)
@@ -93,12 +93,12 @@ func TestMiddlewareRequireAuth(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	protected.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusUnauthorized, rec.Result().StatusCode)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: authCookieName, Value: h.passHash})
 	protected.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -127,7 +127,7 @@ func TestAuthFlowWithStore(t *testing.T) {
 	authCookie := login(t, r, "secret")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/session", nil)
+	req := httptest.NewRequest(http.MethodGet, "/session", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -138,7 +138,7 @@ func TestAuthFlowWithStore(t *testing.T) {
 	require.True(t, *session.Authenticated)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/shows/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/shows/", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -149,7 +149,7 @@ func TestAuthFlowWithStore(t *testing.T) {
 	require.Equal(t, "Test Movie", listResp.Shows[0].Title)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodPost, "/logout", nil)
+	req = httptest.NewRequest(http.MethodPost, "/logout", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -199,7 +199,7 @@ func TestShowLifecycleHandlers(t *testing.T) {
 	require.Equal(t, "watched", detail.Show.Status)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodPost, "/shows/"+strconv.FormatInt(showID, 10)+"/toggle-status", nil)
+	req = httptest.NewRequest(http.MethodPost, "/shows/"+strconv.FormatInt(showID, 10)+"/toggle-status", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -210,7 +210,7 @@ func TestShowLifecycleHandlers(t *testing.T) {
 	require.Equal(t, "planned", detail.Show.Status)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodPost, "/shows/"+strconv.FormatInt(showID, 10)+"/clear-ratings", nil)
+	req = httptest.NewRequest(http.MethodPost, "/shows/"+strconv.FormatInt(showID, 10)+"/clear-ratings", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -222,13 +222,13 @@ func TestShowLifecycleHandlers(t *testing.T) {
 	require.Nil(t, detail.Show.GfRating)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodDelete, "/shows/"+strconv.FormatInt(showID, 10)+"/", nil)
+	req = httptest.NewRequest(http.MethodDelete, "/shows/"+strconv.FormatInt(showID, 10)+"/", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusNoContent, rec.Result().StatusCode)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/shows/"+strconv.FormatInt(showID, 10)+"/", nil)
+	req = httptest.NewRequest(http.MethodGet, "/shows/"+strconv.FormatInt(showID, 10)+"/", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusNotFound, rec.Result().StatusCode)
@@ -282,7 +282,7 @@ func TestSearchEndpointsWithMockTMDB(t *testing.T) {
 	authCookie := login(t, r, "secret")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/search/genres", nil)
+	req := httptest.NewRequest(http.MethodGet, "/search/genres", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -293,7 +293,7 @@ func TestSearchEndpointsWithMockTMDB(t *testing.T) {
 	require.Len(t, genres.TvGenres, 1)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/search/countries", nil)
+	req = httptest.NewRequest(http.MethodGet, "/search/countries", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -304,7 +304,7 @@ func TestSearchEndpointsWithMockTMDB(t *testing.T) {
 	require.Equal(t, "US", countries.Countries[0].Code)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/search/languages", nil)
+	req = httptest.NewRequest(http.MethodGet, "/search/languages", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -315,7 +315,7 @@ func TestSearchEndpointsWithMockTMDB(t *testing.T) {
 	require.Equal(t, "en", languages.Languages[0].Code)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/search/resolve?tmdb_id=10&media_type=movie", nil)
+	req = httptest.NewRequest(http.MethodGet, "/search/resolve?tmdb_id=10&media_type=movie", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -326,7 +326,7 @@ func TestSearchEndpointsWithMockTMDB(t *testing.T) {
 	require.Contains(t, *resolve.ImdbUrl, "tt123")
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodGet, "/search?q=test&media_type=movie", nil)
+	req = httptest.NewRequest(http.MethodGet, "/search?q=test&media_type=movie", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -375,7 +375,7 @@ func TestRefreshTMDBAndExportHandlers(t *testing.T) {
 	authCookie := login(t, r, "secret")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/refresh-tmdb", nil)
+	req := httptest.NewRequest(http.MethodPost, "/refresh-tmdb", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
@@ -385,7 +385,7 @@ func TestRefreshTMDBAndExportHandlers(t *testing.T) {
 	require.Equal(t, int32(1), refreshed.Updated)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodPost, "/export", nil)
+	req = httptest.NewRequest(http.MethodPost, "/export", http.NoBody)
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
