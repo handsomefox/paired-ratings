@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 )
 
 func New(level slog.Level) *slog.Logger {
@@ -27,10 +28,34 @@ func New(level slog.Level) *slog.Logger {
 	}))
 }
 
-func Error(err error) slog.Attr {
-	if err == nil {
-		return slog.String("err", "nil")
-	}
+const (
+	KeyRequestID = "request_id"
+	KeyMethod    = "http_method"
+	KeyPath      = "http_path"
+	KeyStatus    = "status"
+	KeyDuration  = "duration"
+)
 
-	return slog.String("err", err.Error())
+func RequestID(id string) slog.Attr {
+	return slog.String(KeyRequestID, id)
+}
+
+func Method(method string) slog.Attr {
+	return slog.String(KeyMethod, method)
+}
+
+func Path(path string) slog.Attr {
+	return slog.String(KeyPath, path)
+}
+
+func Status(status int) slog.Attr {
+	return slog.Int(KeyStatus, status)
+}
+
+func Duration(d time.Duration) slog.Attr {
+	return slog.Duration(KeyDuration, d)
+}
+
+func Error(err error) slog.Attr {
+	return slog.Any("err", err)
 }

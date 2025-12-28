@@ -51,19 +51,12 @@ func clearAuthCookie(w http.ResponseWriter, r *http.Request) {
 }
 
 func sameSite() http.SameSite {
-	switch env.Current {
-	case env.Production:
+	if env.IsProduction() {
 		return http.SameSiteNoneMode
-	default:
-		return http.SameSiteLaxMode
 	}
+	return http.SameSiteLaxMode
 }
 
 func secure() bool {
-	switch env.Current {
-	case env.Production:
-		return true
-	default:
-		return false
-	}
+	return env.IsProduction()
 }

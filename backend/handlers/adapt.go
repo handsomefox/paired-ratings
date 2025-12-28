@@ -2,10 +2,14 @@ package handlers
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/handsomefox/website-rating/backend/gen/pb"
+	"github.com/handsomefox/website-rating/backend/logger"
 )
 
 type HandlerWithErr func(w http.ResponseWriter, r *http.Request) error
@@ -21,13 +25,32 @@ func (e Error) Error() string {
 
 func Adapt(h HandlerWithErr) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		if err := h(w, r); err != nil {
+			status := http.StatusInternalServerError
+			message := err.Error()
 			var statusErr *Error
 			if errors.As(err, &statusErr) {
-				writeJSON(w, statusErr.Status, &pb.ErrorResponse{Error: statusErr.Message})
-				return
+				status = statusErr.Status
+				message = statusErr.Message
 			}
-			writeJSON(w, http.StatusInternalServerError, &pb.ErrorResponse{Error: err.Error()})
+
+			logAttrs := []slog.Attr{
+				logger.Error(err),
+				logger.Status(status),
+				logger.Method(r.Method),
+				logger.Path(r.URL.Path),
+				logger.RequestID(middleware.GetReqID(r.Context())),
+				logger.Duration(time.Since(start)),
+			}
+
+			level := slog.LevelWarn
+			if status >= http.StatusInternalServerError {
+				level = slog.LevelError
+			}
+			slog.Default().LogAttrs(r.Context(), level, "request failed", logAttrs...)
+
+			writeJSON(w, status, &pb.ErrorResponse{Error: message})
 		}
 	})
 }

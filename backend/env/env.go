@@ -28,3 +28,11 @@ func init() {
 		Current = Local
 	}
 }
+
+func IsLocal() bool {
+	return Current == Local
+}
+
+func IsProduction() bool {
+	return Current == Production
+}

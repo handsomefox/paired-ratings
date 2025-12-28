@@ -46,7 +46,7 @@ func loadConfig() (appConfig, error) {
 	origins := []string{
 		"https://paired-ratings-production.up.railway.app",
 	}
-	if env.Current == env.Local {
+	if env.IsLocal() {
 		origins = append(origins,
 			"http://localhost:"+cfg.Port,
 			"http://localhost:5173",
@@ -59,7 +59,7 @@ func loadConfig() (appConfig, error) {
 
 func main() {
 	logLevel := slog.LevelInfo
-	if env.Current == env.Local {
+	if env.IsLocal() {
 		logLevel = slog.LevelDebug
 	}
 	slog.SetDefault(logger.New(logLevel))
@@ -105,10 +105,7 @@ func run() error {
 			RecoverPanics: true,
 			Schema:        httplog.SchemaECS.Concise(true),
 			Skip: func(req *http.Request, respStatus int) bool {
-				if req.URL.Path == "/ping" {
-					return true
-				}
-				return false
+				return req.URL.Path == "/ping"
 			},
 		}),
 		middleware.Heartbeat("/ping"),
