@@ -1,31 +1,35 @@
 @config "../tailwind.config.ts";
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @layer base {
   :root {
     color-scheme: dark;
-    --background: 222 30% 8%;
-    --foreground: 210 40% 96%;
-    --card: 222 24% 12%;
-    --card-foreground: 210 40% 96%;
-    --popover: 222 24% 12%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 176 78% 38%;
+    --background: 225 20% 7%;
+    --foreground: 210 25% 96%;
+    --card: 225 18% 12%;
+    --card-foreground: 210 25% 96%;
+    --popover: 225 18% 12%;
+    --popover-foreground: 210 25% 96%;
+    --primary: 176 70% 45%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 260 22% 20%;
+    --secondary: 225 16% 16%;
     --secondary-foreground: 210 40% 96%;
-    --muted: 217 16% 16%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 268 70% 60%;
+    --muted: 225 14% 14%;
+    --muted-foreground: 215 18% 68%;
+    --accent: 268 64% 60%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 70% 50%;
     --destructive-foreground: 210 40% 98%;
-    --border: 220 16% 20%;
-    --input: 220 16% 20%;
-    --ring: 176 78% 45%;
+    --border: 225 12% 20%;
+    --input: 225 12% 20%;
+    --ring: 176 70% 50%;
     --radius: 0.9rem;
+    --bf: var(--primary);
+    --bf-foreground: var(--primary-foreground);
+    --gf: var(--accent);
+    --gf-foreground: var(--accent-foreground);
   }
 
   * {
@@ -39,15 +43,6 @@
 
   body {
     @apply bg-background font-sans text-foreground antialiased;
-
-    background-image:
-      radial-gradient(circle at 12% 12%, rgba(20, 184, 166, 0.12), transparent 38%),
-      radial-gradient(circle at 88% 16%, rgba(168, 85, 247, 0.14), transparent 44%),
-      linear-gradient(160deg, rgba(8, 12, 22, 0.9), rgba(1, 3, 12, 0.96));
-
-    background-repeat: no-repeat;
-    background-attachment: fixed, fixed, fixed;
-    background-size: cover;
   }
 
   html {
@@ -55,6 +50,18 @@
     scrollbar-gutter: stable;
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  @media (min-width: 1024px) {
+    html {
+      font-size: 17px;
+    }
+  }
+
+  @media (min-width: 1536px) {
+    html {
+      font-size: 18px;
+    }
   }
 
   input[type="number"] {

@@ -17,7 +17,7 @@ const Toaster = ({ className, ...props }: ComponentProps<typeof Sonner>) => (
           "!bg-muted/40 !text-muted-foreground !border !border-border/60 hover:!bg-muted/60",
         icon: "!text-primary",
         error: "!border-red-500/40 !text-red-100",
-        success: "!border-teal-500/40 !text-teal-100",
+        success: "!border-bf/40 !text-bf",
       },
     }}
     {...props}

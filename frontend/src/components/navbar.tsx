@@ -49,7 +49,7 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/75 backdrop-blur">
-      <div className="container flex h-14 items-center justify-between gap-4 sm:h-16">
+      <div className="mx-auto flex h-14 w-full items-center justify-between gap-4 px-4 sm:h-16 sm:px-6 lg:max-w-[88vw] lg:px-8 xl:max-w-[84vw] xl:px-10 2xl:max-w-[80vw] 2xl:px-12">
         <div className="flex items-center gap-3">
           <ViewTransitionLink
             to="/"
@@ -62,7 +62,7 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
             }}
           >
             <div className="relative h-8 w-8 overflow-hidden rounded-2xl shadow-lg sm:h-9 sm:w-9">
-              <div className="absolute inset-0 z-0 bg-gradient-to-br from-primary/70 via-primary/30 to-purple-500/60" />
+              <div className="absolute inset-0 z-0 bg-gradient-to-br from-bf/40 via-bf/10 to-gf/40" />
               <img
                 src="/assets/logo.png"
                 alt=""

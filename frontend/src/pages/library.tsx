@@ -1,14 +1,5 @@
-import CardGrid from "@/components/card-grid";
-import { CountryCombobox } from "@/components/country-combobox";
-import FilterField from "@/components/filter-field";
 import FiltersPane from "@/components/filters-pane";
 import { FiltersPaneContent } from "@/components/filters-pane-content";
-import { GenreCombobox } from "@/components/genre-combobox";
-import { LoadingGrid } from "@/components/loading-grid";
-import { OriginCountriesChip } from "@/components/origin-countries-chip";
-import RatingChips from "@/components/rating-chips";
-import { ShowCard } from "@/components/show-card";
-import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,52 +10,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { ViewTransitionLink } from "@/components/view-transition-link";
+import { LibraryFilters } from "@/features/library/library-filters";
+import { LibraryResults } from "@/features/library/library-results";
+import { baseStatusOptions, statusBadgeVariant } from "@/features/library/library-utils";
 import type { ApiShow } from "@/lib/api";
 import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-import { cn, shortGenres } from "@/lib/utils";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Film } from "lucide-react";
-
-const baseStatusOptions = [
-  { value: "all", label: "All" },
-  { value: "planned", label: "Planned" },
-  { value: "watched", label: "Watched" },
-];
-
-function statusBadge(status?: string) {
-  if (status === "watched") return "bg-teal-500/15 text-teal-300 border-teal-500/40";
-  if (status === "planned") return "bg-purple-500/15 text-purple-300 border-purple-500/40";
-  return "bg-muted text-muted-foreground";
-}
 
 export function LibraryPage() {
   const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -133,6 +87,11 @@ export function LibraryPage() {
     queryFn: () => api.listShows(params),
     placeholderData: keepPreviousData,
   });
+
+  const fromLocation = useMemo(() => {
+    const query = params.toString();
+    return query ? `/?${query}` : "/";
+  }, [params]);
 
   const refreshMutation = useMutation({
     mutationFn: api.refreshTMDB,
@@ -214,122 +173,42 @@ export function LibraryPage() {
     { value: "title", label: "Title" },
   ];
 
+  const countryOptions = countries.map((code) => ({ code, name: countryLabel(code) }));
+
+  const handleResetFilters = () => {
+    setStatus("all");
+    setGenre("");
+    setOriginCountry("");
+    setYearFrom("");
+    setYearTo("");
+    setUnrated(false);
+    setSort("updated");
+  };
+
   const FiltersForm = (
-    <div className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 [&>*]:min-w-0">
-        <FilterField label="Status">
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {baseStatusOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterField>
-
-        <FilterField label="Genre">
-          <div className="w-full min-w-0">
-            <GenreCombobox
-              value={genre}
-              onValueChange={setGenre}
-              genres={genres}
-              placeholder="Any"
-              anyLabel="Any"
-            />
-          </div>
-        </FilterField>
-
-        <FilterField label="Origin country">
-          <div className="w-full min-w-0">
-            <CountryCombobox
-              value={originCountry}
-              onValueChange={setOriginCountry}
-              options={countries.map((code) => ({ code, name: countryLabel(code) }))}
-              placeholder="Any"
-              anyLabel="Any"
-            />
-          </div>
-        </FilterField>
-
-        <div className="grid grid-cols-2 gap-3">
-          <FilterField label="Year from">
-            <Input
-              type="number"
-              min={1900}
-              max={2100}
-              value={yearFrom}
-              onChange={(event) => setYearFrom(event.target.value)}
-            />
-          </FilterField>
-          <FilterField label="Year to">
-            <Input
-              type="number"
-              min={1900}
-              max={2100}
-              value={yearTo}
-              onChange={(event) => setYearTo(event.target.value)}
-            />
-          </FilterField>
-        </div>
-
-        <FilterField label="Sort">
-          <Select value={sort} onValueChange={setSort}>
-            <SelectTrigger>
-              <SelectValue placeholder="Sort" />
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterField>
-      </div>
-
-      <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
-        <Checkbox checked={unrated} onCheckedChange={(value) => setUnrated(Boolean(value))} />
-        <div>
-          <div className="text-sm font-medium">Unrated only</div>
-          <div className="text-xs text-muted-foreground">Hide anything with ratings.</div>
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
-          onClick={() => refreshMutation.mutate()}
-          disabled={refreshMutation.isPending}
-        >
-          Refresh TMDB
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => {
-            setStatus("all");
-            setGenre("");
-            setOriginCountry("");
-            setYearFrom("");
-            setYearTo("");
-            setUnrated(false);
-            setSort("updated");
-          }}
-        >
-          Reset
-        </Button>
-      </div>
-    </div>
+    <LibraryFilters
+      status={status}
+      onStatusChange={setStatus}
+      genre={genre}
+      onGenreChange={setGenre}
+      originCountry={originCountry}
+      onOriginCountryChange={setOriginCountry}
+      yearFrom={yearFrom}
+      onYearFromChange={setYearFrom}
+      yearTo={yearTo}
+      onYearToChange={setYearTo}
+      sort={sort}
+      onSortChange={setSort}
+      unrated={unrated}
+      onUnratedChange={setUnrated}
+      statusOptions={baseStatusOptions}
+      sortOptions={sortOptions}
+      genres={genres}
+      countries={countryOptions}
+      onRefresh={() => refreshMutation.mutate()}
+      refreshPending={refreshMutation.isPending}
+      onReset={handleResetFilters}
+    />
   );
 
   const isInitialLoading = showsQuery.isLoading || (showsQuery.isFetching && shows.length === 0);
@@ -349,83 +228,17 @@ export function LibraryPage() {
         headerClassName="flex-wrap items-end gap-4"
       >
         <FiltersPaneContent>
-          <div className="text-xs text-muted-foreground">{renderCount()}</div>
+          <div className="text-xs text-muted-foreground sm:text-sm">{renderCount()}</div>
 
-          {isInitialLoading ? <LoadingGrid /> : null}
-
-          {isEmpty ? (
-            <Empty className="border-border/60 bg-card/30">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Film />
-                </EmptyMedia>
-                <EmptyTitle>No shows yet</EmptyTitle>
-                <EmptyDescription>Use “Add” to pull from TMDB.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : null}
-
-          <CardGrid>
-            {shows.map((show) => {
-              const originCountries = show.origin_country ?? [];
-              return (
-                <ShowCard
-                  key={show.id}
-                  title={
-                    <ViewTransitionLink to="/show/$showId" params={{ showId: String(show.id) }}>
-                      {show.title}
-                    </ViewTransitionLink>
-                  }
-                  year={show.year}
-                  posterAlt={show.title}
-                  posterPath={show.poster_path}
-                  imageBase={imageBase}
-                  posterLink={(node) => (
-                    <ViewTransitionLink to="/show/$showId" params={{ showId: String(show.id) }}>
-                      {node}
-                    </ViewTransitionLink>
-                  )}
-                  topRight={
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full">
-                          <span className="sr-only">Open menu</span>
-                          <span className="text-lg leading-none">⋯</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setPendingDelete(show)}>
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  }
-                  statusBadge={
-                    <Badge variant="outline" className={cn("border", statusBadge(show.status))}>
-                      {show.status || "tbd"}
-                    </Badge>
-                  }
-                  metaBadges={
-                    <>
-                      <TmdbRatingBadge
-                        rating={show.tmdb_rating}
-                        votes={show.tmdb_votes}
-                        className="flex w-full justify-center"
-                      />
-                      <OriginCountriesChip
-                        codes={originCountries}
-                        className="w-full"
-                        badgeClassName="flex w-full justify-center"
-                      />
-                    </>
-                  }
-                  footer={<RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />}
-                  genresText={show.genres ? shortGenres(show.genres) : ""}
-                  overview={show.overview}
-                />
-              );
-            })}
-          </CardGrid>
+          <LibraryResults
+            shows={shows}
+            imageBase={imageBase}
+            isInitialLoading={isInitialLoading}
+            isEmpty={isEmpty}
+            onDelete={setPendingDelete}
+            statusBadgeVariant={statusBadgeVariant}
+            fromLocation={fromLocation}
+          />
         </FiltersPaneContent>
       </FiltersPane>
 

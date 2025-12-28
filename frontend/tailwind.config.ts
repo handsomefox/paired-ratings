@@ -32,6 +32,10 @@ const config = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        bf: "hsl(var(--bf))",
+        "bf-foreground": "hsl(var(--bf-foreground))",
+        gf: "hsl(var(--gf))",
+        "gf-foreground": "hsl(var(--gf-foreground))",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -39,8 +43,8 @@ const config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ['"Inter"', "ui-sans-serif", "system-ui", "sans-serif"],
-        display: ['"Inter"', "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ['"Sora"', "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ['"Sora"', "ui-sans-serif", "system-ui", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {

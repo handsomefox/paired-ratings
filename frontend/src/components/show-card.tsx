@@ -92,23 +92,25 @@ export function ShowCard({
         {posterLink ? posterLink(poster) : poster}
         {topRight ? <div className="absolute right-3 top-3">{topRight}</div> : null}
       </div>
-      <CardContent className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4">
+      <CardContent className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4 lg:gap-4 lg:p-5">
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-base font-semibold leading-tight">{title}</div>
-              {year ? <div className="text-xs text-muted-foreground">{year}</div> : null}
+              <div className="text-base font-semibold leading-tight sm:text-lg">{title}</div>
+              {year ? <div className="text-xs text-muted-foreground sm:text-sm">{year}</div> : null}
             </div>
             {statusBadge ?? null}
           </div>
 
-          {genresText ? <div className="text-xs text-muted-foreground">{genresText}</div> : null}
+          {genresText ? (
+            <div className="text-xs text-muted-foreground sm:text-sm">{genresText}</div>
+          ) : null}
 
           {overview ? (
             <div className="space-y-1">
               <p
                 ref={overviewRef}
-                className={`text-xs text-muted-foreground ${
+                className={`text-xs text-muted-foreground sm:text-sm ${
                   isExpanded ? "" : "line-clamp-3 min-h-[3.6em]"
                 }`}
               >

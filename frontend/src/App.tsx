@@ -89,7 +89,7 @@ const RootLayout = () => {
 
   if (sessionQuery.isLoading) {
     return (
-      <main className="container py-16">
+      <main className="mx-auto w-full px-4 py-16 sm:px-6 lg:max-w-[88vw] lg:px-8 xl:max-w-[84vw] xl:px-10 2xl:max-w-[80vw] 2xl:px-12">
         <Loading />
       </main>
     );
@@ -98,7 +98,7 @@ const RootLayout = () => {
   return (
     <div className="min-h-screen">
       {authed ? <Navbar onExport={handleExport} onLogout={handleLogout} /> : null}
-      <main className="container py-6 md:py-8">
+      <main className="mx-auto w-full px-4 py-6 sm:px-6 md:py-8 lg:max-w-[88vw] lg:px-8 xl:max-w-[84vw] xl:px-10 2xl:max-w-[80vw] 2xl:px-12">
         <Outlet />
       </main>
       {authed ? <ScrollToTop /> : null}
@@ -124,10 +124,66 @@ const rootRoute = createRootRouteWithContext<AppContext>()({
   component: RootLayout,
 });
 
+type LibrarySearch = {
+  status?: string;
+  genre?: string;
+  origin_country?: string;
+  year_from?: string;
+  year_to?: string;
+  unrated?: string;
+  sort?: string;
+};
+
+type SearchSearch = {
+  q?: string;
+  media_type?: string;
+  year_from?: string;
+  year_to?: string;
+  min_rating?: string;
+  min_votes?: string;
+  sort?: string;
+  genres?: string;
+  origin_country?: string;
+  original_language?: string;
+  page?: string;
+};
+
+const parseSearchString = (value: unknown): string | undefined => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return undefined;
+};
+
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: async ({ context }) => requireSession(context.queryClient),
+  validateSearch: (search): LibrarySearch => {
+    if (!search || typeof search !== "object") return {};
+    const params = search as Record<string, unknown>;
+    const next: LibrarySearch = {};
+
+    const status = parseSearchString(params.status);
+    const genre = parseSearchString(params.genre);
+    const origin_country = parseSearchString(params.origin_country);
+    const year_from = parseSearchString(params.year_from);
+    const year_to = parseSearchString(params.year_to);
+    const unrated = parseSearchString(params.unrated);
+    const sort = parseSearchString(params.sort);
+
+    if (status) next.status = status;
+    if (genre) next.genre = genre;
+    if (origin_country) next.origin_country = origin_country;
+    if (year_from) next.year_from = year_from;
+    if (year_to) next.year_to = year_to;
+    if (unrated) next.unrated = unrated;
+    if (sort) next.sort = sort;
+
+    return next;
+  },
   component: LibraryPage,
 });
 
@@ -135,13 +191,56 @@ const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/search",
   beforeLoad: async ({ context }) => requireSession(context.queryClient),
+  validateSearch: (search): SearchSearch => {
+    if (!search || typeof search !== "object") return {};
+    const params = search as Record<string, unknown>;
+    const next: SearchSearch = {};
+
+    const q = parseSearchString(params.q);
+    const media_type = parseSearchString(params.media_type);
+    const year_from = parseSearchString(params.year_from);
+    const year_to = parseSearchString(params.year_to);
+    const min_rating = parseSearchString(params.min_rating);
+    const min_votes = parseSearchString(params.min_votes);
+    const sort = parseSearchString(params.sort);
+    const genres = parseSearchString(params.genres);
+    const origin_country = parseSearchString(params.origin_country);
+    const original_language = parseSearchString(params.original_language);
+    const page = parseSearchString(params.page);
+
+    if (q) next.q = q;
+    if (media_type) next.media_type = media_type;
+    if (year_from) next.year_from = year_from;
+    if (year_to) next.year_to = year_to;
+    if (min_rating) next.min_rating = min_rating;
+    if (min_votes) next.min_votes = min_votes;
+    if (sort) next.sort = sort;
+    if (genres) next.genres = genres;
+    if (origin_country) next.origin_country = origin_country;
+    if (original_language) next.original_language = original_language;
+    if (page) next.page = page;
+
+    return next;
+  },
   component: SearchPage,
 });
+
+type DetailSearch = {
+  from?: string;
+};
 
 const detailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/show/$showId",
   beforeLoad: async ({ context }) => requireSession(context.queryClient),
+  validateSearch: (search): DetailSearch => {
+    if (!search || typeof search !== "object") return {};
+    const from = (search as { from?: unknown }).from;
+    if (typeof from === "string" && from.trim().length > 0) {
+      return { from };
+    }
+    return {};
+  },
   component: DetailPage,
 });
 

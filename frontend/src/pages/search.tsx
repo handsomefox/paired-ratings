@@ -1,128 +1,25 @@
-import CardGrid from "@/components/card-grid";
-import { CountryCombobox } from "@/components/country-combobox";
-import FilterField from "@/components/filter-field";
 import FiltersPane from "@/components/filters-pane";
 import { FiltersPaneContent } from "@/components/filters-pane-content";
-import { LanguageCombobox } from "@/components/language-combobox";
-import { LoadingGrid } from "@/components/loading-grid";
-import { LanguageBadge } from "@/components/language-badge";
-import { ShowCard } from "@/components/show-card";
-import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
-import { ViewTransitionLink } from "@/components/view-transition-link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { SearchFilters } from "@/features/search/search-filters";
+import { SearchPagination } from "@/features/search/search-pagination";
+import { SearchResults } from "@/features/search/search-results";
+import { type MediaType, type Sort } from "@/features/search/search-constants";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+  buildBaseParams,
+  getPageItems,
+  parseGenres,
+  sanitizeMediaType,
+  sanitizeSort,
+} from "@/features/search/search-utils";
 import type { SearchResponse, SearchResult } from "@/lib/api";
 import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useKeyboardInset } from "@/lib/use-keyboard-inset";
 import { useMediaQuery } from "@/lib/use-media-query";
-import { cn, shortGenreList } from "@/lib/utils";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search as SearchIcon } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
-const sortOptions = [
-  { value: "relevance", label: "Relevance" },
-  { value: "rating", label: "TMDB rating" },
-  { value: "votes", label: "TMDB votes" },
-  { value: "year", label: "Year" },
-  { value: "title", label: "Title" },
-] as const;
-
-const mediaTypeOptions = [
-  { value: "movie", label: "Movie" },
-  { value: "tv", label: "TV" },
-] as const;
-
-type MediaType = (typeof mediaTypeOptions)[number]["value"];
-type Sort = (typeof sortOptions)[number]["value"];
-
-function sanitizeMediaType(raw: string | null | undefined): MediaType {
-  const v = (raw ?? "").toLowerCase().trim();
-  return v === "tv" ? "tv" : "movie";
-}
-
-function sanitizeSort(raw: string | null | undefined): Sort {
-  const v = (raw ?? "").toLowerCase().trim();
-  return sortOptions.some((o) => o.value === v) ? (v as Sort) : "relevance";
-}
-
-function parseGenres(raw: string): { mode: "all" | "any"; selected: string[] } {
-  const value = (raw ?? "").trim();
-  if (!value) return { mode: "all", selected: [] };
-
-  const any = value.includes("|");
-  const parts = value
-    .split(any ? "|" : ",")
-    .map((p) => p.trim())
-    .filter(Boolean);
-
-  return { mode: any ? "any" : "all", selected: parts };
-}
-
-function buildBaseParams(args: {
-  mediaType: MediaType;
-  trimmedQuery: string;
-  yearFrom: string;
-  yearTo: string;
-  minRating: string;
-  minVotes: string;
-  sort: Sort;
-  genres: string;
-  originCountry: string;
-  originalLanguage: string;
-}): URLSearchParams {
-  const p = new URLSearchParams();
-  p.set("media_type", args.mediaType);
-
-  if (args.trimmedQuery) p.set("q", args.trimmedQuery);
-  if (args.yearFrom) p.set("year_from", args.yearFrom);
-  if (args.yearTo) p.set("year_to", args.yearTo);
-  if (args.minRating) p.set("min_rating", args.minRating);
-  if (args.minVotes) p.set("min_votes", args.minVotes);
-  if (args.sort && args.sort !== "relevance") p.set("sort", args.sort);
-  if (args.genres) p.set("genres", args.genres);
-  if (args.originCountry) p.set("origin_country", args.originCountry);
-  if (args.originalLanguage) p.set("original_language", args.originalLanguage);
-
-  return p;
-}
 
 export function SearchPage() {
   const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -157,6 +54,68 @@ export function SearchPage() {
   );
   const [genreMode, setGenreMode] = useState<"all" | "any">(initialGenres.mode);
   const [selectedGenres, setSelectedGenres] = useState<string[]>(initialGenres.selected);
+
+  const resetPageAndOverviews = () => {
+    setPage(1);
+    setExpandedOverviews(new Set());
+  };
+
+  const handleMediaTypeChange = (value: MediaType) => {
+    setMediaType(value);
+    setGenreMode("all");
+    setSelectedGenres([]);
+    resetPageAndOverviews();
+  };
+
+  const handleQueryChange = (value: string) => {
+    setQueryInput(value);
+    resetPageAndOverviews();
+  };
+
+  const handleYearFromChange = (value: string) => {
+    setYearFrom(value);
+    resetPageAndOverviews();
+  };
+
+  const handleYearToChange = (value: string) => {
+    setYearTo(value);
+    resetPageAndOverviews();
+  };
+
+  const handleMinRatingChange = (value: string) => {
+    setMinRating(value);
+    resetPageAndOverviews();
+  };
+
+  const handleMinVotesChange = (value: string) => {
+    setMinVotes(value);
+    resetPageAndOverviews();
+  };
+
+  const handleGenreModeChange = (value: "all" | "any") => {
+    setGenreMode(value);
+    resetPageAndOverviews();
+  };
+
+  const handleSelectedGenresChange = (next: string[]) => {
+    setSelectedGenres(next);
+    resetPageAndOverviews();
+  };
+
+  const handleOriginCountryChange = (value: string) => {
+    setOriginCountry(value);
+    resetPageAndOverviews();
+  };
+
+  const handleOriginalLanguageChange = (value: string) => {
+    setOriginalLanguage(value);
+    resetPageAndOverviews();
+  };
+
+  const handleSortChange = (value: Sort) => {
+    setSort(value);
+    resetPageAndOverviews();
+  };
 
   const queryClient = useQueryClient();
 
@@ -218,32 +177,6 @@ export function SearchPage() {
     return selectedGenres.join(genreMode === "any" ? "|" : ",");
   }, [selectedGenres, genreMode]);
 
-  const baseParamsString = useMemo(() => {
-    return buildBaseParams({
-      mediaType,
-      trimmedQuery,
-      yearFrom,
-      yearTo,
-      minRating,
-      minVotes,
-      sort,
-      genres: genreQuery,
-      originCountry,
-      originalLanguage,
-    }).toString();
-  }, [
-    mediaType,
-    trimmedQuery,
-    yearFrom,
-    yearTo,
-    minRating,
-    minVotes,
-    sort,
-    genreQuery,
-    originCountry,
-    originalLanguage,
-  ]);
-
   const fullParamsString = useMemo(() => {
     const p = buildBaseParams({
       mediaType,
@@ -273,26 +206,6 @@ export function SearchPage() {
     page,
   ]);
 
-  // Reset page when filters (excluding page) change
-  const prevBaseRef = useRef(baseParamsString);
-  useEffect(() => {
-    if (prevBaseRef.current !== baseParamsString) {
-      prevBaseRef.current = baseParamsString;
-      setPage(1);
-    }
-  }, [baseParamsString]);
-
-  // Clear expanded overviews when query changes or page changes
-  useEffect(() => {
-    setExpandedOverviews(new Set());
-  }, [baseParamsString, page]);
-
-  // URL sync
-  useEffect(() => {
-    const url = fullParamsString ? `/search?${fullParamsString}` : "/search";
-    window.history.replaceState(null, "", url);
-  }, [fullParamsString]);
-
   const searchQuery = useQuery<SearchResponse, Error>({
     queryKey: ["search", fullParamsString],
     queryFn: () => api.search(new URLSearchParams(fullParamsString)),
@@ -306,14 +219,42 @@ export function SearchPage() {
 
   const isInitialLoading = searchQuery.isLoading && !searchQuery.data;
   const isFetching = searchQuery.isFetching;
+  const activePage = searchQuery.data?.page ?? page;
 
-  // If backend clamps page, keep state consistent (only after data arrives)
+  const urlParamsString = useMemo(() => {
+    const params = buildBaseParams({
+      mediaType,
+      trimmedQuery,
+      yearFrom,
+      yearTo,
+      minRating,
+      minVotes,
+      sort,
+      genres: genreQuery,
+      originCountry,
+      originalLanguage,
+    });
+    if (activePage > 1) params.set("page", String(activePage));
+    return params.toString();
+  }, [
+    mediaType,
+    trimmedQuery,
+    yearFrom,
+    yearTo,
+    minRating,
+    minVotes,
+    sort,
+    genreQuery,
+    originCountry,
+    originalLanguage,
+    activePage,
+  ]);
+
+  const fromLocation = urlParamsString ? `/search?${urlParamsString}` : "/search";
+
   useEffect(() => {
-    if (searchQuery.isPlaceholderData) return;
-
-    const serverPage = searchQuery.data?.page;
-    if (serverPage && serverPage !== page) setPage(serverPage);
-  }, [searchQuery.isPlaceholderData, searchQuery.data?.page, page]);
+    window.history.replaceState(null, "", fromLocation);
+  }, [fromLocation]);
 
   useEffect(() => {
     if (searchQuery.isError) toast.error("Failed to load search results.");
@@ -343,14 +284,14 @@ export function SearchPage() {
     },
   });
 
-  const results: SearchResult[] =
-    searchQuery.data?.results?.filter((item): item is SearchResult => Boolean(item)) ?? [];
+  const results = useMemo(
+    () => searchQuery.data?.results?.filter((item): item is SearchResult => Boolean(item)) ?? [],
+    [searchQuery.data?.results],
+  );
 
   const totalResults = searchQuery.data?.total_results ?? 0;
   const totalPages = searchQuery.data?.total_pages ?? 0;
   const isCompactPagination = useMediaQuery("(max-width: 640px)");
-  const [jumpOpen, setJumpOpen] = useState(false);
-  const [jumpValue, setJumpValue] = useState("");
 
   const needsLibraryMap = useMemo(() => results.some((item) => item.in_library), [results]);
   const libraryMapQuery = useQuery({
@@ -374,12 +315,12 @@ export function SearchPage() {
   const pageItems = useMemo(() => {
     if (!totalPages || totalPages <= 1) return [];
     const siblingCount = isCompactPagination ? 1 : 2;
-    return getPageItems(totalPages, page, siblingCount, 1);
-  }, [totalPages, page, isCompactPagination]);
+    return getPageItems(totalPages, activePage, siblingCount, 1);
+  }, [totalPages, activePage, isCompactPagination]);
 
   const goToPage = (next: number) => {
     const clamped = totalPages ? Math.max(1, Math.min(totalPages, next)) : Math.max(1, next);
-    if (clamped === page) return;
+    if (clamped === activePage && clamped === page) return;
     setPage(clamped);
     setExpandedOverviews(new Set());
     const prefersReducedMotion =
@@ -387,26 +328,6 @@ export function SearchPage() {
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "auto" : "smooth" });
   };
-
-  const handleJumpSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!jumpValue.trim()) return;
-    const parsed = Number(jumpValue);
-    if (!Number.isFinite(parsed)) return;
-    const clamped = Math.max(1, Math.min(totalPages || 1, Math.floor(parsed)));
-    setJumpOpen(false);
-    goToPage(clamped);
-  };
-
-  const didMountRef = useRef(false);
-  useEffect(() => {
-    if (!didMountRef.current) {
-      didMountRef.current = true;
-      return;
-    }
-    setSelectedGenres([]);
-    setGenreMode("all");
-  }, [mediaType]);
 
   const availableGenres =
     mediaType === "movie"
@@ -455,174 +376,51 @@ export function SearchPage() {
     return `Total results ${loaded}`;
   };
 
+  const handleResetFilters = () => {
+    setMediaType("movie");
+    setQueryInput("");
+    setYearFrom("");
+    setYearTo("");
+    setMinRating("");
+    setMinVotes("");
+    setOriginCountry("");
+    setOriginalLanguage("");
+    setSort("relevance");
+    setGenreMode("all");
+    setSelectedGenres([]);
+    setPage(1);
+    setExpandedOverviews(new Set());
+  };
+
   const FiltersForm = (
-    <div className="space-y-5">
-      <FilterField label="Type">
-        <Select value={mediaType} onValueChange={(v) => setMediaType(v as MediaType)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Movie" />
-          </SelectTrigger>
-          <SelectContent>
-            {mediaTypeOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FilterField>
-
-      <FilterField label="Genres">
-        <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-3">
-          <Select value={genreMode} onValueChange={(value) => setGenreMode(value as "all" | "any")}>
-            <SelectTrigger>
-              <SelectValue placeholder="Match" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Match all selected</SelectItem>
-              <SelectItem value="any">Match any selected</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <ScrollArea className="h-48 pr-2">
-            <div className="space-y-2">
-              {searchGenresQuery.isLoading ? (
-                <div className="text-xs text-muted-foreground">Loading genres…</div>
-              ) : null}
-              {!searchGenresQuery.isLoading && availableGenres.length === 0 ? (
-                <div className="text-xs text-muted-foreground">No genres found.</div>
-              ) : null}
-              {availableGenres.map((genre) => {
-                const id = String(genre.id);
-                const checked = selectedGenres.includes(id);
-                return (
-                  <label key={genre.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-primary"
-                      checked={checked}
-                      onChange={(event) => {
-                        if (event.target.checked) setSelectedGenres((prev) => [...prev, id]);
-                        else setSelectedGenres((prev) => prev.filter((val) => val !== id));
-                      }}
-                    />
-                    <span>{genre.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </ScrollArea>
-        </div>
-      </FilterField>
-
-      <FilterField label="Origin country">
-        <div className="w-full min-w-0">
-          <CountryCombobox
-            value={originCountry}
-            onValueChange={setOriginCountry}
-            options={availableCountries}
-            placeholder="Any"
-            anyLabel="Any"
-          />
-        </div>
-      </FilterField>
-
-      <FilterField label="Original language">
-        <div className="w-full min-w-0">
-          <LanguageCombobox
-            value={originalLanguage}
-            onValueChange={setOriginalLanguage}
-            options={availableLanguages}
-            placeholder="Any"
-            anyLabel="Any"
-          />
-        </div>
-      </FilterField>
-
-      <div className="grid grid-cols-2 gap-3">
-        <FilterField label="Year from">
-          <Input
-            type="number"
-            min={1900}
-            max={2100}
-            value={yearFrom}
-            onChange={(event) => setYearFrom(event.target.value)}
-          />
-        </FilterField>
-        <FilterField label="Year to">
-          <Input
-            type="number"
-            min={1900}
-            max={2100}
-            value={yearTo}
-            onChange={(event) => setYearTo(event.target.value)}
-          />
-        </FilterField>
-      </div>
-
-      <FilterField label="Min TMDB rating">
-        <Input
-          type="number"
-          min={0}
-          max={10}
-          step={0.1}
-          value={minRating}
-          onChange={(event) => setMinRating(event.target.value)}
-        />
-      </FilterField>
-
-      <FilterField label="Min reviews">
-        <Input
-          type="number"
-          min={0}
-          max={1000000}
-          step={1}
-          value={minVotes}
-          onChange={(event) => setMinVotes(event.target.value)}
-        />
-      </FilterField>
-
-      <FilterField label="Sort">
-        <Select value={sort} onValueChange={(v) => setSort(v as Sort)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Sort" />
-          </SelectTrigger>
-          <SelectContent>
-            {sortOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FilterField>
-
-      <Separator />
-
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => {
-          setMediaType("movie");
-          setQueryInput("");
-          setYearFrom("");
-          setYearTo("");
-          setMinRating("");
-          setMinVotes("");
-          setOriginCountry("");
-          setOriginalLanguage("");
-          setSort("relevance");
-          setGenreMode("all");
-          setSelectedGenres([]);
-          setPage(1);
-        }}
-      >
-        Reset
-      </Button>
-    </div>
+    <SearchFilters
+      mediaType={mediaType}
+      onMediaTypeChange={handleMediaTypeChange}
+      genreMode={genreMode}
+      onGenreModeChange={handleGenreModeChange}
+      selectedGenres={selectedGenres}
+      onSelectedGenresChange={handleSelectedGenresChange}
+      availableGenres={availableGenres}
+      genresLoading={searchGenresQuery.isLoading}
+      originCountry={originCountry}
+      onOriginCountryChange={handleOriginCountryChange}
+      originalLanguage={originalLanguage}
+      onOriginalLanguageChange={handleOriginalLanguageChange}
+      availableCountries={availableCountries}
+      availableLanguages={availableLanguages}
+      yearFrom={yearFrom}
+      onYearFromChange={handleYearFromChange}
+      yearTo={yearTo}
+      onYearToChange={handleYearToChange}
+      minRating={minRating}
+      onMinRatingChange={handleMinRatingChange}
+      minVotes={minVotes}
+      onMinVotesChange={handleMinVotesChange}
+      sort={sort}
+      onSortChange={handleSortChange}
+      onReset={handleResetFilters}
+    />
   );
-
-  const isLoading = searchQuery.isLoading;
 
   return (
     <FiltersPane
@@ -638,300 +436,37 @@ export function SearchPage() {
             name="q"
             placeholder="Search TMDB"
             value={queryInput}
-            onChange={(event) => setQueryInput(event.target.value)}
+            onChange={(event) => handleQueryChange(event.target.value)}
             autoFocus
-            className="w-full max-w-md"
+            className="w-full max-w-md md:max-w-lg lg:max-w-xl"
           />
         </form>
 
-        <div className="text-xs text-muted-foreground">{renderResultsCount()}</div>
+        <div className="text-xs text-muted-foreground sm:text-sm">{renderResultsCount()}</div>
 
-        {isLoading ? <LoadingGrid /> : null}
+        <SearchResults
+          isInitialLoading={isInitialLoading}
+          isFetching={isFetching}
+          results={results}
+          availableLanguages={availableLanguages}
+          imageBase={imageBase}
+          libraryMap={libraryMap}
+          expandedOverviews={expandedOverviews}
+          onToggleOverview={toggleOverview}
+          onOpenImdb={(item) => void handleOpenImdb(item)}
+          onAdd={handleAdd}
+          addPending={addMutation.isPending}
+          fromLocation={fromLocation}
+        />
 
-        {!isLoading && !results.length ? (
-          <Empty className="border-border/60 bg-card/30">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <SearchIcon />
-              </EmptyMedia>
-              <EmptyTitle>No results yet</EmptyTitle>
-              <EmptyDescription>Try adjusting the filters or search again.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : null}
-
-        {isInitialLoading ? <LoadingGrid /> : null}
-        <CardGrid className={`transition-opacity ${isFetching ? "opacity-60" : "opacity-100"}`}>
-          {results.map((item) => {
-            const libraryKey = `${item.media_type}:${item.id}`;
-            const libraryId = libraryMap.get(libraryKey);
-            const languageLabel =
-              availableLanguages.find((lang) => lang.code === item.original_language)?.name ??
-              item.original_language?.toUpperCase();
-            return (
-              <ShowCard
-                key={`${item.media_type}-${item.id}`}
-                title={item.title}
-                year={item.year}
-                posterAlt={item.title}
-                posterPath={item.poster_path}
-                imageBase={imageBase}
-                posterLink={(node) => (
-                  <button
-                    type="button"
-                    className="block w-full cursor-pointer text-left"
-                    onClick={() => void handleOpenImdb(item)}
-                    aria-label={`Search IMDb for ${item.title}`}
-                  >
-                    {node}
-                  </button>
-                )}
-                metaBadges={
-                  <>
-                    <TmdbRatingBadge
-                      rating={item.vote_average}
-                      votes={item.vote_count}
-                      className="col-span-2 flex w-full justify-center"
-                    />
-                    <LanguageBadge code={item.original_language} label={languageLabel} />
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "flex justify-center",
-                        item.original_language ? "w-full" : "col-span-2 w-1/2 justify-self-center",
-                      )}
-                    >
-                      {item.media_type === "movie"
-                        ? "Movie"
-                        : item.media_type === "tv"
-                          ? "TV"
-                          : item.media_type}
-                    </Badge>
-                  </>
-                }
-                metaBadgesClassName="grid-cols-2"
-                genresText={item.genres?.length ? shortGenreList(item.genres) : ""}
-                overview={item.overview}
-                overviewExpanded={expandedOverviews.has(`${item.media_type}-${item.id}`)}
-                onToggleOverview={() => toggleOverview(`${item.media_type}-${item.id}`)}
-                footer={
-                  item.in_library ? (
-                    libraryId ? (
-                      <ViewTransitionLink
-                        to="/show/$showId"
-                        params={{ showId: String(libraryId) }}
-                        className="block w-full"
-                      >
-                        <Badge
-                          variant="outline"
-                          className="h-8 w-full justify-center gap-1 rounded-md border-primary/40 bg-primary/15 px-3 text-xs text-primary hover:bg-primary/20"
-                        >
-                          In Library
-                        </Badge>
-                      </ViewTransitionLink>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="h-8 w-full justify-center gap-1 rounded-md border-primary/40 bg-primary/15 px-3 text-xs text-primary"
-                      >
-                        In Library
-                      </Badge>
-                    )
-                  ) : (
-                    <div className="grid w-full grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full border-purple-500/40 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20"
-                        onClick={() => handleAdd(item, "planned")}
-                        disabled={addMutation.isPending}
-                      >
-                        Plan
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full border-teal-500/40 bg-teal-500/10 text-teal-200 hover:bg-teal-500/20"
-                        onClick={() => handleAdd(item, "watched")}
-                        disabled={addMutation.isPending}
-                      >
-                        Watched
-                      </Button>
-                    </div>
-                  )
-                }
-              />
-            );
-          })}
-        </CardGrid>
-
-        {totalPages > 1 ? (
-          <Pagination className="pt-6">
-            {isCompactPagination ? (
-              <PaginationContent className="w-full justify-between px-2">
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    size="icon"
-                    className={cn("pl-0 pr-0", page <= 1 ? "pointer-events-none opacity-50" : "")}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      goToPage(page - 1);
-                    }}
-                  />
-                </PaginationItem>
-
-                <PaginationItem>
-                  <Dialog
-                    open={jumpOpen}
-                    onOpenChange={(open) => {
-                      setJumpOpen(open);
-                      if (open) {
-                        setJumpValue(String(page));
-                      }
-                    }}
-                  >
-                    <DialogTrigger asChild>
-                      <button
-                        type="button"
-                        className="rounded-md border border-border/60 bg-card/40 px-3 py-2 text-sm tabular-nums"
-                      >
-                        {page} / {totalPages}
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="bottom-[calc(env(safe-area-inset-bottom)+var(--keyboard-inset,0px)+1rem)] top-auto w-[90vw] max-w-xs translate-y-0 sm:bottom-auto sm:top-1/2 sm:translate-y-[-50%]">
-                      <DialogHeader>
-                        <DialogTitle>Jump to page</DialogTitle>
-                        <DialogDescription className="sr-only">
-                          Enter a page number to move to that result page.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <form className="space-y-4" onSubmit={handleJumpSubmit}>
-                        <div className="space-y-2">
-                          <label
-                            className="text-sm font-medium text-foreground"
-                            htmlFor="jump-page"
-                          >
-                            Page number (1-{totalPages})
-                          </label>
-                          <Input
-                            id="jump-page"
-                            name="jump-page"
-                            type="number"
-                            min={1}
-                            max={totalPages}
-                            inputMode="numeric"
-                            autoFocus
-                            value={jumpValue}
-                            onChange={(event) => setJumpValue(event.target.value)}
-                          />
-                        </div>
-                        <DialogFooter>
-                          <Button type="submit">Go</Button>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </PaginationItem>
-
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    size="icon"
-                    className={cn(
-                      "pl-0 pr-0",
-                      page >= totalPages ? "pointer-events-none opacity-50" : "",
-                    )}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      goToPage(page + 1);
-                    }}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            ) : (
-              <PaginationContent className="flex-wrap justify-center">
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    className={page <= 1 ? "pointer-events-none opacity-50" : ""}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      goToPage(page - 1);
-                    }}
-                  />
-                </PaginationItem>
-
-                {pageItems.map((item, index) => (
-                  <PaginationItem key={`${item}-${index}`}>
-                    {item === "ellipsis" ? (
-                      <PaginationEllipsis />
-                    ) : (
-                      <PaginationLink
-                        href="#"
-                        isActive={item === page}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          goToPage(item);
-                        }}
-                      >
-                        {item}
-                      </PaginationLink>
-                    )}
-                  </PaginationItem>
-                ))}
-
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      goToPage(page + 1);
-                    }}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            )}
-          </Pagination>
-        ) : null}
+        <SearchPagination
+          totalPages={totalPages}
+          activePage={activePage}
+          isCompact={isCompactPagination}
+          pageItems={pageItems}
+          onGoToPage={goToPage}
+        />
       </FiltersPaneContent>
     </FiltersPane>
   );
-}
-
-function getPageItems(
-  totalPages: number,
-  currentPage: number,
-  siblingCount = 2,
-  boundaryCount = 1,
-): Array<number | "ellipsis"> {
-  const clamp = (n: number) => Math.max(1, Math.min(totalPages, n));
-
-  const startPages = Array.from({ length: Math.min(boundaryCount, totalPages) }, (_, i) => i + 1);
-  const endPages = Array.from(
-    { length: Math.min(boundaryCount, totalPages) },
-    (_, i) => totalPages - (Math.min(boundaryCount, totalPages) - 1) + i,
-  );
-
-  const siblingsStart = clamp(currentPage - siblingCount);
-  const siblingsEnd = clamp(currentPage + siblingCount);
-
-  const innerStart = Math.max(siblingsStart, boundaryCount + 1);
-  const innerEnd = Math.min(siblingsEnd, totalPages - boundaryCount);
-
-  const items: Array<number | "ellipsis"> = [];
-
-  startPages.forEach((p) => items.push(p));
-
-  if (innerStart > boundaryCount + 1) items.push("ellipsis");
-  for (let p = innerStart; p <= innerEnd; p++) items.push(p);
-
-  if (innerEnd < totalPages - boundaryCount) items.push("ellipsis");
-
-  endPages.forEach((p) => {
-    if (!items.includes(p)) items.push(p);
-  });
-
-  return items;
 }

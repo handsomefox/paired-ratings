@@ -98,7 +98,7 @@ const FiltersPane = ({
   }, [filtersOpen]);
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-7">
       <div className={cn("flex items-center justify-end gap-2", headerClassName)}>
         <Sheet open={filtersOpen} onOpenChange={onOpenChange}>
           <SheetTrigger asChild>
@@ -135,9 +135,14 @@ const FiltersPane = ({
         </Sheet>
       </div>
 
-      <div className={cn("grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]", gridClassName)}>
+      <div
+        className={cn(
+          "grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-5 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6",
+          gridClassName,
+        )}
+      >
         <aside className="hidden lg:block">
-          <div className="sticky top-24 max-h-[calc(100svh-6rem)] overflow-y-auto rounded-2xl border border-border/60 bg-card/70 p-5 pr-4 shadow-lg">
+          <div className="sticky top-24 max-h-[calc(100svh-6rem)] overflow-y-auto rounded-2xl border border-border/60 bg-card/80 p-5 pr-4 shadow-lg lg:p-6 lg:pr-5">
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {title}
             </div>
