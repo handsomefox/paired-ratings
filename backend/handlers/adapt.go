@@ -51,6 +51,15 @@ func Adapt(h HandlerWithErr) http.Handler {
 			slog.Default().LogAttrs(r.Context(), level, "request failed", logAttrs...)
 
 			writeJSON(w, status, &pb.ErrorResponse{Error: message})
+		} else {
+			logAttrs := []slog.Attr{
+				logger.Status(http.StatusOK),
+				logger.Method(r.Method),
+				logger.Path(r.URL.Path),
+				logger.RequestID(middleware.GetReqID(r.Context())),
+				logger.Duration(time.Since(start)),
+			}
+			slog.Default().LogAttrs(r.Context(), slog.LevelInfo, "request succeeded", logAttrs...)
 		}
 	})
 }
