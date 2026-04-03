@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"database/sql"
-	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -196,70 +195,23 @@ func (h *Handler) postShowRatings(w http.ResponseWriter, r *http.Request) error 
 	return nil
 }
 
-func (h *Handler) postShowPriority(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) postShowsReorder(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	id, err := idParam(r, "id")
-	if err != nil {
-		return notFound("not found")
-	}
-
-	var req pb.PriorityRequest
+	var req pb.ReorderRequest
 	if err := decodeJSON(r, &req); err != nil {
 		return badRequest("bad request")
 	}
-
-	show, err := h.store.GetShow(ctx, id)
-	if err != nil {
-		if isNoRows(err) {
-			return notFound("not found")
-		}
-		return internal(err)
-	}
-	if show.Status != "planned" {
-		return badRequest("priority only applies to planned shows")
+	if len(req.OrderedIds) == 0 {
+		return badRequest("ordered_ids is required")
 	}
 
-	update := store.PriorityUpdate{}
-	if req.BfPriority != nil {
-		bfPriority, err := parseOptionalPriority(*req.BfPriority)
-		if err != nil {
-			return badRequest(err.Error())
-		}
-		update.BfWatchPriority = &bfPriority
-	}
-	if req.GfPriority != nil {
-		gfPriority, err := parseOptionalPriority(*req.GfPriority)
-		if err != nil {
-			return badRequest(err.Error())
-		}
-		update.GfWatchPriority = &gfPriority
-	}
-
-	if update.BfWatchPriority == nil && update.GfWatchPriority == nil {
-		return badRequest("priority is required")
-	}
-
-	if err := h.store.UpdatePriority(ctx, id, update); err != nil {
-		if isNoRows(err) {
-			return notFound("not found")
-		}
-		slog.Warn("show: update priority failed", logger.Error(err))
+	if err := h.store.UpdateWatchOrder(ctx, req.OrderedIds); err != nil {
+		slog.Warn("shows: reorder failed", logger.Error(err))
 		return internal(err)
 	}
 
-	updated, err := h.store.GetShow(ctx, id)
-	if err != nil {
-		if isNoRows(err) {
-			return notFound("not found")
-		}
-		return internal(err)
-	}
-
-	writeJSON(w, http.StatusOK, &pb.ShowDetail{
-		Show:    toPBShow(&updated),
-		ImdbUrl: optionalString(imdbURL(updated.IMDbID)),
-	})
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
@@ -478,8 +430,7 @@ func toPBShow(show *store.Show) *pb.Show {
 		GfRating:        fromSQLNull(show.GfRating),
 		BfComment:       fromSQLNull(show.BfComment),
 		GfComment:       fromSQLNull(show.GfComment),
-		BfWatchPriority: fromSQLNull(show.BfWatchPriority),
-		GfWatchPriority: fromSQLNull(show.GfWatchPriority),
+		WatchPriority: fromSQLNull(show.WatchPriority),
 		CreatedAt:       show.CreatedAt,
 		UpdatedAt:       show.UpdatedAt,
 		OriginCountry:   splitCommaValues(show.OriginCountry),
@@ -502,13 +453,4 @@ func parseOptionalRating(val *int32) sql.Null[int64] {
 	return sql.Null[int64]{Valid: true, V: int64(n)}
 }
 
-func parseOptionalPriority(val int32) (sql.Null[int32], error) {
-	if val == 0 {
-		return sql.Null[int32]{}, nil
-	}
-	if val < 1 || val > 5 {
-		return sql.Null[int32]{}, errors.New("priority must be between 1 and 5")
-	}
-	return sql.Null[int32]{Valid: true, V: val}, nil
-}
 

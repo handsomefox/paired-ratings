@@ -39,8 +39,7 @@ export interface Show {
   created_at: string;
   updated_at: string;
   origin_country: string[];
-  bf_watch_priority?: number | undefined;
-  gf_watch_priority?: number | undefined;
+  watch_priority?: number | undefined;
 }
 
 export interface ShowDetail {
@@ -143,9 +142,12 @@ export interface RatingsRequest {
   gf_comment?: string | undefined;
 }
 
-export interface PriorityRequest {
-  bf_priority?: number | undefined;
-  gf_priority?: number | undefined;
+/**
+ * ReorderRequest sends the full ordered list of show IDs for planned shows.
+ * The backend assigns positions 1..N in the given order.
+ */
+export interface ReorderRequest {
+  ordered_ids: number[];
 }
 
 /**

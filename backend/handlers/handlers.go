@@ -82,13 +82,13 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Route("/shows", func(r chi.Router) {
 			r.Method(http.MethodGet, "/", Adapt(h.getShows))
 			r.Method(http.MethodPost, "/", Adapt(h.postShows))
+			r.Method(http.MethodPost, "/reorder", Adapt(h.postShowsReorder))
 
 			r.Route("/{id:[0-9]+}", func(r chi.Router) {
 				r.Method(http.MethodGet, "/", Adapt(h.getShow))
 				r.Method(http.MethodDelete, "/", Adapt(h.deleteShow))
 
 				r.Method(http.MethodPost, "/ratings", Adapt(h.postShowRatings))
-				r.Method(http.MethodPost, "/priority", Adapt(h.postShowPriority))
 				r.Method(http.MethodPost, "/set-status", Adapt(h.postShowSetStatus))
 				r.Method(http.MethodPost, "/clear-ratings", Adapt(h.postShowClearRatings))
 				r.Method(http.MethodPost, "/refresh-tmdb", Adapt(h.postShowRefreshTMDB))

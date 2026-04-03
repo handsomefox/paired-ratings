@@ -105,18 +105,9 @@ END DESC
 	case "title":
 		q = q.OrderExpr("title COLLATE NOCASE ASC")
 	case "priority":
-		q = q.OrderExpr(`
-CASE
-	WHEN bf_watch_priority IS NULL AND gf_watch_priority IS NULL THEN 1
-	ELSE 0
-END ASC
-`).OrderExpr(`
-CASE
-	WHEN bf_watch_priority IS NULL AND gf_watch_priority IS NULL THEN NULL
-	ELSE (COALESCE(bf_watch_priority, 0) + COALESCE(gf_watch_priority, 0)) * 1.0 /
-		NULLIF((bf_watch_priority IS NOT NULL) + (gf_watch_priority IS NOT NULL), 0)
-END DESC
-`).OrderExpr("updated_at DESC")
+		q = q.OrderExpr("CASE WHEN watch_priority IS NULL THEN 1 ELSE 0 END ASC").
+			OrderExpr("watch_priority ASC").
+			OrderExpr("updated_at DESC")
 	default:
 		q = q.OrderExpr("updated_at DESC")
 	}

@@ -1,6 +1,4 @@
 import { LoadingGrid } from "@/components/loading-grid";
-import { PriorityBadge } from "@/components/priority-badge";
-import { PrioritySelector } from "@/components/priority-selector";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import {
   AlertDialog,
@@ -20,22 +18,118 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getPrioritySummary } from "@/features/library/library-utils";
-import type { ApiShow, PriorityRequest } from "@/lib/api";
+import type { ApiShow } from "@/lib/api";
 import { api } from "@/lib/api";
-import { cn, shortGenres } from "@/lib/utils";
+import { shortGenres } from "@/lib/utils";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Film } from "lucide-react";
+import { Film, GripVertical } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type PriorityDrafts = Record<number, { bf: number | null; gf: number | null }>;
+function SortableRow({
+  show,
+  index,
+  imageBase,
+  onDelete,
+}: {
+  show: ApiShow;
+  index: number;
+  imageBase: string;
+  onDelete: (show: ApiShow) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: show.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const posterUrl = show.poster_path ? `${imageBase}${show.poster_path}` : "";
+  const genres = show.genres ? shortGenres(show.genres) : "";
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 border-b border-border/60 bg-card/70 px-4 py-3 last:border-0"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab touch-none text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-5 w-5" />
+      </button>
+
+      <span className="w-6 shrink-0 text-center text-xs font-semibold tabular-nums text-muted-foreground">
+        {index + 1}
+      </span>
+
+      <ViewTransitionLink
+        to="/show/$showId"
+        params={{ showId: String(show.id) }}
+        search={{ from: "/watch-order" }}
+        className="overflow-hidden rounded-lg border border-border/60"
+      >
+        {posterUrl ? (
+          <img src={posterUrl} alt={show.title} className="h-14 w-10 object-cover" loading="lazy" />
+        ) : (
+          <div className="flex h-14 w-10 items-center justify-center bg-muted/50 text-[10px] uppercase text-muted-foreground">
+            —
+          </div>
+        )}
+      </ViewTransitionLink>
+
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <ViewTransitionLink
+          to="/show/$showId"
+          params={{ showId: String(show.id) }}
+          search={{ from: "/watch-order" }}
+          className="block truncate font-medium text-foreground hover:text-primary"
+        >
+          {show.title}
+        </ViewTransitionLink>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {show.year ? <span>{show.year}</span> : null}
+          {genres ? <span className="truncate">{genres}</span> : null}
+        </div>
+      </div>
+
+      <Button
+        variant="ghost"
+        size="sm"
+        className="shrink-0 text-muted-foreground/60 hover:text-destructive"
+        onClick={() => onDelete(show)}
+      >
+        Delete
+      </Button>
+    </div>
+  );
+}
 
 export function WatchOrderPage() {
   const queryClient = useQueryClient();
-  const [drafts, setDrafts] = useState<PriorityDrafts>({});
   const [pendingDelete, setPendingDelete] = useState<ApiShow | null>(null);
+  const [localOrder, setLocalOrder] = useState<number[] | null>(null);
 
   const sessionQuery = useQuery({
     queryKey: ["session"],
@@ -60,20 +154,15 @@ export function WatchOrderPage() {
     placeholderData: keepPreviousData,
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: PriorityRequest }) =>
-      api.updatePriority(id, payload),
-    onSuccess: (_data, variables) => {
+  const reorderMutation = useMutation({
+    mutationFn: (orderedIds: number[]) => api.reorderShows(orderedIds),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shows"] });
-      setDrafts((prev) => {
-        const next = { ...prev };
-        delete next[variables.id];
-        return next;
-      });
-      toast.success("Priority saved.");
+      setLocalOrder(null);
+      toast.success("Order saved.");
     },
     onError: () => {
-      toast.error("Failed to save priority.");
+      toast.error("Failed to save order.");
     },
   });
 
@@ -81,6 +170,7 @@ export function WatchOrderPage() {
     mutationFn: (id: number) => api.deleteShow(id),
     onSuccess: () => {
       setPendingDelete(null);
+      setLocalOrder(null);
       queryClient.invalidateQueries({ queryKey: ["shows"] });
       toast.success("Show deleted.");
     },
@@ -89,55 +179,56 @@ export function WatchOrderPage() {
     },
   });
 
-  const shows = showsQuery.data?.shows ?? [];
+  const serverShows = showsQuery.data?.shows ?? [];
   const imageBase = sessionQuery.data?.image_base ?? "";
-  const bfName = sessionQuery.data?.bf_name ?? "BF";
-  const gfName = sessionQuery.data?.gf_name ?? "GF";
 
-  const isInitialLoading = showsQuery.isLoading || (showsQuery.isFetching && shows.length === 0);
-  const isEmpty = !showsQuery.isLoading && !showsQuery.isFetching && shows.length === 0;
+  // Display order: use local drag state if present, otherwise server order
+  const displayShows = useMemo(() => {
+    if (!localOrder) return serverShows;
+    const byId = new Map(serverShows.map((s) => [s.id, s]));
+    return localOrder.flatMap((id) => {
+      const show = byId.get(id);
+      return show ? [show] : [];
+    });
+  }, [serverShows, localOrder]);
 
-  const getDraft = (show: ApiShow) => {
-    const currentBf = show.bf_watch_priority ?? null;
-    const currentGf = show.gf_watch_priority ?? null;
-    const draft = drafts[show.id];
-    return {
-      bfValue: draft?.bf ?? currentBf,
-      gfValue: draft?.gf ?? currentGf,
-      currentBf,
-      currentGf,
-    };
+  const isDirty = localOrder !== null;
+  const isInitialLoading = showsQuery.isLoading || (showsQuery.isFetching && serverShows.length === 0);
+  const isEmpty = !showsQuery.isLoading && !showsQuery.isFetching && serverShows.length === 0;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const currentIds = displayShows.map((s) => s.id);
+    const oldIndex = currentIds.indexOf(active.id as number);
+    const newIndex = currentIds.indexOf(over.id as number);
+    setLocalOrder(arrayMove(currentIds, oldIndex, newIndex));
   };
 
-  const handleSave = (show: ApiShow) => {
-    const { bfValue, gfValue, currentBf, currentGf } = getDraft(show);
-    const bfDirty = bfValue !== currentBf;
-    const gfDirty = gfValue !== currentGf;
-    if (!bfDirty && !gfDirty) return;
-
-    if (bfValue !== null && (bfValue < 1 || bfValue > 5)) {
-      toast.error("BF priority must be 1–5.");
-      return;
-    }
-    if (gfValue !== null && (gfValue < 1 || gfValue > 5)) {
-      toast.error("GF priority must be 1–5.");
-      return;
-    }
-
-    const payload: PriorityRequest = {};
-    if (bfDirty) payload.bf_priority = bfValue ?? 0;
-    if (gfDirty) payload.gf_priority = gfValue ?? 0;
-
-    updateMutation.mutate({ id: show.id, payload });
+  const handleSave = () => {
+    const ids = displayShows.map((s) => s.id);
+    reorderMutation.mutate(ids);
   };
 
   return (
     <section className="space-y-5">
-      <div className="space-y-1">
-        <h1 className="font-display text-xl sm:text-2xl">Watch order</h1>
-        <p className="text-sm text-muted-foreground">
-          Set priorities for planned shows. Average priority sorts the list.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="font-display text-xl sm:text-2xl">Watch order</h1>
+          <p className="text-sm text-muted-foreground">
+            Drag to reorder your planned shows.
+          </p>
+        </div>
+        {isDirty ? (
+          <Button onClick={handleSave} disabled={reorderMutation.isPending}>
+            Save order
+          </Button>
+        ) : null}
       </div>
 
       {isInitialLoading ? <LoadingGrid /> : null}
@@ -154,142 +245,23 @@ export function WatchOrderPage() {
         </Empty>
       ) : null}
 
-      <div className="rounded-2xl border border-border/60 bg-card/70 shadow-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Show</TableHead>
-              <TableHead className="w-[72px] text-center">Year</TableHead>
-              <TableHead className="w-[90px] text-center">Avg</TableHead>
-              <TableHead className="w-[96px] text-center">{bfName}</TableHead>
-              <TableHead className="w-[96px] text-center">{gfName}</TableHead>
-              <TableHead className="w-[140px] text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shows.map((show) => {
-              const { bfValue, gfValue, currentBf, currentGf } = getDraft(show);
-              const prioritySummary = getPrioritySummary(bfValue ?? undefined, gfValue ?? undefined);
-              const isDirty = bfValue !== currentBf || gfValue !== currentGf;
-              const posterUrl = show.poster_path ? `${imageBase}${show.poster_path}` : "";
-              const genres = show.genres ? shortGenres(show.genres) : "";
-
-              return (
-                <TableRow key={show.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <ViewTransitionLink
-                        to="/show/$showId"
-                        params={{ showId: String(show.id) }}
-                        search={{ from: "/watch-order" }}
-                        className="overflow-hidden rounded-lg border border-border/60"
-                      >
-                        {posterUrl ? (
-                          <img
-                            src={posterUrl}
-                            alt={show.title}
-                            className="h-16 w-11 object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="flex h-16 w-11 items-center justify-center bg-muted/50 text-[10px] uppercase text-muted-foreground">
-                            —
-                          </div>
-                        )}
-                      </ViewTransitionLink>
-                      <div className="space-y-1">
-                        <ViewTransitionLink
-                          to="/show/$showId"
-                          params={{ showId: String(show.id) }}
-                          search={{ from: "/watch-order" }}
-                          className="font-medium text-foreground hover:text-primary"
-                        >
-                          {show.title}
-                        </ViewTransitionLink>
-                        {genres ? (
-                          <div className="text-xs text-muted-foreground">{genres}</div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center text-xs text-muted-foreground">
-                    {show.year ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {prioritySummary ? (
-                      <div className="flex flex-col items-center gap-1">
-                        <PriorityBadge
-                          label={prioritySummary.label}
-                          warning={prioritySummary.warning}
-                          title={
-                            prioritySummary.warning
-                              ? "Only one priority set"
-                              : "Average priority"
-                          }
-                          className="mx-auto"
-                        />
-                        {prioritySummary.warning ? (
-                          <span className="text-[0.65rem] text-destructive/80">Only one set</span>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center">
-                      <PrioritySelector
-                        value={bfValue}
-                        tone="bf"
-                        onChange={(value) => {
-                          setDrafts((prev) => ({
-                            ...prev,
-                            [show.id]: { bf: value, gf: gfValue },
-                          }));
-                        }}
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center">
-                      <PrioritySelector
-                        value={gfValue}
-                        tone="gf"
-                        onChange={(value) => {
-                          setDrafts((prev) => ({
-                            ...prev,
-                            [show.id]: { bf: bfValue, gf: value },
-                          }));
-                        }}
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSave(show)}
-                        disabled={!isDirty || updateMutation.isPending}
-                      >
-                        Save
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn("text-red-200 hover:text-red-100")}
-                        onClick={() => setPendingDelete(show)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+      {displayShows.length > 0 ? (
+        <div className="overflow-hidden rounded-2xl border border-border/60 shadow-lg">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={displayShows.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+              {displayShows.map((show, index) => (
+                <SortableRow
+                  key={show.id}
+                  show={show}
+                  index={index}
+                  imageBase={imageBase}
+                  onDelete={setPendingDelete}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </div>
+      ) : null}
 
       <AlertDialog
         open={Boolean(pendingDelete)}
@@ -299,7 +271,7 @@ export function WatchOrderPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete show?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove “{pendingDelete?.title}” from your library.
+              This will remove "{pendingDelete?.title}" from your library.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

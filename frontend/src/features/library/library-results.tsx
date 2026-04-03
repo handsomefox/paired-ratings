@@ -2,7 +2,6 @@ import CardGrid from "@/components/card-grid";
 import { LoadingGrid } from "@/components/loading-grid";
 import { OriginCountriesChip } from "@/components/origin-countries-chip";
 import RatingChips from "@/components/rating-chips";
-import { PriorityBadge } from "@/components/priority-badge";
 import { ShowCard } from "@/components/show-card";
 import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
 import { ViewTransitionLink } from "@/components/view-transition-link";
@@ -24,7 +23,7 @@ import {
 import type { ApiShow } from "@/lib/api";
 import { shortGenres } from "@/lib/utils";
 import { Film } from "lucide-react";
-import { getPrioritySummary, type StatusBadgeVariant } from "@/features/library/library-utils";
+import type { StatusBadgeVariant } from "@/features/library/library-utils";
 
 export type LibraryResultsProps = {
   shows: ApiShow[];
@@ -64,10 +63,6 @@ export function LibraryResults({
       <CardGrid>
         {shows.map((show) => {
           const originCountries = show.origin_country ?? [];
-          const prioritySummary =
-            show.status === "planned"
-              ? getPrioritySummary(show.bf_watch_priority, show.gf_watch_priority)
-              : null;
           return (
             <ShowCard
               key={show.id}
@@ -95,16 +90,13 @@ export function LibraryResults({
               )}
               topRight={
                 <div className="flex items-center gap-2">
-                  {prioritySummary ? (
-                    <PriorityBadge
-                      label={prioritySummary.label}
-                      warning={prioritySummary.warning}
-                      title={
-                        prioritySummary.warning
-                          ? "Only one priority set"
-                          : "Average priority"
-                      }
-                    />
+                  {show.status === "planned" && show.watch_priority != null ? (
+                    <span
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-muted/60 text-[0.65rem] font-semibold tabular-nums text-muted-foreground"
+                      title="Watch position"
+                    >
+                      {show.watch_priority}
+                    </span>
                   ) : null}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

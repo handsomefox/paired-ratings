@@ -9,7 +9,8 @@
       "Bash(protoc --version)",
       "Bash(bun install:*)",
       "Bash(make proto:*)",
-      "Bash(bun run:*)"
+      "Bash(bun run:*)",
+      "Bash(bun add:*)"
     ]
   }
 }

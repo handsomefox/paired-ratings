@@ -134,30 +134,29 @@ func (x *ErrorResponse) GetError() string {
 }
 
 type Show struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	TmdbId          int64                  `protobuf:"varint,2,opt,name=tmdb_id,proto3" json:"tmdb_id,omitempty"`
-	MediaType       string                 `protobuf:"bytes,3,opt,name=media_type,proto3" json:"media_type,omitempty"`
-	Title           string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
-	Year            *int64                 `protobuf:"varint,5,opt,name=year,proto3,oneof" json:"year,omitempty"`
-	Genres          *string                `protobuf:"bytes,6,opt,name=genres,proto3,oneof" json:"genres,omitempty"`
-	Overview        *string                `protobuf:"bytes,7,opt,name=overview,proto3,oneof" json:"overview,omitempty"`
-	PosterPath      *string                `protobuf:"bytes,8,opt,name=poster_path,proto3,oneof" json:"poster_path,omitempty"`
-	ImdbId          *string                `protobuf:"bytes,9,opt,name=imdb_id,proto3,oneof" json:"imdb_id,omitempty"`
-	TmdbRating      *float64               `protobuf:"fixed64,10,opt,name=tmdb_rating,proto3,oneof" json:"tmdb_rating,omitempty"`
-	TmdbVotes       *int64                 `protobuf:"varint,11,opt,name=tmdb_votes,proto3,oneof" json:"tmdb_votes,omitempty"`
-	Status          string                 `protobuf:"bytes,12,opt,name=status,proto3" json:"status,omitempty"`
-	BfRating        *int64                 `protobuf:"varint,13,opt,name=bf_rating,proto3,oneof" json:"bf_rating,omitempty"`
-	GfRating        *int64                 `protobuf:"varint,14,opt,name=gf_rating,proto3,oneof" json:"gf_rating,omitempty"`
-	BfComment       *string                `protobuf:"bytes,15,opt,name=bf_comment,proto3,oneof" json:"bf_comment,omitempty"`
-	GfComment       *string                `protobuf:"bytes,16,opt,name=gf_comment,proto3,oneof" json:"gf_comment,omitempty"`
-	CreatedAt       string                 `protobuf:"bytes,17,opt,name=created_at,proto3" json:"created_at,omitempty"`
-	UpdatedAt       string                 `protobuf:"bytes,18,opt,name=updated_at,proto3" json:"updated_at,omitempty"`
-	OriginCountry   []string               `protobuf:"bytes,19,rep,name=origin_country,proto3" json:"origin_country,omitempty"`
-	BfWatchPriority *int32                 `protobuf:"varint,20,opt,name=bf_watch_priority,proto3,oneof" json:"bf_watch_priority,omitempty"`
-	GfWatchPriority *int32                 `protobuf:"varint,21,opt,name=gf_watch_priority,proto3,oneof" json:"gf_watch_priority,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	TmdbId        int64                  `protobuf:"varint,2,opt,name=tmdb_id,proto3" json:"tmdb_id,omitempty"`
+	MediaType     string                 `protobuf:"bytes,3,opt,name=media_type,proto3" json:"media_type,omitempty"`
+	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Year          *int64                 `protobuf:"varint,5,opt,name=year,proto3,oneof" json:"year,omitempty"`
+	Genres        *string                `protobuf:"bytes,6,opt,name=genres,proto3,oneof" json:"genres,omitempty"`
+	Overview      *string                `protobuf:"bytes,7,opt,name=overview,proto3,oneof" json:"overview,omitempty"`
+	PosterPath    *string                `protobuf:"bytes,8,opt,name=poster_path,proto3,oneof" json:"poster_path,omitempty"`
+	ImdbId        *string                `protobuf:"bytes,9,opt,name=imdb_id,proto3,oneof" json:"imdb_id,omitempty"`
+	TmdbRating    *float64               `protobuf:"fixed64,10,opt,name=tmdb_rating,proto3,oneof" json:"tmdb_rating,omitempty"`
+	TmdbVotes     *int64                 `protobuf:"varint,11,opt,name=tmdb_votes,proto3,oneof" json:"tmdb_votes,omitempty"`
+	Status        string                 `protobuf:"bytes,12,opt,name=status,proto3" json:"status,omitempty"`
+	BfRating      *int64                 `protobuf:"varint,13,opt,name=bf_rating,proto3,oneof" json:"bf_rating,omitempty"`
+	GfRating      *int64                 `protobuf:"varint,14,opt,name=gf_rating,proto3,oneof" json:"gf_rating,omitempty"`
+	BfComment     *string                `protobuf:"bytes,15,opt,name=bf_comment,proto3,oneof" json:"bf_comment,omitempty"`
+	GfComment     *string                `protobuf:"bytes,16,opt,name=gf_comment,proto3,oneof" json:"gf_comment,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,17,opt,name=created_at,proto3" json:"created_at,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,18,opt,name=updated_at,proto3" json:"updated_at,omitempty"`
+	OriginCountry []string               `protobuf:"bytes,19,rep,name=origin_country,proto3" json:"origin_country,omitempty"`
+	WatchPriority *int32                 `protobuf:"varint,20,opt,name=watch_priority,proto3,oneof" json:"watch_priority,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Show) Reset() {
@@ -323,16 +322,9 @@ func (x *Show) GetOriginCountry() []string {
 	return nil
 }
 
-func (x *Show) GetBfWatchPriority() int32 {
-	if x != nil && x.BfWatchPriority != nil {
-		return *x.BfWatchPriority
-	}
-	return 0
-}
-
-func (x *Show) GetGfWatchPriority() int32 {
-	if x != nil && x.GfWatchPriority != nil {
-		return *x.GfWatchPriority
+func (x *Show) GetWatchPriority() int32 {
+	if x != nil && x.WatchPriority != nil {
+		return *x.WatchPriority
 	}
 	return 0
 }
@@ -1329,28 +1321,29 @@ func (x *RatingsRequest) GetGfComment() string {
 	return ""
 }
 
-type PriorityRequest struct {
+// ReorderRequest sends the full ordered list of show IDs for planned shows.
+// The backend assigns positions 1..N in the given order.
+type ReorderRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BfPriority    *int32                 `protobuf:"varint,1,opt,name=bf_priority,proto3,oneof" json:"bf_priority,omitempty"`
-	GfPriority    *int32                 `protobuf:"varint,2,opt,name=gf_priority,proto3,oneof" json:"gf_priority,omitempty"`
+	OrderedIds    []int64                `protobuf:"varint,1,rep,packed,name=ordered_ids,proto3" json:"ordered_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PriorityRequest) Reset() {
-	*x = PriorityRequest{}
+func (x *ReorderRequest) Reset() {
+	*x = ReorderRequest{}
 	mi := &file_paired_ratings_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PriorityRequest) String() string {
+func (x *ReorderRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PriorityRequest) ProtoMessage() {}
+func (*ReorderRequest) ProtoMessage() {}
 
-func (x *PriorityRequest) ProtoReflect() protoreflect.Message {
+func (x *ReorderRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_paired_ratings_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1362,23 +1355,16 @@ func (x *PriorityRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PriorityRequest.ProtoReflect.Descriptor instead.
-func (*PriorityRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReorderRequest.ProtoReflect.Descriptor instead.
+func (*ReorderRequest) Descriptor() ([]byte, []int) {
 	return file_paired_ratings_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *PriorityRequest) GetBfPriority() int32 {
-	if x != nil && x.BfPriority != nil {
-		return *x.BfPriority
+func (x *ReorderRequest) GetOrderedIds() []int64 {
+	if x != nil {
+		return x.OrderedIds
 	}
-	return 0
-}
-
-func (x *PriorityRequest) GetGfPriority() int32 {
-	if x != nil && x.GfPriority != nil {
-		return *x.GfPriority
-	}
-	return 0
+	return nil
 }
 
 // SetStatusRequest sets the status of a show explicitly.
@@ -1542,7 +1528,7 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\n" +
 	"\b_gf_name\"%\n" +
 	"\rErrorResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"\x87\a\n" +
+	"\x05error\x18\x01 \x01(\tR\x05error\"\xb5\x06\n" +
 	"\x04Show\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x18\n" +
 	"\atmdb_id\x18\x02 \x01(\x03R\atmdb_id\x12\x1e\n" +
@@ -1576,9 +1562,8 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x12 \x01(\tR\n" +
 	"updated_at\x12&\n" +
-	"\x0eorigin_country\x18\x13 \x03(\tR\x0eorigin_country\x121\n" +
-	"\x11bf_watch_priority\x18\x14 \x01(\x05H\vR\x11bf_watch_priority\x88\x01\x01\x121\n" +
-	"\x11gf_watch_priority\x18\x15 \x01(\x05H\fR\x11gf_watch_priority\x88\x01\x01B\a\n" +
+	"\x0eorigin_country\x18\x13 \x03(\tR\x0eorigin_country\x12+\n" +
+	"\x0ewatch_priority\x18\x14 \x01(\x05H\vR\x0ewatch_priority\x88\x01\x01B\a\n" +
 	"\x05_yearB\t\n" +
 	"\a_genresB\v\n" +
 	"\t_overviewB\x0e\n" +
@@ -1592,9 +1577,8 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\n" +
 	"_gf_ratingB\r\n" +
 	"\v_bf_commentB\r\n" +
-	"\v_gf_commentB\x14\n" +
-	"\x12_bf_watch_priorityB\x14\n" +
-	"\x12_gf_watch_priority\"f\n" +
+	"\v_gf_commentB\x11\n" +
+	"\x0f_watch_priority\"f\n" +
 	"\n" +
 	"ShowDetail\x12*\n" +
 	"\x04show\x18\x01 \x01(\v2\x16.pairedratings.v1.ShowR\x04show\x12\x1f\n" +
@@ -1690,12 +1674,9 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\n" +
 	"_gf_ratingB\r\n" +
 	"\v_bf_commentB\r\n" +
-	"\v_gf_comment\"\x7f\n" +
-	"\x0fPriorityRequest\x12%\n" +
-	"\vbf_priority\x18\x01 \x01(\x05H\x00R\vbf_priority\x88\x01\x01\x12%\n" +
-	"\vgf_priority\x18\x02 \x01(\x05H\x01R\vgf_priority\x88\x01\x01B\x0e\n" +
-	"\f_bf_priorityB\x0e\n" +
-	"\f_gf_priority\"*\n" +
+	"\v_gf_comment\"2\n" +
+	"\x0eReorderRequest\x12 \n" +
+	"\vordered_ids\x18\x01 \x03(\x03R\vordered_ids\"*\n" +
 	"\x10SetStatusRequest\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\"+\n" +
 	"\x0fRefreshResponse\x12\x18\n" +
@@ -1737,7 +1718,7 @@ var file_paired_ratings_proto_goTypes = []any{
 	(*LoginRequest)(nil),            // 16: pairedratings.v1.LoginRequest
 	(*AddShowRequest)(nil),          // 17: pairedratings.v1.AddShowRequest
 	(*RatingsRequest)(nil),          // 18: pairedratings.v1.RatingsRequest
-	(*PriorityRequest)(nil),         // 19: pairedratings.v1.PriorityRequest
+	(*ReorderRequest)(nil),          // 19: pairedratings.v1.ReorderRequest
 	(*SetStatusRequest)(nil),        // 20: pairedratings.v1.SetStatusRequest
 	(*RefreshResponse)(nil),         // 21: pairedratings.v1.RefreshResponse
 	(*ExportPayload)(nil),           // 22: pairedratings.v1.ExportPayload
@@ -1768,7 +1749,6 @@ func file_paired_ratings_proto_init() {
 	file_paired_ratings_proto_msgTypes[3].OneofWrappers = []any{}
 	file_paired_ratings_proto_msgTypes[15].OneofWrappers = []any{}
 	file_paired_ratings_proto_msgTypes[18].OneofWrappers = []any{}
-	file_paired_ratings_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

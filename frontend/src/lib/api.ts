@@ -16,7 +16,7 @@ export type AddShowRequest = pb.AddShowRequest;
 export type RatingsRequest = pb.RatingsRequest;
 export type RefreshResponse = pb.RefreshResponse;
 export type ExportPayload = pb.ExportPayload;
-export type PriorityRequest = pb.PriorityRequest;
+export type ReorderRequest = pb.ReorderRequest;
 export type SetStatusRequest = pb.SetStatusRequest;
 
 let _onUnauthorized: (() => void) | undefined;
@@ -75,10 +75,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  updatePriority: (id: number, payload: PriorityRequest) =>
-    jsonRequest<ApiShowDetail>(`/api/shows/${id}/priority`, {
+  reorderShows: (orderedIds: number[]) =>
+    jsonRequest<void>("/api/shows/reorder", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ordered_ids: orderedIds } satisfies ReorderRequest),
     }),
   setStatus: (id: number, status: string) =>
     jsonRequest<ApiShowDetail>(`/api/shows/${id}/set-status`, {

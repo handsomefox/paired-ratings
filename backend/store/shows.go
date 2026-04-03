@@ -14,10 +14,6 @@ type RatingsUpdate struct {
 	GfComment *sql.Null[string]
 }
 
-type PriorityUpdate struct {
-	BfWatchPriority *sql.Null[int32]
-	GfWatchPriority *sql.Null[int32]
-}
 
 func nowUTC() string {
 	return time.Now().UTC().Format(time.RFC3339)
@@ -141,30 +137,33 @@ func (s *Store) UpdateRatings(ctx context.Context, id int64, update RatingsUpdat
 	return expectRowsAffected(res)
 }
 
-func (s *Store) UpdatePriority(ctx context.Context, id int64, update PriorityUpdate) error {
-	if update.BfWatchPriority == nil && update.GfWatchPriority == nil {
-		return errors.New("no priority fields provided")
+// UpdateWatchOrder assigns sequential watch_priority values (1..N) to planned
+// shows in the order given by orderedIDs. Shows not in orderedIDs keep their
+// current value. The whole operation runs in a single transaction.
+func (s *Store) UpdateWatchOrder(ctx context.Context, orderedIDs []int64) error {
+	if len(orderedIDs) == 0 {
+		return errors.New("ordered_ids is required")
 	}
 
 	now := nowUTC()
 
-	q := s.db.NewUpdate().
-		Table("shows").
-		Set("updated_at = ?", now).
-		Where("id = ?", id)
-
-	if update.BfWatchPriority != nil {
-		q = q.Set("bf_watch_priority = ?", *update.BfWatchPriority)
-	}
-	if update.GfWatchPriority != nil {
-		q = q.Set("gf_watch_priority = ?", *update.GfWatchPriority)
-	}
-
-	res, err := q.Exec(ctx)
+	tx, err := s.sqldb.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	return expectRowsAffected(res)
+	defer func() { _ = tx.Rollback() }()
+
+	for i, id := range orderedIDs {
+		_, err := tx.ExecContext(ctx,
+			`UPDATE shows SET watch_priority = ?, updated_at = ? WHERE id = ?`,
+			i+1, now, id,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (s *Store) UpdateStatus(ctx context.Context, id int64, status string) error {
