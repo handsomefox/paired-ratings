@@ -1,5 +1,6 @@
 import FiltersPane from "@/components/filters-pane";
 import { FiltersPaneContent } from "@/components/filters-pane-content";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { Input } from "@/components/ui/input";
 import { SearchFilters } from "@/features/search/search-filters";
 import { SearchPagination } from "@/features/search/search-pagination";
@@ -423,6 +424,7 @@ export function SearchPage() {
   );
 
   return (
+    <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: ["search"] })}>
     <FiltersPane
       filtersOpen={filtersOpen}
       onOpenChange={setFiltersOpen}
@@ -489,5 +491,6 @@ export function SearchPage() {
         />
       </FiltersPaneContent>
     </FiltersPane>
+    </PullToRefresh>
   );
 }

@@ -1,4 +1,5 @@
 import { LoadingGrid } from "@/components/loading-grid";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { ViewTransitionLink } from "@/components/view-transition-link";
 import {
   AlertDialog,
@@ -216,6 +217,7 @@ export function WatchOrderPage() {
   };
 
   return (
+    <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: ["shows"] })}>
     <section className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
@@ -287,5 +289,6 @@ export function WatchOrderPage() {
         </AlertDialogContent>
       </AlertDialog>
     </section>
+    </PullToRefresh>
   );
 }
