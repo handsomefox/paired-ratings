@@ -58,9 +58,9 @@ func TestStoreLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, updated.BfRating.Valid)
 	require.Equal(t, int64(7), updated.BfRating.V)
-	require.Equal(t, "watched", updated.Status)
-	require.False(t, updated.BfWatchPriority.Valid)
-	require.False(t, updated.GfWatchPriority.Valid)
+	require.Equal(t, "planned", updated.Status)
+	require.True(t, updated.BfWatchPriority.Valid)
+	require.True(t, updated.GfWatchPriority.Valid)
 
 	require.NoError(t, st.ClearRatings(ctx, id))
 

@@ -8,6 +8,7 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
 function backLabelForTarget(target: string | null): string {
   if (target?.startsWith("/search")) return "Back to search";
+  if (target?.startsWith("/watch-order")) return "Back to watch order";
   return "Back to library";
 }
 

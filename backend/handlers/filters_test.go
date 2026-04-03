@@ -155,8 +155,3 @@ func TestParseOptionalRating(t *testing.T) {
 	require.Equal(t, int64(10), rating.V)
 }
 
-func TestNextStatus(t *testing.T) {
-	require.Equal(t, "watched", nextStatus("planned"))
-	require.Equal(t, "planned", nextStatus("watched"))
-	require.Equal(t, "planned", nextStatus("other"))
-}

@@ -17,6 +17,7 @@ export type RatingsRequest = pb.RatingsRequest;
 export type RefreshResponse = pb.RefreshResponse;
 export type ExportPayload = pb.ExportPayload;
 export type PriorityRequest = pb.PriorityRequest;
+export type SetStatusRequest = pb.SetStatusRequest;
 
 let _onUnauthorized: (() => void) | undefined;
 export const registerUnauthorizedHandler = (fn: () => void) => {
@@ -79,9 +80,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  toggleStatus: (id: number) =>
-    jsonRequest<ApiShowDetail>(`/api/shows/${id}/toggle-status`, {
+  setStatus: (id: number, status: string) =>
+    jsonRequest<ApiShowDetail>(`/api/shows/${id}/set-status`, {
       method: "POST",
+      body: JSON.stringify({ status } satisfies SetStatusRequest),
     }),
   clearRatings: (id: number) =>
     jsonRequest<ApiShowDetail>(`/api/shows/${id}/clear-ratings`, {

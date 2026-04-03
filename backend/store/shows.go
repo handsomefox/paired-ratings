@@ -119,9 +119,6 @@ func (s *Store) UpdateRatings(ctx context.Context, id int64, update RatingsUpdat
 	q := s.db.NewUpdate().
 		Table("shows").
 		Where("id = ?", id).
-		Set("status = ?", "watched").
-		Set("bf_watch_priority = NULL").
-		Set("gf_watch_priority = NULL").
 		Set("updated_at = ?", now)
 
 	if update.BfRating != nil {
@@ -173,17 +170,12 @@ func (s *Store) UpdatePriority(ctx context.Context, id int64, update PriorityUpd
 func (s *Store) UpdateStatus(ctx context.Context, id int64, status string) error {
 	now := nowUTC()
 
-	q := s.db.NewUpdate().
+	res, err := s.db.NewUpdate().
 		Table("shows").
 		Set("status = ?", status).
 		Set("updated_at = ?", now).
-		Where("id = ?", id)
-
-	if status == "watched" {
-		q = q.Set("bf_watch_priority = NULL").Set("gf_watch_priority = NULL")
-	}
-
-	res, err := q.Exec(ctx)
+		Where("id = ?", id).
+		Exec(ctx)
 	if err != nil {
 		return err
 	}

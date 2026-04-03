@@ -1,5 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
-import { Download, Home, LogOut, Menu, Plus } from "lucide-react";
+import { Download, Home, ListOrdered, LogOut, Menu, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { NavLink } from "./nav-link";
 import { Button } from "./ui/button";
@@ -24,6 +24,7 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
   const { location } = useRouterState();
   const currentPath = location.pathname;
   const isLibrary = currentPath === "/";
+  const isWatchOrder = currentPath === "/watch-order";
   const isSearch = currentPath === "/search";
 
   const handleExport = async () => {
@@ -80,6 +81,7 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
 
         <nav className="hidden items-center gap-2 md:flex">
           <NavLink to="/">Library</NavLink>
+          <NavLink to="/watch-order">Watch order</NavLink>
           <NavLink to="/search">Add</NavLink>
         </nav>
 
@@ -106,6 +108,12 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
                   <ViewTransitionLink to="/" className={mobileItemClass(isLibrary)}>
                     <Home className="h-4 w-4" />
                     <span>Library</span>
+                  </ViewTransitionLink>
+                </SheetClose>
+                <SheetClose asChild>
+                  <ViewTransitionLink to="/watch-order" className={mobileItemClass(isWatchOrder)}>
+                    <ListOrdered className="h-4 w-4" />
+                    <span>Watch order</span>
                   </ViewTransitionLink>
                 </SheetClose>
                 <SheetClose asChild>

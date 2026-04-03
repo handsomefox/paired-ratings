@@ -35,6 +35,8 @@ message Show {
   string created_at = 17 [json_name = "created_at"];
   string updated_at = 18 [json_name = "updated_at"];
   repeated string origin_country = 19 [json_name = "origin_country"];
+  optional int32 bf_watch_priority = 20 [json_name = "bf_watch_priority"];
+  optional int32 gf_watch_priority = 21 [json_name = "gf_watch_priority"];
 }
 
 message ShowDetail {
@@ -136,6 +138,17 @@ message RatingsRequest {
   optional int32 gf_rating = 2 [json_name = "gf_rating"];
   optional string bf_comment = 3 [json_name = "bf_comment"];
   optional string gf_comment = 4 [json_name = "gf_comment"];
+}
+
+message PriorityRequest {
+  optional int32 bf_priority = 1 [json_name = "bf_priority"];
+  optional int32 gf_priority = 2 [json_name = "gf_priority"];
+}
+
+// SetStatusRequest sets the status of a show explicitly.
+// Valid values: "planned", "watching", "watched".
+message SetStatusRequest {
+  string status = 1 [json_name = "status"];
 }
 
 message RefreshResponse {

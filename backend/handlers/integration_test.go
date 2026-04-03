@@ -196,10 +196,27 @@ func TestShowLifecycleHandlers(t *testing.T) {
 	require.NotNil(t, detail.Show)
 	require.NotNil(t, detail.Show.BfRating)
 	require.Equal(t, int64(7), *detail.Show.BfRating)
-	require.Equal(t, "watched", detail.Show.Status)
+	require.Equal(t, "planned", detail.Show.Status)
+
+	setStatusPayload, err := json.Marshal(&pb.SetStatusRequest{Status: "watched"})
+	require.NoError(t, err)
 
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodPost, "/shows/"+strconv.FormatInt(showID, 10)+"/toggle-status", http.NoBody)
+	req = httptest.NewRequest(http.MethodPost, "/shows/"+strconv.FormatInt(showID, 10)+"/set-status", bytes.NewReader(setStatusPayload))
+	req.AddCookie(authCookie)
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
+
+	detail = pb.ShowDetail{}
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&detail))
+	require.NotNil(t, detail.Show)
+	require.Equal(t, "watched", detail.Show.Status)
+
+	setStatusPayload, err = json.Marshal(&pb.SetStatusRequest{Status: "planned"})
+	require.NoError(t, err)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/shows/"+strconv.FormatInt(showID, 10)+"/set-status", bytes.NewReader(setStatusPayload))
 	req.AddCookie(authCookie)
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Result().StatusCode)

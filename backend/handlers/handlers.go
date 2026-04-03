@@ -89,7 +89,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 				r.Method(http.MethodPost, "/ratings", Adapt(h.postShowRatings))
 				r.Method(http.MethodPost, "/priority", Adapt(h.postShowPriority))
-				r.Method(http.MethodPost, "/toggle-status", Adapt(h.postShowToggleStatus))
+				r.Method(http.MethodPost, "/set-status", Adapt(h.postShowSetStatus))
 				r.Method(http.MethodPost, "/clear-ratings", Adapt(h.postShowClearRatings))
 				r.Method(http.MethodPost, "/refresh-tmdb", Adapt(h.postShowRefreshTMDB))
 			})

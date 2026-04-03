@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -60,7 +61,7 @@ func (h *Handler) postShows(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	status := strings.TrimSpace(req.Status)
-	if status != "planned" && status != "watched" {
+	if status != "planned" && status != "watching" && status != "watched" {
 		status = "planned"
 	}
 
@@ -195,12 +196,17 @@ func (h *Handler) postShowRatings(w http.ResponseWriter, r *http.Request) error 
 	return nil
 }
 
-func (h *Handler) postShowToggleStatus(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) postShowPriority(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
 	id, err := idParam(r, "id")
 	if err != nil {
 		return notFound("not found")
+	}
+
+	var req pb.PriorityRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return badRequest("bad request")
 	}
 
 	show, err := h.store.GetShow(ctx, id)
@@ -210,9 +216,72 @@ func (h *Handler) postShowToggleStatus(w http.ResponseWriter, r *http.Request) e
 		}
 		return internal(err)
 	}
+	if show.Status != "planned" {
+		return badRequest("priority only applies to planned shows")
+	}
 
-	next := nextStatus(show.Status)
-	if err := h.store.UpdateStatus(ctx, id, next); err != nil {
+	update := store.PriorityUpdate{}
+	if req.BfPriority != nil {
+		bfPriority, err := parseOptionalPriority(*req.BfPriority)
+		if err != nil {
+			return badRequest(err.Error())
+		}
+		update.BfWatchPriority = &bfPriority
+	}
+	if req.GfPriority != nil {
+		gfPriority, err := parseOptionalPriority(*req.GfPriority)
+		if err != nil {
+			return badRequest(err.Error())
+		}
+		update.GfWatchPriority = &gfPriority
+	}
+
+	if update.BfWatchPriority == nil && update.GfWatchPriority == nil {
+		return badRequest("priority is required")
+	}
+
+	if err := h.store.UpdatePriority(ctx, id, update); err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		slog.Warn("show: update priority failed", logger.Error(err))
+		return internal(err)
+	}
+
+	updated, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	writeJSON(w, http.StatusOK, &pb.ShowDetail{
+		Show:    toPBShow(&updated),
+		ImdbUrl: optionalString(imdbURL(updated.IMDbID)),
+	})
+	return nil
+}
+
+func (h *Handler) postShowSetStatus(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	id, err := idParam(r, "id")
+	if err != nil {
+		return notFound("not found")
+	}
+
+	var req pb.SetStatusRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return badRequest("bad request")
+	}
+
+	status := strings.TrimSpace(req.Status)
+	if status != "planned" && status != "watching" && status != "watched" {
+		return badRequest("invalid status: must be planned, watching, or watched")
+	}
+
+	if err := h.store.UpdateStatus(ctx, id, status); err != nil {
 		if isNoRows(err) {
 			return notFound("not found")
 		}
@@ -393,25 +462,27 @@ func showFromDetail(detail *tmdb.Detail, status string) store.Show {
 
 func toPBShow(show *store.Show) *pb.Show {
 	return &pb.Show{
-		Id:            show.ID,
-		TmdbId:        show.TMDBID,
-		MediaType:     show.MediaType,
-		Title:         show.Title,
-		Year:          fromSQLNull(show.Year),
-		Genres:        fromSQLNull(show.Genres),
-		Overview:      fromSQLNull(show.Overview),
-		PosterPath:    fromSQLNull(show.PosterPath),
-		ImdbId:        fromSQLNull(show.IMDbID),
-		TmdbRating:    fromSQLNull(show.TMDBRating),
-		TmdbVotes:     fromSQLNull(show.TMDBVotes),
-		Status:        show.Status,
-		BfRating:      fromSQLNull(show.BfRating),
-		GfRating:      fromSQLNull(show.GfRating),
-		BfComment:     fromSQLNull(show.BfComment),
-		GfComment:     fromSQLNull(show.GfComment),
-		CreatedAt:     show.CreatedAt,
-		UpdatedAt:     show.UpdatedAt,
-		OriginCountry: splitCommaValues(show.OriginCountry),
+		Id:              show.ID,
+		TmdbId:          show.TMDBID,
+		MediaType:       show.MediaType,
+		Title:           show.Title,
+		Year:            fromSQLNull(show.Year),
+		Genres:          fromSQLNull(show.Genres),
+		Overview:        fromSQLNull(show.Overview),
+		PosterPath:      fromSQLNull(show.PosterPath),
+		ImdbId:          fromSQLNull(show.IMDbID),
+		TmdbRating:      fromSQLNull(show.TMDBRating),
+		TmdbVotes:       fromSQLNull(show.TMDBVotes),
+		Status:          show.Status,
+		BfRating:        fromSQLNull(show.BfRating),
+		GfRating:        fromSQLNull(show.GfRating),
+		BfComment:       fromSQLNull(show.BfComment),
+		GfComment:       fromSQLNull(show.GfComment),
+		BfWatchPriority: fromSQLNull(show.BfWatchPriority),
+		GfWatchPriority: fromSQLNull(show.GfWatchPriority),
+		CreatedAt:       show.CreatedAt,
+		UpdatedAt:       show.UpdatedAt,
+		OriginCountry:   splitCommaValues(show.OriginCountry),
 	}
 }
 
@@ -431,13 +502,13 @@ func parseOptionalRating(val *int32) sql.Null[int64] {
 	return sql.Null[int64]{Valid: true, V: int64(n)}
 }
 
-func nextStatus(current string) string {
-	switch strings.ToLower(strings.TrimSpace(current)) {
-	case "planned":
-		return "watched"
-	case "watched":
-		return "planned"
-	default:
-		return "planned"
+func parseOptionalPriority(val int32) (sql.Null[int32], error) {
+	if val == 0 {
+		return sql.Null[int32]{}, nil
 	}
+	if val < 1 || val > 5 {
+		return sql.Null[int32]{}, errors.New("priority must be between 1 and 5")
+	}
+	return sql.Null[int32]{Valid: true, V: val}, nil
 }
+
