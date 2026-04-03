@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { SearchFilters } from "@/features/search/search-filters";
 import { SearchPagination } from "@/features/search/search-pagination";
 import { SearchResults } from "@/features/search/search-results";
-import { type MediaType, type Sort } from "@/features/search/search-constants";
+import { mediaTypeOptions, type MediaType, type Sort } from "@/features/search/search-constants";
 import {
   buildBaseParams,
   getPageItems,
@@ -442,7 +442,25 @@ export function SearchPage() {
           />
         </form>
 
-        <div className="text-xs text-muted-foreground sm:text-sm">{renderResultsCount()}</div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-1">
+            {mediaTypeOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => handleMediaTypeChange(option.value as MediaType)}
+                className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                  mediaType === option.value
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {option.label === "TV" ? "TV Shows" : option.label}
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-muted-foreground sm:text-sm">{renderResultsCount()}</div>
+        </div>
 
         <SearchResults
           isInitialLoading={isInitialLoading}
@@ -457,6 +475,9 @@ export function SearchPage() {
           onAdd={handleAdd}
           addPending={addMutation.isPending}
           fromLocation={fromLocation}
+          query={trimmedQuery}
+          mediaType={mediaType}
+          onSwitchMediaType={handleMediaTypeChange}
         />
 
         <SearchPagination

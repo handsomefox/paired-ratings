@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
-  mediaTypeOptions,
   sortOptions,
   type MediaType,
   type Sort,
@@ -82,21 +81,6 @@ export function SearchFilters({
 }: SearchFiltersProps) {
   return (
     <div className="space-y-5">
-      <FilterField label="Type">
-        <Select value={mediaType} onValueChange={(value) => onMediaTypeChange(value as MediaType)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Movie" />
-          </SelectTrigger>
-          <SelectContent>
-            {mediaTypeOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FilterField>
-
       <FilterField label="Genres">
         <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-3">
           <Select
