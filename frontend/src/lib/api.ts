@@ -16,6 +16,12 @@ export type AddShowRequest = pb.AddShowRequest;
 export type RatingsRequest = pb.RatingsRequest;
 export type RefreshResponse = pb.RefreshResponse;
 export type ExportPayload = pb.ExportPayload;
+export type PriorityRequest = pb.PriorityRequest;
+
+let _onUnauthorized: (() => void) | undefined;
+export const registerUnauthorizedHandler = (fn: () => void) => {
+  _onUnauthorized = fn;
+};
 
 async function jsonRequest<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const res = await fetch(input, {
@@ -27,6 +33,9 @@ async function jsonRequest<T>(input: RequestInfo, init?: RequestInit): Promise<T
     ...init,
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      _onUnauthorized?.();
+    }
     const text = await res.text();
     throw new Error(text || res.statusText);
   }
@@ -62,6 +71,11 @@ export const api = {
     }),
   updateRatings: (id: number, payload: RatingsRequest) =>
     jsonRequest<ApiShowDetail>(`/api/shows/${id}/ratings`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updatePriority: (id: number, payload: PriorityRequest) =>
+    jsonRequest<ApiShowDetail>(`/api/shows/${id}/priority`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),

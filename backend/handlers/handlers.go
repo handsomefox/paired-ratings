@@ -67,11 +67,11 @@ func New(cfg *Config) (*Handler, error) {
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Method(http.MethodGet, "/session", Adapt(h.getSession))
 	r.Method(http.MethodPost, "/login", Adapt(h.postLogin))
+	r.Method(http.MethodPost, "/logout", Adapt(h.postLogout))
 
 	r.Group(func(r chi.Router) {
 		r.Use(h.MiddlewareRequireAuth)
 
-		r.Method(http.MethodPost, "/logout", Adapt(h.postLogout))
 		r.Method(http.MethodGet, "/search", Adapt(h.getSearch))
 		r.Method(http.MethodGet, "/search/genres", Adapt(h.getSearchGenres))
 		r.Method(http.MethodGet, "/search/countries", Adapt(h.getSearchCountries))
@@ -88,10 +88,12 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 				r.Method(http.MethodDelete, "/", Adapt(h.deleteShow))
 
 				r.Method(http.MethodPost, "/ratings", Adapt(h.postShowRatings))
+				r.Method(http.MethodPost, "/priority", Adapt(h.postShowPriority))
 				r.Method(http.MethodPost, "/toggle-status", Adapt(h.postShowToggleStatus))
 				r.Method(http.MethodPost, "/clear-ratings", Adapt(h.postShowClearRatings))
 				r.Method(http.MethodPost, "/refresh-tmdb", Adapt(h.postShowRefreshTMDB))
 			})
+
 		})
 
 		r.Method(http.MethodPost, "/export", Adapt(h.postExport))

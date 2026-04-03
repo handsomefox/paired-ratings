@@ -17,12 +17,13 @@ import { Navbar } from "./components/navbar";
 import { ScrollToTop } from "./components/scroll-to-top";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
-import { api } from "./lib/api";
+import { api, registerUnauthorizedHandler } from "./lib/api";
 import { withViewTransition } from "./lib/view-transitions";
 import { DetailPage } from "./pages/detail";
 import { LibraryPage } from "./pages/library";
 import { LoginPage } from "./pages/login";
 import { SearchPage } from "./pages/search";
+import { WatchOrderPage } from "./pages/watch-order";
 
 export type AppContext = {
   queryClient: QueryClient;
@@ -41,6 +42,12 @@ const queryClient = new QueryClient({
 const RootLayout = () => {
   const navigate = useNavigate();
   const state = useRouterState();
+
+  useEffect(() => {
+    registerUnauthorizedHandler(() => {
+      queryClient.invalidateQueries({ queryKey: ["session"] });
+    });
+  }, []);
 
   const sessionQuery = useQuery({
     queryKey: ["session"],
@@ -187,6 +194,13 @@ const indexRoute = createRoute({
   component: LibraryPage,
 });
 
+const watchOrderRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/watch-order",
+  beforeLoad: async ({ context }) => requireSession(context.queryClient),
+  component: WatchOrderPage,
+});
+
 const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/search",
@@ -250,7 +264,13 @@ const loginRoute = createRoute({
   component: LoginPage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, searchRoute, detailRoute, loginRoute]);
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  watchOrderRoute,
+  searchRoute,
+  detailRoute,
+  loginRoute,
+]);
 
 const router = createRouter({
   routeTree,
