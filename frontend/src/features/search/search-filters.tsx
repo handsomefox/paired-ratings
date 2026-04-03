@@ -15,7 +15,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
   sortOptions,
-  type MediaType,
   type Sort,
 } from "@/features/search/search-constants";
 
@@ -25,8 +24,6 @@ export type SearchGenreOption = {
 };
 
 type SearchFiltersProps = {
-  mediaType: MediaType;
-  onMediaTypeChange: (value: MediaType) => void;
   genreMode: "all" | "any";
   onGenreModeChange: (value: "all" | "any") => void;
   selectedGenres: string[];
@@ -53,8 +50,6 @@ type SearchFiltersProps = {
 };
 
 export function SearchFilters({
-  mediaType,
-  onMediaTypeChange,
   genreMode,
   onGenreModeChange,
   selectedGenres,

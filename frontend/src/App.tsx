@@ -86,6 +86,21 @@ const RootLayout = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleExportDB = async () => {
+    const res = await api.exportDB();
+    if (!res.ok) throw new Error("export failed");
+    const blob = await res.blob();
+    const cd = res.headers.get("Content-Disposition") ?? "";
+    const match = cd.match(/filename="([^"]+)"/);
+    const filename = match?.[1] ?? "paired-ratings.db";
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const handleLogout = async () => {
     await api.logout();
     await queryClient.invalidateQueries({ queryKey: ["session"] });
@@ -104,7 +119,7 @@ const RootLayout = () => {
 
   return (
     <div className="min-h-screen">
-      {authed ? <Navbar onExport={handleExport} onLogout={handleLogout} /> : null}
+      {authed ? <Navbar onExport={handleExport} onExportDB={handleExportDB} onLogout={handleLogout} /> : null}
       <main className="mx-auto w-full px-4 py-6 sm:px-6 md:py-8 lg:max-w-[88vw] lg:px-8 xl:max-w-[84vw] xl:px-10 2xl:max-w-[80vw] 2xl:px-12">
         <Outlet />
       </main>

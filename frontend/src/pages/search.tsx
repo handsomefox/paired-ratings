@@ -395,8 +395,6 @@ export function SearchPage() {
 
   const FiltersForm = (
     <SearchFilters
-      mediaType={mediaType}
-      onMediaTypeChange={handleMediaTypeChange}
       genreMode={genreMode}
       onGenreModeChange={handleGenreModeChange}
       selectedGenres={selectedGenres}

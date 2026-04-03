@@ -111,4 +111,8 @@ export const api = {
       method: "POST",
       credentials: "include",
     }),
+  exportDB: () =>
+    fetch("/api/export/db", {
+      credentials: "include",
+    }),
 };

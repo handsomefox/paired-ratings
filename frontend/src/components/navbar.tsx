@@ -17,10 +17,11 @@ import { ViewTransitionLink } from "./view-transition-link";
 
 type NavbarProps = {
   onExport: () => Promise<void>;
+  onExportDB: () => Promise<void>;
   onLogout: () => Promise<void>;
 };
 
-export function Navbar({ onExport, onLogout }: NavbarProps) {
+export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
   const { location } = useRouterState();
   const currentPath = location.pathname;
   const isLibrary = currentPath === "/";
@@ -31,6 +32,15 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
     try {
       await onExport();
       toast.success("Exported ratings.");
+    } catch {
+      toast.error("Export failed.");
+    }
+  };
+
+  const handleExportDB = async () => {
+    try {
+      await onExportDB();
+      toast.success("Database exported.");
     } catch {
       toast.error("Export failed.");
     }
@@ -125,7 +135,13 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
                 <SheetClose asChild>
                   <button type="button" className={mobileItemClass()} onClick={handleExport}>
                     <Download className="h-4 w-4" />
-                    <span>Export</span>
+                    <span>Export JSON</span>
+                  </button>
+                </SheetClose>
+                <SheetClose asChild>
+                  <button type="button" className={mobileItemClass()} onClick={handleExportDB}>
+                    <Download className="h-4 w-4" />
+                    <span>Export DB</span>
                   </button>
                 </SheetClose>
                 <SheetClose asChild>
@@ -144,7 +160,16 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
             className="hidden rounded-full md:inline-flex"
             onClick={handleExport}
           >
-            Export
+            Export JSON
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden rounded-full md:inline-flex"
+            onClick={handleExportDB}
+          >
+            Export DB
           </Button>
 
           <Button

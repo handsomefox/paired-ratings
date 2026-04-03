@@ -3,14 +3,41 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/handsomefox/paired-ratings/backend/gen/pb"
 	"github.com/handsomefox/paired-ratings/backend/logger"
 	"github.com/handsomefox/paired-ratings/backend/store"
 )
+
+func (h *Handler) getExportDB(w http.ResponseWriter, r *http.Request) error {
+	dbPath := h.store.DBPath()
+	if dbPath == "" {
+		return internal(fmt.Errorf("db path not available"))
+	}
+
+	f, err := os.Open(dbPath)
+	if err != nil {
+		slog.Warn("export db: open failed", logger.Error(err))
+		return internal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	fi, err := f.Stat()
+	if err != nil {
+		return internal(err)
+	}
+
+	date := time.Now().UTC().Format("2006-01-02")
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="paired-ratings-%s.db"`, date))
+	http.ServeContent(w, r, "paired-ratings.db", fi.ModTime(), f)
+	return nil
+}
 
 func (h *Handler) postExport(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
