@@ -28,6 +28,9 @@ type Show struct {
 	BfComment sql.Null[string] `bun:"bf_comment,nullzero"`
 	GfComment sql.Null[string] `bun:"gf_comment,nullzero"`
 
+	BfWatchPriority sql.Null[int32] `bun:"bf_watch_priority,nullzero"`
+	GfWatchPriority sql.Null[int32] `bun:"gf_watch_priority,nullzero"`
+
 	CreatedAt string `bun:"created_at,notnull"`
 	UpdatedAt string `bun:"updated_at,notnull"`
 }

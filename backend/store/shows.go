@@ -14,6 +14,11 @@ type RatingsUpdate struct {
 	GfComment *sql.Null[string]
 }
 
+type PriorityUpdate struct {
+	BfWatchPriority *sql.Null[int32]
+	GfWatchPriority *sql.Null[int32]
+}
+
 func nowUTC() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }
@@ -115,6 +120,8 @@ func (s *Store) UpdateRatings(ctx context.Context, id int64, update RatingsUpdat
 		Table("shows").
 		Where("id = ?", id).
 		Set("status = ?", "watched").
+		Set("bf_watch_priority = NULL").
+		Set("gf_watch_priority = NULL").
 		Set("updated_at = ?", now)
 
 	if update.BfRating != nil {
@@ -137,15 +144,46 @@ func (s *Store) UpdateRatings(ctx context.Context, id int64, update RatingsUpdat
 	return expectRowsAffected(res)
 }
 
+func (s *Store) UpdatePriority(ctx context.Context, id int64, update PriorityUpdate) error {
+	if update.BfWatchPriority == nil && update.GfWatchPriority == nil {
+		return errors.New("no priority fields provided")
+	}
+
+	now := nowUTC()
+
+	q := s.db.NewUpdate().
+		Table("shows").
+		Set("updated_at = ?", now).
+		Where("id = ?", id)
+
+	if update.BfWatchPriority != nil {
+		q = q.Set("bf_watch_priority = ?", *update.BfWatchPriority)
+	}
+	if update.GfWatchPriority != nil {
+		q = q.Set("gf_watch_priority = ?", *update.GfWatchPriority)
+	}
+
+	res, err := q.Exec(ctx)
+	if err != nil {
+		return err
+	}
+	return expectRowsAffected(res)
+}
+
 func (s *Store) UpdateStatus(ctx context.Context, id int64, status string) error {
 	now := nowUTC()
 
-	res, err := s.db.NewUpdate().
+	q := s.db.NewUpdate().
 		Table("shows").
 		Set("status = ?", status).
 		Set("updated_at = ?", now).
-		Where("id = ?", id).
-		Exec(ctx)
+		Where("id = ?", id)
+
+	if status == "watched" {
+		q = q.Set("bf_watch_priority = NULL").Set("gf_watch_priority = NULL")
+	}
+
+	res, err := q.Exec(ctx)
 	if err != nil {
 		return err
 	}
