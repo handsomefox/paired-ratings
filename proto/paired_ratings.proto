@@ -35,6 +35,7 @@ message Show {
   string created_at = 17 [json_name = "created_at"];
   string updated_at = 18 [json_name = "updated_at"];
   repeated string origin_country = 19 [json_name = "origin_country"];
+  optional int32 watch_priority = 20 [json_name = "watch_priority"];
 }
 
 message ShowDetail {
@@ -136,6 +137,18 @@ message RatingsRequest {
   optional int32 gf_rating = 2 [json_name = "gf_rating"];
   optional string bf_comment = 3 [json_name = "bf_comment"];
   optional string gf_comment = 4 [json_name = "gf_comment"];
+}
+
+// ReorderRequest sends the full ordered list of show IDs for planned shows.
+// The backend assigns positions 1..N in the given order.
+message ReorderRequest {
+  repeated int64 ordered_ids = 1 [json_name = "ordered_ids"];
+}
+
+// SetStatusRequest sets the status of a show explicitly.
+// Valid values: "planned", "watching", "watched".
+message SetStatusRequest {
+  string status = 1 [json_name = "status"];
 }
 
 message RefreshResponse {

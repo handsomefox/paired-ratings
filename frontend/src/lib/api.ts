@@ -16,6 +16,13 @@ export type AddShowRequest = pb.AddShowRequest;
 export type RatingsRequest = pb.RatingsRequest;
 export type RefreshResponse = pb.RefreshResponse;
 export type ExportPayload = pb.ExportPayload;
+export type ReorderRequest = pb.ReorderRequest;
+export type SetStatusRequest = pb.SetStatusRequest;
+
+let _onUnauthorized: (() => void) | undefined;
+export const registerUnauthorizedHandler = (fn: () => void) => {
+  _onUnauthorized = fn;
+};
 
 async function jsonRequest<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const res = await fetch(input, {
@@ -27,6 +34,9 @@ async function jsonRequest<T>(input: RequestInfo, init?: RequestInit): Promise<T
     ...init,
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      _onUnauthorized?.();
+    }
     const text = await res.text();
     throw new Error(text || res.statusText);
   }
@@ -65,9 +75,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  toggleStatus: (id: number) =>
-    jsonRequest<ApiShowDetail>(`/api/shows/${id}/toggle-status`, {
+  reorderShows: (orderedIds: number[]) =>
+    jsonRequest<void>("/api/shows/reorder", {
       method: "POST",
+      body: JSON.stringify({ ordered_ids: orderedIds } satisfies ReorderRequest),
+    }),
+  setStatus: (id: number, status: string) =>
+    jsonRequest<ApiShowDetail>(`/api/shows/${id}/set-status`, {
+      method: "POST",
+      body: JSON.stringify({ status } satisfies SetStatusRequest),
     }),
   clearRatings: (id: number) =>
     jsonRequest<ApiShowDetail>(`/api/shows/${id}/clear-ratings`, {
@@ -93,6 +109,10 @@ export const api = {
   exportData: () =>
     fetch("/api/export", {
       method: "POST",
+      credentials: "include",
+    }),
+  exportDB: () =>
+    fetch("/api/export/db", {
       credentials: "include",
     }),
 };

@@ -29,6 +29,7 @@ export type DetailContentProps = {
   onBack: () => void;
 };
 
+
 export function DetailContent({
   show,
   showId,
@@ -53,7 +54,6 @@ export function DetailContent({
     bfComment: show.bf_comment ?? "",
     gfComment: show.gf_comment ?? "",
   }));
-
   const isDirty = useMemo(() => {
     return (
       bfRating !== initialState.bfRating ||
@@ -98,8 +98,8 @@ export function DetailContent({
     },
   });
 
-  const toggleStatusMutation = useMutation({
-    mutationFn: () => api.toggleStatus(showId),
+  const setStatusMutation = useMutation({
+    mutationFn: (status: string) => api.setStatus(showId, status),
     onSuccess: (data) => {
       queryClient.setQueryData(["show", String(showId)], data);
       queryClient.invalidateQueries({ queryKey: ["shows"] });
@@ -159,8 +159,6 @@ export function DetailContent({
     },
   });
 
-  const statusVariant =
-    show.status === "watched" ? "bf" : show.status === "planned" ? "gf" : "outline";
   const tmdbUrl =
     show.tmdb_id && show.media_type
       ? `https://www.themoviedb.org/${show.media_type === "tv" ? "tv" : "movie"}/${show.tmdb_id}`
@@ -179,9 +177,8 @@ export function DetailContent({
         imageBase={imageBase}
         imdbUrl={imdbUrl}
         tmdbUrl={tmdbUrl}
-        statusVariant={statusVariant}
-        onToggleStatus={() => toggleStatusMutation.mutate()}
-        statusPending={toggleStatusMutation.isPending}
+        onSetStatus={(status) => setStatusMutation.mutate(status)}
+        statusPending={setStatusMutation.isPending}
         onRefresh={() => refreshMutation.mutate()}
         refreshPending={refreshMutation.isPending}
         onClearRatings={() => clearRatingsMutation.mutate()}

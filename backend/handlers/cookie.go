@@ -43,6 +43,7 @@ func clearAuthCookie(w http.ResponseWriter, r *http.Request) {
 		Name:     authCookieName,
 		Value:    "",
 		Path:     "/",
+		Expires:  time.Now().Add(-time.Second),
 		MaxAge:   -1,
 		HttpOnly: true,
 		SameSite: sameSite(),

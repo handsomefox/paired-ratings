@@ -30,6 +30,9 @@ export type SearchResultsProps = {
   onAdd: (item: SearchResult, status: string) => void;
   addPending: boolean;
   fromLocation: string;
+  query?: string;
+  mediaType?: string;
+  onSwitchMediaType?: (type: "movie" | "tv") => void;
 };
 
 export function SearchResults({
@@ -45,6 +48,9 @@ export function SearchResults({
   onAdd,
   addPending,
   fromLocation,
+  query,
+  mediaType,
+  onSwitchMediaType,
 }: SearchResultsProps) {
   return (
     <>
@@ -56,8 +62,23 @@ export function SearchResults({
             <EmptyMedia variant="icon">
               <SearchIcon />
             </EmptyMedia>
-            <EmptyTitle>No results yet</EmptyTitle>
-            <EmptyDescription>Try adjusting the filters or search again.</EmptyDescription>
+            <EmptyTitle>{query ? "No results found" : "No results yet"}</EmptyTitle>
+            <EmptyDescription>
+              {query && mediaType && onSwitchMediaType ? (
+                <>
+                  No {mediaType === "movie" ? "movie" : "TV show"} results for &ldquo;{query}&rdquo;.{" "}
+                  <button
+                    type="button"
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    onClick={() => onSwitchMediaType(mediaType === "movie" ? "tv" : "movie")}
+                  >
+                    Try {mediaType === "movie" ? "TV shows" : "movies"} instead?
+                  </button>
+                </>
+              ) : (
+                "Try adjusting the filters or search again."
+              )}
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : null}

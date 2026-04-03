@@ -17,12 +17,13 @@ import { Navbar } from "./components/navbar";
 import { ScrollToTop } from "./components/scroll-to-top";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
-import { api } from "./lib/api";
+import { api, registerUnauthorizedHandler } from "./lib/api";
 import { withViewTransition } from "./lib/view-transitions";
 import { DetailPage } from "./pages/detail";
 import { LibraryPage } from "./pages/library";
 import { LoginPage } from "./pages/login";
 import { SearchPage } from "./pages/search";
+import { WatchOrderPage } from "./pages/watch-order";
 
 export type AppContext = {
   queryClient: QueryClient;
@@ -41,6 +42,12 @@ const queryClient = new QueryClient({
 const RootLayout = () => {
   const navigate = useNavigate();
   const state = useRouterState();
+
+  useEffect(() => {
+    registerUnauthorizedHandler(() => {
+      queryClient.invalidateQueries({ queryKey: ["session"] });
+    });
+  }, []);
 
   const sessionQuery = useQuery({
     queryKey: ["session"],
@@ -79,6 +86,21 @@ const RootLayout = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleExportDB = async () => {
+    const res = await api.exportDB();
+    if (!res.ok) throw new Error("export failed");
+    const blob = await res.blob();
+    const cd = res.headers.get("Content-Disposition") ?? "";
+    const match = cd.match(/filename="([^"]+)"/);
+    const filename = match?.[1] ?? "paired-ratings.db";
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const handleLogout = async () => {
     await api.logout();
     await queryClient.invalidateQueries({ queryKey: ["session"] });
@@ -97,7 +119,7 @@ const RootLayout = () => {
 
   return (
     <div className="min-h-screen">
-      {authed ? <Navbar onExport={handleExport} onLogout={handleLogout} /> : null}
+      {authed ? <Navbar onExport={handleExport} onExportDB={handleExportDB} onLogout={handleLogout} /> : null}
       <main className="mx-auto w-full px-4 py-6 sm:px-6 md:py-8 lg:max-w-[88vw] lg:px-8 xl:max-w-[84vw] xl:px-10 2xl:max-w-[80vw] 2xl:px-12">
         <Outlet />
       </main>
@@ -187,6 +209,13 @@ const indexRoute = createRoute({
   component: LibraryPage,
 });
 
+const watchOrderRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/watch-order",
+  beforeLoad: async ({ context }) => requireSession(context.queryClient),
+  component: WatchOrderPage,
+});
+
 const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/search",
@@ -250,7 +279,13 @@ const loginRoute = createRoute({
   component: LoginPage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, searchRoute, detailRoute, loginRoute]);
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  watchOrderRoute,
+  searchRoute,
+  detailRoute,
+  loginRoute,
+]);
 
 const router = createRouter({
   routeTree,

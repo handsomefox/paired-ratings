@@ -104,6 +104,10 @@ END DESC
 		q = q.OrderExpr("year DESC")
 	case "title":
 		q = q.OrderExpr("title COLLATE NOCASE ASC")
+	case "priority":
+		q = q.OrderExpr("CASE WHEN watch_priority IS NULL THEN 1 ELSE 0 END ASC").
+			OrderExpr("watch_priority ASC").
+			OrderExpr("updated_at DESC")
 	default:
 		q = q.OrderExpr("updated_at DESC")
 	}

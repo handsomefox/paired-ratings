@@ -1,5 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
-import { Download, Home, LogOut, Menu, Plus } from "lucide-react";
+import { Download, Home, ListOrdered, LogOut, Menu, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { NavLink } from "./nav-link";
 import { Button } from "./ui/button";
@@ -17,19 +17,30 @@ import { ViewTransitionLink } from "./view-transition-link";
 
 type NavbarProps = {
   onExport: () => Promise<void>;
+  onExportDB: () => Promise<void>;
   onLogout: () => Promise<void>;
 };
 
-export function Navbar({ onExport, onLogout }: NavbarProps) {
+export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
   const { location } = useRouterState();
   const currentPath = location.pathname;
   const isLibrary = currentPath === "/";
+  const isWatchOrder = currentPath === "/watch-order";
   const isSearch = currentPath === "/search";
 
   const handleExport = async () => {
     try {
       await onExport();
       toast.success("Exported ratings.");
+    } catch {
+      toast.error("Export failed.");
+    }
+  };
+
+  const handleExportDB = async () => {
+    try {
+      await onExportDB();
+      toast.success("Database exported.");
     } catch {
       toast.error("Export failed.");
     }
@@ -80,6 +91,7 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
 
         <nav className="hidden items-center gap-2 md:flex">
           <NavLink to="/">Library</NavLink>
+          <NavLink to="/watch-order">Watch order</NavLink>
           <NavLink to="/search">Add</NavLink>
         </nav>
 
@@ -109,6 +121,12 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
                   </ViewTransitionLink>
                 </SheetClose>
                 <SheetClose asChild>
+                  <ViewTransitionLink to="/watch-order" className={mobileItemClass(isWatchOrder)}>
+                    <ListOrdered className="h-4 w-4" />
+                    <span>Watch order</span>
+                  </ViewTransitionLink>
+                </SheetClose>
+                <SheetClose asChild>
                   <ViewTransitionLink to="/search" className={mobileItemClass(isSearch)}>
                     <Plus className="h-4 w-4" />
                     <span>Add</span>
@@ -117,7 +135,13 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
                 <SheetClose asChild>
                   <button type="button" className={mobileItemClass()} onClick={handleExport}>
                     <Download className="h-4 w-4" />
-                    <span>Export</span>
+                    <span>Export JSON</span>
+                  </button>
+                </SheetClose>
+                <SheetClose asChild>
+                  <button type="button" className={mobileItemClass()} onClick={handleExportDB}>
+                    <Download className="h-4 w-4" />
+                    <span>Export DB</span>
                   </button>
                 </SheetClose>
                 <SheetClose asChild>
@@ -136,7 +160,16 @@ export function Navbar({ onExport, onLogout }: NavbarProps) {
             className="hidden rounded-full md:inline-flex"
             onClick={handleExport}
           >
-            Export
+            Export JSON
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden rounded-full md:inline-flex"
+            onClick={handleExportDB}
+          >
+            Export DB
           </Button>
 
           <Button

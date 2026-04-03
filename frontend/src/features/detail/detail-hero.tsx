@@ -1,5 +1,13 @@
 import { OriginCountriesChip } from "@/components/origin-countries-chip";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { showStatusOptions } from "@/features/library/library-utils";
 import type { ApiShow } from "@/lib/api";
 import { formatScore, formatVotes } from "@/lib/utils";
 
@@ -8,8 +16,7 @@ export type DetailHeroProps = {
   imageBase: string;
   imdbUrl?: string;
   tmdbUrl?: string;
-  statusVariant: "bf" | "gf" | "outline";
-  onToggleStatus: () => void;
+  onSetStatus: (status: string) => void;
   statusPending: boolean;
   onRefresh: () => void;
   refreshPending: boolean;
@@ -22,8 +29,7 @@ export function DetailHero({
   imageBase,
   imdbUrl,
   tmdbUrl,
-  statusVariant,
-  onToggleStatus,
+  onSetStatus,
   statusPending,
   onRefresh,
   refreshPending,
@@ -55,16 +61,22 @@ export function DetailHero({
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <OriginCountriesChip codes={show.origin_country} />
-            <Button
-              type="button"
-              variant={statusVariant}
-              size="sm"
-              className="h-6 rounded-full px-2 text-[0.65rem] uppercase tracking-wide"
-              onClick={onToggleStatus}
+            <Select
+              value={show.status || "planned"}
+              onValueChange={onSetStatus}
               disabled={statusPending}
             >
-              {show.status || "tbd"}
-            </Button>
+              <SelectTrigger className="h-6 w-auto rounded-full border-0 bg-transparent px-2 text-[0.65rem] uppercase tracking-wide shadow-none focus:ring-0 [&>svg]:ml-0.5 [&>svg]:h-3 [&>svg]:w-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {showStatusOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs uppercase tracking-wide">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {show.genres ? <span className="text-muted-foreground">{show.genres}</span> : null}
           </div>
         </div>

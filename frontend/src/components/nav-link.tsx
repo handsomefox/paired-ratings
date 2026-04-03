@@ -4,7 +4,7 @@ import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 type NavLinkProps = {
-  to: "/" | "/search";
+  to: "/" | "/watch-order" | "/search";
   children: ReactNode;
 };
 

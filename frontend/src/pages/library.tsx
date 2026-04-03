@@ -1,5 +1,6 @@
 import FiltersPane from "@/components/filters-pane";
 import { FiltersPaneContent } from "@/components/filters-pane-content";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -220,7 +221,7 @@ export function LibraryPage() {
   };
 
   return (
-    <>
+    <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: ["shows"] })}>
       <FiltersPane
         filtersOpen={filtersOpen}
         onOpenChange={setFiltersOpen}
@@ -265,6 +266,6 @@ export function LibraryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </PullToRefresh>
   );
 }

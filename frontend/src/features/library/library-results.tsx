@@ -89,17 +89,27 @@ export function LibraryResults({
                 </ViewTransitionLink>
               )}
               topRight={
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full">
-                      <span className="sr-only">Open menu</span>
-                      <span className="text-lg leading-none">⋯</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onDelete(show)}>Delete</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center gap-2">
+                  {show.status === "planned" && show.watch_priority != null ? (
+                    <span
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-muted/60 text-[0.65rem] font-semibold tabular-nums text-muted-foreground"
+                      title="Watch position"
+                    >
+                      {show.watch_priority}
+                    </span>
+                  ) : null}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full">
+                        <span className="sr-only">Open menu</span>
+                        <span className="text-lg leading-none">⋯</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onDelete(show)}>Delete</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               }
               statusBadge={
                 <Badge variant={statusBadgeVariant(show.status)}>{show.status || "tbd"}</Badge>

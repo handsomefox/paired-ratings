@@ -60,7 +60,7 @@ func (h *Handler) postShows(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	status := strings.TrimSpace(req.Status)
-	if status != "planned" && status != "watched" {
+	if status != "planned" && status != "watching" && status != "watched" {
 		status = "planned"
 	}
 
@@ -195,7 +195,27 @@ func (h *Handler) postShowRatings(w http.ResponseWriter, r *http.Request) error 
 	return nil
 }
 
-func (h *Handler) postShowToggleStatus(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) postShowsReorder(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	var req pb.ReorderRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return badRequest("bad request")
+	}
+	if len(req.OrderedIds) == 0 {
+		return badRequest("ordered_ids is required")
+	}
+
+	if err := h.store.UpdateWatchOrder(ctx, req.OrderedIds); err != nil {
+		slog.Warn("shows: reorder failed", logger.Error(err))
+		return internal(err)
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func (h *Handler) postShowSetStatus(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
 	id, err := idParam(r, "id")
@@ -203,16 +223,17 @@ func (h *Handler) postShowToggleStatus(w http.ResponseWriter, r *http.Request) e
 		return notFound("not found")
 	}
 
-	show, err := h.store.GetShow(ctx, id)
-	if err != nil {
-		if isNoRows(err) {
-			return notFound("not found")
-		}
-		return internal(err)
+	var req pb.SetStatusRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return badRequest("bad request")
 	}
 
-	next := nextStatus(show.Status)
-	if err := h.store.UpdateStatus(ctx, id, next); err != nil {
+	status := strings.TrimSpace(req.Status)
+	if status != "planned" && status != "watching" && status != "watched" {
+		return badRequest("invalid status: must be planned, watching, or watched")
+	}
+
+	if err := h.store.UpdateStatus(ctx, id, status); err != nil {
 		if isNoRows(err) {
 			return notFound("not found")
 		}
@@ -393,25 +414,26 @@ func showFromDetail(detail *tmdb.Detail, status string) store.Show {
 
 func toPBShow(show *store.Show) *pb.Show {
 	return &pb.Show{
-		Id:            show.ID,
-		TmdbId:        show.TMDBID,
-		MediaType:     show.MediaType,
-		Title:         show.Title,
-		Year:          fromSQLNull(show.Year),
-		Genres:        fromSQLNull(show.Genres),
-		Overview:      fromSQLNull(show.Overview),
-		PosterPath:    fromSQLNull(show.PosterPath),
-		ImdbId:        fromSQLNull(show.IMDbID),
-		TmdbRating:    fromSQLNull(show.TMDBRating),
-		TmdbVotes:     fromSQLNull(show.TMDBVotes),
-		Status:        show.Status,
-		BfRating:      fromSQLNull(show.BfRating),
-		GfRating:      fromSQLNull(show.GfRating),
-		BfComment:     fromSQLNull(show.BfComment),
-		GfComment:     fromSQLNull(show.GfComment),
-		CreatedAt:     show.CreatedAt,
-		UpdatedAt:     show.UpdatedAt,
-		OriginCountry: splitCommaValues(show.OriginCountry),
+		Id:              show.ID,
+		TmdbId:          show.TMDBID,
+		MediaType:       show.MediaType,
+		Title:           show.Title,
+		Year:            fromSQLNull(show.Year),
+		Genres:          fromSQLNull(show.Genres),
+		Overview:        fromSQLNull(show.Overview),
+		PosterPath:      fromSQLNull(show.PosterPath),
+		ImdbId:          fromSQLNull(show.IMDbID),
+		TmdbRating:      fromSQLNull(show.TMDBRating),
+		TmdbVotes:       fromSQLNull(show.TMDBVotes),
+		Status:          show.Status,
+		BfRating:        fromSQLNull(show.BfRating),
+		GfRating:        fromSQLNull(show.GfRating),
+		BfComment:       fromSQLNull(show.BfComment),
+		GfComment:       fromSQLNull(show.GfComment),
+		WatchPriority: fromSQLNull(show.WatchPriority),
+		CreatedAt:       show.CreatedAt,
+		UpdatedAt:       show.UpdatedAt,
+		OriginCountry:   splitCommaValues(show.OriginCountry),
 	}
 }
 
@@ -431,13 +453,4 @@ func parseOptionalRating(val *int32) sql.Null[int64] {
 	return sql.Null[int64]{Valid: true, V: int64(n)}
 }
 
-func nextStatus(current string) string {
-	switch strings.ToLower(strings.TrimSpace(current)) {
-	case "planned":
-		return "watched"
-	case "watched":
-		return "planned"
-	default:
-		return "planned"
-	}
-}
+

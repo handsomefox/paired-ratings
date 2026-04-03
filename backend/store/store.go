@@ -4,21 +4,27 @@ package store
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 
+	"github.com/pressly/goose/v3"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 
 	_ "modernc.org/sqlite"
 )
 
+//go:embed migrations/*.sql
+var migrationFS embed.FS
+
 type Store struct {
-	sqldb *sql.DB
-	db    *bun.DB
+	sqldb  *sql.DB
+	db     *bun.DB
+	dbPath string
 }
 
 func Open(dbPath string) (*Store, error) {
@@ -58,16 +64,37 @@ func Open(dbPath string) (*Store, error) {
 		return nil, err
 	}
 
-	if err := initSchema(ctx, sqldb); err != nil {
+	if err := runMigrations(sqldb); err != nil {
 		if cerr := sqldb.Close(); cerr != nil {
-			return nil, fmt.Errorf("init schema: %w; close failed: %w", err, cerr)
+			return nil, fmt.Errorf("run migrations: %w; close failed: %w", err, cerr)
 		}
 		return nil, err
 	}
 
 	bdb := bun.NewDB(sqldb, sqlitedialect.New())
 	slog.Info("Database ready", slog.String("path", dbPath))
-	return &Store{sqldb: sqldb, db: bdb}, nil
+	return &Store{sqldb: sqldb, db: bdb, dbPath: dbPath}, nil
+}
+
+// DBPath returns the filesystem path of the database file.
+func (s *Store) DBPath() string {
+	return s.dbPath
+}
+
+
+func runMigrations(db *sql.DB) error {
+	goose.SetBaseFS(migrationFS)
+	goose.SetLogger(goose.NopLogger())
+
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		return fmt.Errorf("goose set dialect: %w", err)
+	}
+
+	if err := goose.Up(db, "migrations"); err != nil {
+		return fmt.Errorf("goose up: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Store) Close() error {

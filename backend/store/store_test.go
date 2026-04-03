@@ -37,6 +37,13 @@ func TestStoreLifecycle(t *testing.T) {
 	require.Equal(t, show.Title, got.Title)
 	require.Equal(t, "planned", got.Status)
 
+	require.NoError(t, st.UpdateWatchOrder(ctx, []int64{id}))
+
+	prioritized, err := st.GetShow(ctx, id)
+	require.NoError(t, err)
+	require.True(t, prioritized.WatchPriority.Valid)
+	require.Equal(t, int32(1), prioritized.WatchPriority.V)
+
 	bfRating := sql.Null[int64]{Valid: true, V: 7}
 	update := RatingsUpdate{BfRating: &bfRating}
 	require.NoError(t, st.UpdateRatings(ctx, id, update))
@@ -45,7 +52,8 @@ func TestStoreLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, updated.BfRating.Valid)
 	require.Equal(t, int64(7), updated.BfRating.V)
-	require.Equal(t, "watched", updated.Status)
+	require.Equal(t, "planned", updated.Status)
+	require.True(t, updated.WatchPriority.Valid)
 
 	require.NoError(t, st.ClearRatings(ctx, id))
 
