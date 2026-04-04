@@ -39,23 +39,30 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Film, GripVertical } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 function SortableRow({
   show,
   index,
+  total,
   imageBase,
   onDelete,
+  onMoveToPosition,
 }: {
   show: ApiShow;
   index: number;
+  total: number;
   imageBase: string;
   onDelete: (show: ApiShow) => void;
+  onMoveToPosition: (show: ApiShow, newIndex: number) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: show.id,
   });
+  const [editing, setEditing] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -65,6 +72,21 @@ function SortableRow({
 
   const posterUrl = show.poster_path ? `${imageBase}${show.poster_path}` : "";
   const genres = show.genres ? shortGenres(show.genres) : "";
+
+  const startEditing = () => {
+    setInputValue(String(index + 1));
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commitEdit = () => {
+    setEditing(false);
+    const parsed = parseInt(inputValue, 10);
+    if (!isNaN(parsed)) {
+      const clamped = Math.max(1, Math.min(total, parsed));
+      onMoveToPosition(show, clamped - 1);
+    }
+  };
 
   return (
     <div
@@ -81,9 +103,30 @@ function SortableRow({
         <GripVertical className="h-5 w-5" />
       </button>
 
-      <span className="w-6 shrink-0 text-center text-xs font-semibold tabular-nums text-muted-foreground">
-        {index + 1}
-      </span>
+      {editing ? (
+        <input
+          ref={inputRef}
+          type="number"
+          min={1}
+          max={total}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitEdit();
+            else if (e.key === "Escape") setEditing(false);
+          }}
+          className="w-8 shrink-0 rounded border border-primary bg-background text-center text-xs font-semibold tabular-nums text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+      ) : (
+        <button
+          onClick={startEditing}
+          title="Click to enter position"
+          className="w-6 shrink-0 cursor-pointer text-center text-xs font-semibold tabular-nums text-muted-foreground hover:text-primary"
+        >
+          {index + 1}
+        </button>
+      )}
 
       <ViewTransitionLink
         to="/show/$showId"
@@ -210,6 +253,13 @@ export function WatchOrderPage() {
     setLocalOrder(arrayMove(currentIds, oldIndex, newIndex));
   };
 
+  const handleMoveToPosition = (show: ApiShow, newIndex: number) => {
+    const currentIds = displayShows.map((s) => s.id);
+    const oldIndex = currentIds.indexOf(show.id);
+    if (oldIndex === newIndex) return;
+    setLocalOrder(arrayMove(currentIds, oldIndex, newIndex));
+  };
+
   const handleSave = () => {
     const ids = displayShows.map((s) => s.id);
     reorderMutation.mutate(ids);
@@ -260,8 +310,10 @@ export function WatchOrderPage() {
                     key={show.id}
                     show={show}
                     index={index}
+                    total={displayShows.length}
                     imageBase={imageBase}
                     onDelete={setPendingDelete}
+                    onMoveToPosition={handleMoveToPosition}
                   />
                 ))}
               </SortableContext>
