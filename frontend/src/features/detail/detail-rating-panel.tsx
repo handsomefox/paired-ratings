@@ -24,7 +24,7 @@ function StarRating({ value, onChange, tone }: StarRatingProps) {
             type="button"
             onClick={() => onChange(rating)}
             className={cn(
-              "text-[22px] leading-none transition hover:-translate-y-0.5",
+              "cursor-pointer text-[22px] leading-none transition hover:-translate-y-0.5",
               active ? toneClass : idleClass,
             )}
             aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
