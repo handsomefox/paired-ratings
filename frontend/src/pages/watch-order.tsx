@@ -173,7 +173,7 @@ function SortableRow({
       <Button
         variant="ghost"
         size="sm"
-        className="shrink-0 text-muted-foreground/60 hover:text-destructive"
+        className="shrink-0 text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive"
         onClick={() => onDelete(show)}
       >
         Remove
