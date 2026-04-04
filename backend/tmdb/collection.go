@@ -34,11 +34,11 @@ func (c *Client) FetchCollection(ctx context.Context, collectionID int64) ([]Sea
 	return results, nil
 }
 
-func (c *Client) FetchRecommendations(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
+func (c *Client) FetchSimilar(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
 	values := url.Values{}
 	c.maybeSetAPIKey(values)
 
-	endpoint := fmt.Sprintf("%s/%s/%d/recommendations?%s", baseURL, mediaType, id, values.Encode())
+	endpoint := fmt.Sprintf("%s/%s/%d/similar?%s", baseURL, mediaType, id, values.Encode())
 
 	var payload recommendationsResponse
 	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {

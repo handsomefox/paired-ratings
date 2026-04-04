@@ -1,7 +1,13 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import CardGrid from "@/components/card-grid";
+import { LanguageBadge } from "@/components/language-badge";
+import { ShowCard } from "@/components/show-card";
+import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { GetRelatedResponse, SearchResult } from "@/lib/api";
 import { api } from "@/lib/api";
+import { shortGenreList } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -63,56 +69,63 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
         <CardTitle className="text-base">{collectionName ? collectionName : "Related"}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+        <CardGrid className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           {results.map((item) => (
-            <div
+            <ShowCard
               key={`${item.media_type}:${item.id}`}
-              className="group relative flex flex-col overflow-hidden rounded-lg border border-border/60 bg-card/60"
-            >
-              <a
-                href={`https://www.themoviedb.org/${item.media_type}/${item.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                {item.poster_path ? (
-                  <img
-                    src={`${imageBase}${item.poster_path}`}
-                    alt={item.title}
-                    className="aspect-[2/3] w-full object-cover transition duration-300 hover:opacity-80"
-                    loading="lazy"
+              title={item.title}
+              year={item.year}
+              posterAlt={item.title}
+              posterPath={item.poster_path}
+              imageBase={imageBase}
+              posterLink={(node) => (
+                <a
+                  href={`https://www.themoviedb.org/${item.media_type}/${item.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  {node}
+                </a>
+              )}
+              metaBadges={
+                <>
+                  <TmdbRatingBadge
+                    rating={item.vote_average}
+                    votes={item.vote_count}
+                    className="col-span-2 flex w-full justify-center"
                   />
-                ) : (
-                  <div className="flex aspect-[2/3] w-full items-center justify-center bg-muted text-xs text-muted-foreground hover:opacity-80">
-                    No poster
-                  </div>
-                )}
-              </a>
-              <div className="flex flex-1 flex-col gap-1 p-2">
-                <span className="line-clamp-2 break-words text-xs font-medium leading-tight">
-                  {item.title}
-                </span>
-                {item.year && (
-                  <span className="text-[10px] text-muted-foreground">{item.year}</span>
-                )}
-                {item.in_library ? (
-                  <span className="mt-auto text-[10px] font-medium text-primary">In library</span>
+                  <LanguageBadge code={item.original_language} label={item.original_language?.toUpperCase()} />
+                  <Badge
+                    variant="outline"
+                    className="flex justify-center"
+                  >
+                    {item.media_type === "movie" ? "Movie" : item.media_type === "tv" ? "TV" : item.media_type}
+                  </Badge>
+                </>
+              }
+              metaBadgesClassName="grid-cols-2"
+              genresText={item.genres?.length ? shortGenreList(item.genres) : ""}
+              overview={item.overview}
+              footer={
+                item.in_library ? (
+                  <span className="text-xs font-medium text-primary">In library</span>
                 ) : (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="mt-auto h-7 w-full text-xs"
+                    className="h-8 w-full text-xs"
                     onClick={() => addMutation.mutate(item)}
                     disabled={addMutation.isPending}
                   >
                     <Plus className="mr-1 h-3 w-3" />
                     Add
                   </Button>
-                )}
-              </div>
-            </div>
+                )
+              }
+            />
           ))}
-        </div>
+        </CardGrid>
       </CardContent>
     </Card>
   );

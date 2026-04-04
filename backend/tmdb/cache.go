@@ -12,7 +12,7 @@ const (
 	ttlStatic  = 24 * time.Hour   // genres, countries, languages: almost never change
 	ttlDetail  = 24 * time.Hour   // show details: user can force-refresh via the UI
 	ttlSeason  = 6 * time.Hour    // season/episode data
-	ttlRelated = 6 * time.Hour    // collections, recommendations
+	ttlRelated = 6 * time.Hour    // collections, similar
 	ttlSearch  = 10 * time.Minute // search & discover results
 )
 
@@ -58,7 +58,7 @@ type CachedClient struct {
 	search          *ttlCache[string, SearchPage]
 	discover        *ttlCache[string, SearchPage]
 	collections     *ttlCache[int64, []SearchResult]
-	recommendations *ttlCache[string, []SearchResult]
+	similar *ttlCache[string, []SearchResult]
 	seasons         *ttlCache[string, Season]
 }
 
@@ -73,7 +73,7 @@ func NewCachedClient(inner Interface) *CachedClient {
 		search:          newCache[string, SearchPage](),
 		discover:        newCache[string, SearchPage](),
 		collections:     newCache[int64, []SearchResult](),
-		recommendations: newCache[string, []SearchResult](),
+		similar: newCache[string, []SearchResult](),
 		seasons:         newCache[string, Season](),
 	}
 }
@@ -167,16 +167,16 @@ func (c *CachedClient) FetchCollection(ctx context.Context, collectionID int64) 
 	return v, nil
 }
 
-func (c *CachedClient) FetchRecommendations(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
+func (c *CachedClient) FetchSimilar(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
 	key := fmt.Sprintf("%s:%d", mediaType, id)
-	if v, ok := c.recommendations.get(key); ok {
+	if v, ok := c.similar.get(key); ok {
 		return v, nil
 	}
-	v, err := c.inner.FetchRecommendations(ctx, id, mediaType)
+	v, err := c.inner.FetchSimilar(ctx, id, mediaType)
 	if err != nil {
 		return nil, err
 	}
-	c.recommendations.set(key, v, ttlRelated)
+	c.similar.set(key, v, ttlRelated)
 	return v, nil
 }
 

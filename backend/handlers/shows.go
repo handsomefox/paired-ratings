@@ -442,9 +442,9 @@ func (h *Handler) getShowRelated(w http.ResponseWriter, r *http.Request) error {
 			related = items
 		}
 	} else {
-		items, err := h.tmdb.FetchRecommendations(ctx, show.TMDBID, show.MediaType)
+		items, err := h.tmdb.FetchSimilar(ctx, show.TMDBID, show.MediaType)
 		if err != nil {
-			slog.Warn("related: fetch recommendations failed", logger.Error(err))
+			slog.Warn("related: fetch similar failed", logger.Error(err))
 		} else {
 			related = items
 		}
@@ -455,6 +455,8 @@ func (h *Handler) getShowRelated(w http.ResponseWriter, r *http.Request) error {
 		return internal(err)
 	}
 
+	movieGenres, tvGenres := h.genreMaps(ctx)
+
 	results := make([]*pb.SearchResult, 0, len(related))
 	for i := range related {
 		item := &related[i]
@@ -462,15 +464,17 @@ func (h *Handler) getShowRelated(w http.ResponseWriter, r *http.Request) error {
 			continue
 		}
 		results = append(results, &pb.SearchResult{
-			Id:          item.ID,
-			MediaType:   item.MediaType,
-			Title:       item.Title,
-			Year:        item.Year,
-			PosterPath:  item.PosterPath,
-			Overview:    item.Overview,
-			VoteAverage: item.VoteAverage,
-			VoteCount:   int32(item.VoteCount),
-			InLibrary:   inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
+			Id:               item.ID,
+			MediaType:        item.MediaType,
+			Title:            item.Title,
+			Year:             item.Year,
+			PosterPath:       item.PosterPath,
+			Overview:         item.Overview,
+			VoteAverage:      item.VoteAverage,
+			VoteCount:        int32(item.VoteCount),
+			InLibrary:        inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
+			Genres:           genreNamesFor(*item, movieGenres, tvGenres),
+			OriginalLanguage: item.OriginalLanguage,
 		})
 	}
 

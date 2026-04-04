@@ -11,7 +11,7 @@ type Mock struct {
 	SearchPageFunc           func(ctx context.Context, query string, mediaType string, page int) (SearchPage, error)
 	DiscoverPageFunc         func(ctx context.Context, mediaType string, filters DiscoverFilters, page int) (SearchPage, error)
 	FetchCollectionFunc      func(ctx context.Context, collectionID int64) ([]SearchResult, error)
-	FetchRecommendationsFunc func(ctx context.Context, id int64, mediaType string) ([]SearchResult, error)
+	FetchSimilarFunc func(ctx context.Context, id int64, mediaType string) ([]SearchResult, error)
 	FetchSeasonFunc          func(ctx context.Context, showID int64, seasonNumber int) (Season, error)
 }
 
@@ -66,11 +66,11 @@ func (m *Mock) FetchCollection(ctx context.Context, collectionID int64) ([]Searc
 	return m.FetchCollectionFunc(ctx, collectionID)
 }
 
-func (m *Mock) FetchRecommendations(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
-	if m.FetchRecommendationsFunc == nil {
+func (m *Mock) FetchSimilar(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
+	if m.FetchSimilarFunc == nil {
 		return nil, nil
 	}
-	return m.FetchRecommendationsFunc(ctx, id, mediaType)
+	return m.FetchSimilarFunc(ctx, id, mediaType)
 }
 
 func (m *Mock) FetchSeason(ctx context.Context, showID int64, seasonNumber int) (Season, error) {
