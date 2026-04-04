@@ -92,7 +92,7 @@ export function ShowCard({
     >
       <div className="relative">
         {posterLink ? posterLink(poster) : poster}
-        {topRight ? <div className="absolute right-3 top-3">{topRight}</div> : null}
+        {topRight ? <div className="absolute right-0 top-0">{topRight}</div> : null}
         {statusBadge ? (
           <div className="absolute left-0 top-0">{statusBadge}</div>
         ) : null}

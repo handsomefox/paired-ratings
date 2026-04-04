@@ -5,7 +5,6 @@ import RatingChips from "@/components/rating-chips";
 import { ShowCard } from "@/components/show-card";
 import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
 import { ViewTransitionLink } from "@/components/view-transition-link";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,10 +86,13 @@ export function LibraryResults({
                 <div className="flex items-center gap-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full">
+                      <button
+                        type="button"
+                        className="cursor-pointer py-1 pl-5 pr-2.5 text-xs font-bold text-white backdrop-blur-sm transition-opacity hover:opacity-80 [clip-path:polygon(10px_0,100%_0,100%_100%,0_100%)] bg-muted/60"
+                      >
                         <span className="sr-only">Open menu</span>
-                        <span className="text-lg leading-none">⋯</span>
-                      </Button>
+                        <span className="text-base leading-none">⋯</span>
+                      </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onDelete(show)}>Delete</DropdownMenuItem>
