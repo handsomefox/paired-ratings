@@ -1,5 +1,6 @@
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useMemo, useState, type JSX } from "react";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +49,7 @@ export function GenericCombobox({
   emptyText = "No results found.",
 }: GenericComboboxProps) {
   const [open, setOpen] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 640px)");
 
   const normalizedValue = value || anyValue;
 
@@ -77,7 +79,7 @@ export function GenericCombobox({
 
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+          {isDesktop ? <CommandInput placeholder={searchPlaceholder} /> : null}
           <CommandList
             className="max-h-[min(15rem,calc(100svh-12rem))] touch-pan-y overflow-y-auto overscroll-contain pr-2"
             style={{ WebkitOverflowScrolling: "touch" }}
