@@ -209,7 +209,7 @@ export function DetailContent({
       />
 
       {show.media_type === "tv" && (
-        <DetailEpisodes showId={showId} bfName={bfName} gfName={gfName} />
+        <DetailEpisodes showId={showId} />
       )}
 
       <DetailRelated showId={showId} imageBase={imageBase} />

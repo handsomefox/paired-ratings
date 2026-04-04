@@ -1533,8 +1533,7 @@ type Episode struct {
 	Title         *string                `protobuf:"bytes,4,opt,name=title,proto3,oneof" json:"title,omitempty"`
 	AirDate       *string                `protobuf:"bytes,5,opt,name=air_date,proto3,oneof" json:"air_date,omitempty"`
 	Runtime       *int32                 `protobuf:"varint,6,opt,name=runtime,proto3,oneof" json:"runtime,omitempty"`
-	BfWatched     bool                   `protobuf:"varint,7,opt,name=bf_watched,proto3" json:"bf_watched,omitempty"`
-	GfWatched     bool                   `protobuf:"varint,8,opt,name=gf_watched,proto3" json:"gf_watched,omitempty"`
+	Watched       bool                   `protobuf:"varint,7,opt,name=watched,proto3" json:"watched,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1611,16 +1610,9 @@ func (x *Episode) GetRuntime() int32 {
 	return 0
 }
 
-func (x *Episode) GetBfWatched() bool {
+func (x *Episode) GetWatched() bool {
 	if x != nil {
-		return x.BfWatched
-	}
-	return false
-}
-
-func (x *Episode) GetGfWatched() bool {
-	if x != nil {
-		return x.GfWatched
+		return x.Watched
 	}
 	return false
 }
@@ -1679,8 +1671,7 @@ func (x *EpisodesResponse) GetTotalSeasons() int32 {
 
 type ToggleEpisodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Person        string                 `protobuf:"bytes,1,opt,name=person,proto3" json:"person,omitempty"`
-	Watched       bool                   `protobuf:"varint,2,opt,name=watched,proto3" json:"watched,omitempty"`
+	Watched       bool                   `protobuf:"varint,1,opt,name=watched,proto3" json:"watched,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1713,13 +1704,6 @@ func (x *ToggleEpisodeRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ToggleEpisodeRequest.ProtoReflect.Descriptor instead.
 func (*ToggleEpisodeRequest) Descriptor() ([]byte, []int) {
 	return file_paired_ratings_proto_rawDescGZIP(), []int{25}
-}
-
-func (x *ToggleEpisodeRequest) GetPerson() string {
-	if x != nil {
-		return x.Person
-	}
-	return ""
 }
 
 func (x *ToggleEpisodeRequest) GetWatched() bool {
@@ -1960,30 +1944,24 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\x12GetRelatedResponse\x128\n" +
 	"\aresults\x18\x01 \x03(\v2\x1e.pairedratings.v1.SearchResultR\aresults\x12-\n" +
 	"\x0fcollection_name\x18\x02 \x01(\tH\x00R\x0fcollection_name\x88\x01\x01B\x12\n" +
-	"\x10_collection_name\"\xa5\x02\n" +
+	"\x10_collection_name\"\xff\x01\n" +
 	"\aEpisode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12$\n" +
 	"\rseason_number\x18\x02 \x01(\x05R\rseason_number\x12&\n" +
 	"\x0eepisode_number\x18\x03 \x01(\x05R\x0eepisode_number\x12\x19\n" +
 	"\x05title\x18\x04 \x01(\tH\x00R\x05title\x88\x01\x01\x12\x1f\n" +
 	"\bair_date\x18\x05 \x01(\tH\x01R\bair_date\x88\x01\x01\x12\x1d\n" +
-	"\aruntime\x18\x06 \x01(\x05H\x02R\aruntime\x88\x01\x01\x12\x1e\n" +
-	"\n" +
-	"bf_watched\x18\a \x01(\bR\n" +
-	"bf_watched\x12\x1e\n" +
-	"\n" +
-	"gf_watched\x18\b \x01(\bR\n" +
-	"gf_watchedB\b\n" +
+	"\aruntime\x18\x06 \x01(\x05H\x02R\aruntime\x88\x01\x01\x12\x18\n" +
+	"\awatched\x18\a \x01(\bR\awatchedB\b\n" +
 	"\x06_titleB\v\n" +
 	"\t_air_dateB\n" +
 	"\n" +
 	"\b_runtime\"o\n" +
 	"\x10EpisodesResponse\x125\n" +
 	"\bepisodes\x18\x01 \x03(\v2\x19.pairedratings.v1.EpisodeR\bepisodes\x12$\n" +
-	"\rtotal_seasons\x18\x02 \x01(\x05R\rtotal_seasons\"H\n" +
-	"\x14ToggleEpisodeRequest\x12\x16\n" +
-	"\x06person\x18\x01 \x01(\tR\x06person\x12\x18\n" +
-	"\awatched\x18\x02 \x01(\bR\awatched\"_\n" +
+	"\rtotal_seasons\x18\x02 \x01(\x05R\rtotal_seasons\"0\n" +
+	"\x14ToggleEpisodeRequest\x12\x18\n" +
+	"\awatched\x18\x01 \x01(\bR\awatched\"_\n" +
 	"\rExportPayload\x12 \n" +
 	"\vexported_at\x18\x01 \x01(\tR\vexported_at\x12,\n" +
 	"\x05shows\x18\x02 \x03(\v2\x16.pairedratings.v1.ShowR\x05showsB6Z4github.com/handsomefox/paired-ratings/backend/gen/pbb\x06proto3"

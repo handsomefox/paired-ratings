@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/handsomefox/paired-ratings/backend/gen/pb"
 	"github.com/handsomefox/paired-ratings/backend/logger"
@@ -124,12 +123,7 @@ func (h *Handler) postEpisodeToggle(w http.ResponseWriter, r *http.Request) erro
 		return badRequest("bad request")
 	}
 
-	person := strings.TrimSpace(req.Person)
-	if person != "bf" && person != "gf" {
-		return badRequest("person must be bf or gf")
-	}
-
-	if err := h.store.ToggleEpisode(ctx, id, person, req.Watched); err != nil {
+	if err := h.store.ToggleEpisode(ctx, id, req.Watched); err != nil {
 		if isNoRows(err) {
 			return notFound("not found")
 		}
@@ -178,8 +172,7 @@ func toPBEpisodes(episodes []store.Episode) []*pb.Episode {
 			Id:            ep.ID,
 			SeasonNumber:  int32(ep.SeasonNumber),
 			EpisodeNumber: int32(ep.EpisodeNumber),
-			BfWatched:     ep.BfWatched,
-			GfWatched:     ep.GfWatched,
+			Watched:       ep.Watched,
 		}
 		if ep.Title != "" {
 			pbEp.Title = &ep.Title

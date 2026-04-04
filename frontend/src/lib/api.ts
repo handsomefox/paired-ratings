@@ -103,10 +103,10 @@ export const api = {
     jsonRequest<EpisodesResponse>(`/api/shows/${id}/episodes/sync`, {
       method: "POST",
     }),
-  toggleEpisode: (episodeId: number, person: string, watched: boolean) =>
-    jsonRequest<void>(`/api/episodes/${episodeId}/toggle`, {
+  toggleEpisode: (episodeId: number, watched: boolean) =>
+    jsonRequest<void>(`/api/shows/episodes/${episodeId}/toggle`, {
       method: "POST",
-      body: JSON.stringify({ person, watched } satisfies ToggleEpisodeRequest),
+      body: JSON.stringify({ watched } satisfies ToggleEpisodeRequest),
     }),
   search: (params: URLSearchParams) =>
     jsonRequest<SearchResponse>(`/api/search?${params.toString()}`),

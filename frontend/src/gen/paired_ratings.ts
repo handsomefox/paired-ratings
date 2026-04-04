@@ -176,8 +176,7 @@ export interface Episode {
   title?: string | undefined;
   air_date?: string | undefined;
   runtime?: number | undefined;
-  bf_watched: boolean;
-  gf_watched: boolean;
+  watched: boolean;
 }
 
 export interface EpisodesResponse {
@@ -186,7 +185,6 @@ export interface EpisodesResponse {
 }
 
 export interface ToggleEpisodeRequest {
-  person: string;
   watched: boolean;
 }
 

@@ -18,8 +18,7 @@ type Episode struct {
 	Overview      string `bun:"overview"`
 	AirDate       string `bun:"air_date"`
 	Runtime       int    `bun:"runtime"`
-	BfWatched     bool   `bun:"bf_watched,notnull"`
-	GfWatched     bool   `bun:"gf_watched,notnull"`
+	Watched       bool   `bun:"watched,notnull"`
 	UpdatedAt     string `bun:"updated_at,notnull"`
 }
 
@@ -50,8 +49,8 @@ func (s *Store) SyncEpisodes(ctx context.Context, showID int64, episodes []Episo
 
 	for _, ep := range episodes {
 		_, err := tx.ExecContext(ctx, `
-			INSERT INTO episodes (show_id, season_number, episode_number, title, overview, air_date, runtime, bf_watched, gf_watched, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?)
+			INSERT INTO episodes (show_id, season_number, episode_number, title, overview, air_date, runtime, watched, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
 			ON CONFLICT (show_id, season_number, episode_number) DO UPDATE SET
 				title = excluded.title,
 				overview = excluded.overview,
@@ -67,12 +66,7 @@ func (s *Store) SyncEpisodes(ctx context.Context, showID int64, episodes []Episo
 	return tx.Commit()
 }
 
-func (s *Store) ToggleEpisode(ctx context.Context, episodeID int64, person string, watched bool) error {
-	col := "bf_watched"
-	if person == "gf" {
-		col = "gf_watched"
-	}
-
+func (s *Store) ToggleEpisode(ctx context.Context, episodeID int64, watched bool) error {
 	val := 0
 	if watched {
 		val = 1
@@ -82,7 +76,7 @@ func (s *Store) ToggleEpisode(ctx context.Context, episodeID int64, person strin
 
 	res, err := s.db.NewUpdate().
 		Table("episodes").
-		Set(col+" = ?", val).
+		Set("watched = ?", val).
 		Set("updated_at = ?", now).
 		Where("id = ?", episodeID).
 		Exec(ctx)

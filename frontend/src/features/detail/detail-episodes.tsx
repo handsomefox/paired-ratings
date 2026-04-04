@@ -10,18 +10,15 @@ import { toast } from "sonner";
 
 type DetailEpisodesProps = {
   showId: number;
-  bfName: string;
-  gfName: string;
 };
 
 type SeasonGroup = {
   season: number;
   episodes: ApiEpisode[];
-  bfCount: number;
-  gfCount: number;
+  watchedCount: number;
 };
 
-export function DetailEpisodes({ showId, bfName, gfName }: DetailEpisodesProps) {
+export function DetailEpisodes({ showId }: DetailEpisodesProps) {
   const queryClient = useQueryClient();
   const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(() => new Set());
 
@@ -45,15 +42,8 @@ export function DetailEpisodes({ showId, bfName, gfName }: DetailEpisodesProps) 
   });
 
   const toggleMutation = useMutation({
-    mutationFn: ({
-      episodeId,
-      person,
-      watched,
-    }: {
-      episodeId: number;
-      person: string;
-      watched: boolean;
-    }) => api.toggleEpisode(episodeId, person, watched),
+    mutationFn: ({ episodeId, watched }: { episodeId: number; watched: boolean }) =>
+      api.toggleEpisode(episodeId, watched),
     onSuccess: (_data, variables) => {
       queryClient.setQueryData<EpisodesResponse>(["episodes", showId], (old) => {
         if (!old) return old;
@@ -61,11 +51,7 @@ export function DetailEpisodes({ showId, bfName, gfName }: DetailEpisodesProps) 
           ...old,
           episodes: old.episodes.map((ep) => {
             if (ep.id !== variables.episodeId) return ep;
-            return {
-              ...ep,
-              bf_watched: variables.person === "bf" ? variables.watched : ep.bf_watched,
-              gf_watched: variables.person === "gf" ? variables.watched : ep.gf_watched,
-            };
+            return { ...ep, watched: variables.watched };
           }),
         };
       });
@@ -88,8 +74,7 @@ export function DetailEpisodes({ showId, bfName, gfName }: DetailEpisodesProps) 
       groups.push({
         season,
         episodes: eps.sort((a, b) => a.episode_number - b.episode_number),
-        bfCount: eps.filter((e) => e.bf_watched).length,
-        gfCount: eps.filter((e) => e.gf_watched).length,
+        watchedCount: eps.filter((e) => e.watched).length,
       });
     }
     return groups.sort((a, b) => a.season - b.season);
@@ -151,10 +136,7 @@ export function DetailEpisodes({ showId, bfName, gfName }: DetailEpisodesProps) 
                 <span>Season {group.season}</span>
                 <span className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span>
-                    {bfName}: {group.bfCount}/{group.episodes.length}
-                  </span>
-                  <span>
-                    {gfName}: {group.gfCount}/{group.episodes.length}
+                    {group.watchedCount}/{group.episodes.length} watched
                   </span>
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
@@ -180,36 +162,15 @@ export function DetailEpisodes({ showId, bfName, gfName }: DetailEpisodesProps) 
                           {ep.runtime != null && ep.runtime > 0 && <span>{ep.runtime}m</span>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-1.5 text-xs">
-                          <Checkbox
-                            checked={ep.bf_watched}
-                            onCheckedChange={(checked) =>
-                              toggleMutation.mutate({
-                                episodeId: ep.id,
-                                person: "bf",
-                                watched: checked === true,
-                              })
-                            }
-                          />
-                          <span className="hidden sm:inline">{bfName}</span>
-                          <span className="sm:hidden">B</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 text-xs">
-                          <Checkbox
-                            checked={ep.gf_watched}
-                            onCheckedChange={(checked) =>
-                              toggleMutation.mutate({
-                                episodeId: ep.id,
-                                person: "gf",
-                                watched: checked === true,
-                              })
-                            }
-                          />
-                          <span className="hidden sm:inline">{gfName}</span>
-                          <span className="sm:hidden">G</span>
-                        </label>
-                      </div>
+                      <Checkbox
+                        checked={ep.watched}
+                        onCheckedChange={(checked) =>
+                          toggleMutation.mutate({
+                            episodeId: ep.id,
+                            watched: checked === true,
+                          })
+                        }
+                      />
                     </div>
                   ))}
                 </div>

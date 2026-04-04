@@ -169,8 +169,7 @@ message Episode {
   optional string title = 4 [json_name = "title"];
   optional string air_date = 5 [json_name = "air_date"];
   optional int32 runtime = 6 [json_name = "runtime"];
-  bool bf_watched = 7 [json_name = "bf_watched"];
-  bool gf_watched = 8 [json_name = "gf_watched"];
+  bool watched = 7 [json_name = "watched"];
 }
 
 message EpisodesResponse {
@@ -179,8 +178,7 @@ message EpisodesResponse {
 }
 
 message ToggleEpisodeRequest {
-  string person = 1 [json_name = "person"];
-  bool watched = 2 [json_name = "watched"];
+  bool watched = 1 [json_name = "watched"];
 }
 
 message ExportPayload {
