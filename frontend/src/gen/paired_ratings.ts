@@ -55,6 +55,7 @@ export interface ListResponse {
   shows: Show[];
   genres: string[];
   countries: string[];
+  total_count: number;
 }
 
 export interface GenresResponse {

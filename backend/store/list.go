@@ -56,9 +56,7 @@ func (s *Store) InLibraryByTMDB(ctx context.Context, refs []TMDBRef) (map[TMDBRe
 	return out, nil
 }
 
-func (s *Store) ListShows(ctx context.Context, filters *ListFilters) (out []Show, err error) {
-	q := s.db.NewSelect().Model(&out)
-
+func applyListFilterConditions(q *bun.SelectQuery, filters *ListFilters) *bun.SelectQuery {
 	if filters.Status != "" && filters.Status != "all" {
 		q = q.Where("status = ?", filters.Status)
 	}
@@ -86,6 +84,22 @@ func (s *Store) ListShows(ctx context.Context, filters *ListFilters) (out []Show
 			return q.Where("bf_rating IS NULL").WhereOr("gf_rating IS NULL")
 		})
 	}
+	if filters.Sort == "priority" {
+		q = q.Where("watch_priority IS NOT NULL")
+	}
+	return q
+}
+
+func (s *Store) ListShows(ctx context.Context, filters *ListFilters) (out []Show, total int, err error) {
+	total, err = applyListFilterConditions(
+		s.db.NewSelect().TableExpr("shows"),
+		filters,
+	).Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	q := applyListFilterConditions(s.db.NewSelect().Model(&out), filters)
 
 	switch filters.Sort {
 	case "avg":
@@ -105,16 +119,23 @@ END DESC
 	case "title":
 		q = q.OrderExpr("title COLLATE NOCASE ASC")
 	case "priority":
-		q = q.Where("watch_priority IS NOT NULL").
-			OrderExpr("watch_priority ASC")
+		q = q.OrderExpr("watch_priority ASC")
 	case "updated":
 		q = q.OrderExpr("updated_at DESC")
 	default:
 		q = q.OrderExpr("created_at DESC")
 	}
 
+	if filters.PageSize > 0 {
+		page := filters.Page
+		if page < 1 {
+			page = 1
+		}
+		q = q.Limit(filters.PageSize).Offset((page - 1) * filters.PageSize)
+	}
+
 	err = q.Scan(ctx)
-	return out, err
+	return out, total, err
 }
 
 func (s *Store) ListAllGenres(ctx context.Context) ([]string, error) {

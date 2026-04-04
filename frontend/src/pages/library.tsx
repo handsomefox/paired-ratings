@@ -21,6 +21,69 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
+type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
+
+function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (p: number) => void;
+}) {
+  const pages: (number | "…")[] = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else if (page <= 4) {
+    pages.push(1, 2, 3, 4, 5, "…", totalPages);
+  } else if (page >= totalPages - 3) {
+    pages.push(1, "…", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+  } else {
+    pages.push(1, "…", page - 1, page, page + 1, "…", totalPages);
+  }
+
+  const btn = (label: string | number, target: number, active = false, disabled = false) => (
+    <button
+      key={`${label}-${target}`}
+      onClick={() => !disabled && onPageChange(target)}
+      disabled={disabled}
+      className={`min-w-[2rem] rounded px-2 py-1 text-xs transition-colors ${
+        active
+          ? "bg-foreground text-background"
+          : disabled
+            ? "cursor-default text-muted-foreground/40"
+            : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="flex items-center justify-center gap-1 pt-2">
+      {btn("←", page - 1, false, page === 1)}
+      {pages.map((p, i) =>
+        p === "…" ? (
+          <span key={`ellipsis-${i}`} className="px-1 text-xs text-muted-foreground/40">
+            …
+          </span>
+        ) : (
+          btn(p, p, p === page)
+        ),
+      )}
+      {btn("→", page + 1, false, page === totalPages)}
+    </div>
+  );
+}
+
+function parsePageSize(val: string | null): PageSize {
+  if (val === "50") return 50;
+  if (val === "100") return 100;
+  return 20;
+}
+
 export function LibraryPage() {
   const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const [status, setStatus] = useState(() => initialParams.get("status") ?? "all");
@@ -32,6 +95,13 @@ export function LibraryPage() {
   const [yearTo, setYearTo] = useState(() => initialParams.get("year_to") ?? "");
   const [unrated, setUnrated] = useState(() => initialParams.get("unrated") === "1");
   const [sort, setSort] = useState(() => initialParams.get("sort") ?? "created");
+  const [page, setPage] = useState(() => {
+    const v = parseInt(initialParams.get("page") ?? "1", 10);
+    return Number.isFinite(v) && v >= 1 ? v : 1;
+  });
+  const [pageSize, setPageSize] = useState<PageSize>(() =>
+    parsePageSize(initialParams.get("page_size")),
+  );
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ApiShow | null>(null);
   const queryClient = useQueryClient();
@@ -61,6 +131,19 @@ export function LibraryPage() {
     250,
   );
 
+  // Reset to page 1 whenever filters change.
+  useEffect(() => {
+    setPage(1);
+  }, [
+    debouncedFilters.status,
+    debouncedFilters.genre,
+    debouncedFilters.originCountry,
+    debouncedFilters.yearFrom,
+    debouncedFilters.yearTo,
+    debouncedFilters.unrated,
+    debouncedFilters.sort,
+  ]);
+
   const params = useMemo(() => {
     const p = new URLSearchParams();
     if (debouncedFilters.status && debouncedFilters.status !== "all")
@@ -72,6 +155,8 @@ export function LibraryPage() {
     if (debouncedFilters.unrated) p.set("unrated", "1");
     if (debouncedFilters.sort && debouncedFilters.sort !== "created")
       p.set("sort", debouncedFilters.sort);
+    if (page > 1) p.set("page", String(page));
+    if (pageSize !== 20) p.set("page_size", String(pageSize));
     return p;
   }, [
     debouncedFilters.status,
@@ -81,6 +166,8 @@ export function LibraryPage() {
     debouncedFilters.yearTo,
     debouncedFilters.unrated,
     debouncedFilters.sort,
+    page,
+    pageSize,
   ]);
 
   const showsQuery = useQuery({
@@ -131,33 +218,17 @@ export function LibraryPage() {
   }, []);
 
   useEffect(() => {
-    const next = new URLSearchParams();
-    if (debouncedFilters.status && debouncedFilters.status !== "all")
-      next.set("status", debouncedFilters.status);
-    if (debouncedFilters.genre) next.set("genre", debouncedFilters.genre);
-    if (debouncedFilters.originCountry) next.set("origin_country", debouncedFilters.originCountry);
-    if (debouncedFilters.yearFrom) next.set("year_from", debouncedFilters.yearFrom);
-    if (debouncedFilters.yearTo) next.set("year_to", debouncedFilters.yearTo);
-    if (debouncedFilters.unrated) next.set("unrated", "1");
-    if (debouncedFilters.sort && debouncedFilters.sort !== "created")
-      next.set("sort", debouncedFilters.sort);
-
+    const next = params;
     const query = next.toString();
     const url = query ? `/?${query}` : "/";
     window.history.replaceState(null, "", url);
-  }, [
-    debouncedFilters.status,
-    debouncedFilters.genre,
-    debouncedFilters.originCountry,
-    debouncedFilters.yearFrom,
-    debouncedFilters.yearTo,
-    debouncedFilters.unrated,
-    debouncedFilters.sort,
-  ]);
+  }, [params]);
 
   const shows = showsQuery.data?.shows ?? [];
   const genres = showsQuery.data?.genres ?? [];
   const countries = showsQuery.data?.countries ?? [];
+  const totalCount = showsQuery.data?.total_count ?? 0;
+  const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 1;
   const countryNames = countriesQuery.data?.countries ?? [];
   const countryLabel = (code: string) =>
     countryNames.find((country) => country.code === code)?.name ?? code;
@@ -185,6 +256,7 @@ export function LibraryPage() {
     setYearTo("");
     setUnrated(false);
     setSort("created");
+    setPage(1);
   };
 
   const FiltersForm = (
@@ -218,7 +290,12 @@ export function LibraryPage() {
 
   const renderCount = () => {
     if (isInitialLoading) return "";
-    return `Shows (${shows.length})`;
+    return `Shows (${totalCount})`;
+  };
+
+  const handlePageSizeChange = (size: PageSize) => {
+    setPageSize(size);
+    setPage(1);
   };
 
   return (
@@ -230,7 +307,26 @@ export function LibraryPage() {
         headerClassName="flex-wrap items-end gap-4"
       >
         <FiltersPaneContent>
-          <div className="text-xs text-muted-foreground sm:text-sm">{renderCount()}</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-muted-foreground sm:text-sm">{renderCount()}</div>
+            {!isInitialLoading && totalCount > 0 && (
+              <div className="flex items-center gap-1">
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => handlePageSizeChange(size)}
+                    className={`rounded px-2 py-0.5 text-xs transition-colors ${
+                      pageSize === size
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <LibraryResults
             shows={shows}
@@ -241,6 +337,14 @@ export function LibraryPage() {
             statusBadgeVariant={statusBadgeVariant}
             fromLocation={fromLocation}
           />
+
+          {totalPages > 1 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          )}
         </FiltersPaneContent>
       </FiltersPane>
 

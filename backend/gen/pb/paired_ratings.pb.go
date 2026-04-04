@@ -418,6 +418,7 @@ type ListResponse struct {
 	Shows         []*Show                `protobuf:"bytes,1,rep,name=shows,proto3" json:"shows,omitempty"`
 	Genres        []string               `protobuf:"bytes,2,rep,name=genres,proto3" json:"genres,omitempty"`
 	Countries     []string               `protobuf:"bytes,3,rep,name=countries,proto3" json:"countries,omitempty"`
+	TotalCount    int32                  `protobuf:"varint,4,opt,name=total_count,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -471,6 +472,13 @@ func (x *ListResponse) GetCountries() []string {
 		return x.Countries
 	}
 	return nil
+}
+
+func (x *ListResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
 }
 
 type GenresResponse struct {
@@ -1863,11 +1871,12 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"ShowDetail\x12*\n" +
 	"\x04show\x18\x01 \x01(\v2\x16.pairedratings.v1.ShowR\x04show\x12\x1f\n" +
 	"\bimdb_url\x18\x02 \x01(\tH\x00R\bimdb_url\x88\x01\x01B\v\n" +
-	"\t_imdb_url\"r\n" +
+	"\t_imdb_url\"\x94\x01\n" +
 	"\fListResponse\x12,\n" +
 	"\x05shows\x18\x01 \x03(\v2\x16.pairedratings.v1.ShowR\x05shows\x12\x16\n" +
 	"\x06genres\x18\x02 \x03(\tR\x06genres\x12\x1c\n" +
-	"\tcountries\x18\x03 \x03(\tR\tcountries\"(\n" +
+	"\tcountries\x18\x03 \x03(\tR\tcountries\x12 \n" +
+	"\vtotal_count\x18\x04 \x01(\x05R\vtotal_count\"(\n" +
 	"\x0eGenresResponse\x12\x16\n" +
 	"\x06genres\x18\x01 \x03(\tR\x06genres\"\xd6\x02\n" +
 	"\fSearchResult\x12\x0e\n" +

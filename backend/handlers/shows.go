@@ -17,7 +17,7 @@ func (h *Handler) getShows(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	filters := parseListFilters(r)
 
-	shows, err := h.store.ListShows(ctx, filters)
+	shows, totalCount, err := h.store.ListShows(ctx, filters)
 	if err != nil {
 		slog.Warn("list shows failed", logger.Error(err))
 		return internal(err)
@@ -62,9 +62,10 @@ func (h *Handler) getShows(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	writeJSON(w, http.StatusOK, &pb.ListResponse{
-		Shows:     pbShows,
-		Genres:    genres,
-		Countries: countries,
+		Shows:      pbShows,
+		Genres:     genres,
+		Countries:  countries,
+		TotalCount: int32(totalCount),
 	})
 	return nil
 }
@@ -503,10 +504,12 @@ func parseListFilters(r *http.Request) *store.ListFilters {
 	}
 
 	filters := store.ListFilters{
-		Status:  r.URL.Query().Get("status"),
-		Genre:   r.URL.Query().Get("genre"),
-		Country: country,
-		Sort:    r.URL.Query().Get("sort"),
+		Status:   r.URL.Query().Get("status"),
+		Genre:    r.URL.Query().Get("genre"),
+		Country:  country,
+		Sort:     r.URL.Query().Get("sort"),
+		Page:     1,
+		PageSize: 20,
 	}
 
 	if r.URL.Query().Get("unrated") == "1" {
@@ -522,6 +525,23 @@ func parseListFilters(r *http.Request) *store.ListFilters {
 	if val := r.URL.Query().Get("year_to"); val != "" {
 		if v, err := strconv.Atoi(val); err == nil {
 			filters.YearTo = &v
+		}
+	}
+
+	if val := r.URL.Query().Get("page"); val != "" {
+		if v, err := strconv.Atoi(val); err == nil && v >= 1 {
+			filters.Page = v
+		}
+	}
+
+	if val := r.URL.Query().Get("page_size"); val != "" {
+		switch val {
+		case "50":
+			filters.PageSize = 50
+		case "100":
+			filters.PageSize = 100
+		default:
+			filters.PageSize = 20
 		}
 	}
 

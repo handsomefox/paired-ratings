@@ -43,7 +43,7 @@ func (h *Handler) getExportDB(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) postExport(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	shows, err := h.store.ListShows(ctx, &store.ListFilters{Status: "all"})
+	shows, _, err := h.store.ListShows(ctx, &store.ListFilters{Status: "all"})
 	if err != nil {
 		return internal(err)
 	}

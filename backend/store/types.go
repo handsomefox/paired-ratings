@@ -44,6 +44,8 @@ type ListFilters struct {
 	Country  string
 	Unrated  bool
 	Sort     string
+	Page     int
+	PageSize int
 }
 
 type TMDBRef struct {

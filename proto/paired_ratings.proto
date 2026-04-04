@@ -51,6 +51,7 @@ message ListResponse {
   repeated Show shows = 1 [json_name = "shows"];
   repeated string genres = 2 [json_name = "genres"];
   repeated string countries = 3 [json_name = "countries"];
+  int32 total_count = 4 [json_name = "total_count"];
 }
 
 message GenresResponse {
