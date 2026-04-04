@@ -112,7 +112,9 @@ export function LibraryResults({
                 </div>
               }
               statusBadge={
-                <Badge variant={statusBadgeVariant(show.status)}>{show.status || "tbd"}</Badge>
+                <span className="text-xs font-semibold capitalize text-white drop-shadow-sm">
+                  {show.status || "tbd"}
+                </span>
               }
               metaBadges={
                 <>
