@@ -58,6 +58,7 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
     onSuccess: (_data, item) => {
       queryClient.invalidateQueries({ queryKey: ["shows"] });
       queryClient.invalidateQueries({ queryKey: ["related", showId] });
+      queryClient.invalidateQueries({ queryKey: ["library-map"] });
       toast.success(`Added "${item.title}" to library.`);
     },
     onError: () => {
