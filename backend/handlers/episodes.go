@@ -4,7 +4,9 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/handsomefox/paired-ratings/backend/gen/pb"
 	"github.com/handsomefox/paired-ratings/backend/logger"
 	"github.com/handsomefox/paired-ratings/backend/store"
@@ -124,6 +126,36 @@ func (h *Handler) postEpisodeToggle(w http.ResponseWriter, r *http.Request) erro
 	}
 
 	if err := h.store.ToggleEpisode(ctx, id, req.Watched); err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func (h *Handler) postSeasonToggle(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	id, err := idParam(r, "id")
+	if err != nil {
+		return notFound("not found")
+	}
+
+	seasonStr := chi.URLParam(r, "season")
+	season, err := strconv.Atoi(seasonStr)
+	if err != nil || season < 1 {
+		return badRequest("invalid season number")
+	}
+
+	var req pb.ToggleEpisodeRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return badRequest("bad request")
+	}
+
+	if err := h.store.ToggleSeason(ctx, id, season, req.Watched); err != nil {
 		if isNoRows(err) {
 			return notFound("not found")
 		}

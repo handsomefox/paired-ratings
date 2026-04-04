@@ -91,6 +91,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 				r.Method(http.MethodGet, "/related", Adapt(h.getShowRelated))
 				r.Method(http.MethodGet, "/episodes", Adapt(h.getShowEpisodes))
 				r.Method(http.MethodPost, "/episodes/sync", Adapt(h.postShowEpisodesSync))
+				r.Method(http.MethodPost, "/episodes/season/{season:[0-9]+}/toggle", Adapt(h.postSeasonToggle))
 				r.Method(http.MethodPost, "/ratings", Adapt(h.postShowRatings))
 				r.Method(http.MethodPost, "/set-status", Adapt(h.postShowSetStatus))
 				r.Method(http.MethodPost, "/clear-ratings", Adapt(h.postShowClearRatings))

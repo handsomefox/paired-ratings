@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/uptrace/bun"
@@ -92,4 +93,30 @@ func (s *Store) EpisodeCountForShow(ctx context.Context, showID int64) (int, err
 		Where("show_id = ?", showID).
 		Count(ctx)
 	return count, err
+}
+
+func (s *Store) ToggleSeason(ctx context.Context, showID int64, seasonNumber int, watched bool) error {
+	val := 0
+	if watched {
+		val = 1
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	res, err := s.db.NewUpdate().
+		Table("episodes").
+		Set("watched = ?", val).
+		Set("updated_at = ?", now).
+		Where("show_id = ?", showID).
+		Where("season_number = ?", seasonNumber).
+		Exec(ctx)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }

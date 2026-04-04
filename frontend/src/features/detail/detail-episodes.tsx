@@ -61,6 +61,26 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
     },
   });
 
+  const toggleSeasonMutation = useMutation({
+    mutationFn: ({ season, watched }: { season: number; watched: boolean }) =>
+      api.toggleSeason(showId, season, watched),
+    onSuccess: (_data, variables) => {
+      queryClient.setQueryData<EpisodesResponse>(["episodes", showId], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          episodes: old.episodes.map((ep) => {
+            if (ep.season_number !== variables.season) return ep;
+            return { ...ep, watched: variables.watched };
+          }),
+        };
+      });
+    },
+    onError: () => {
+      toast.error("Failed to update season.");
+    },
+  });
+
   const seasons = useMemo((): SeasonGroup[] => {
     const episodes = episodesQuery.data?.episodes ?? [];
     const map = new Map<number, ApiEpisode[]>();
@@ -128,21 +148,39 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
           const isExpanded = expandedSeasons.has(group.season);
           return (
             <div key={group.season} className="rounded-lg border border-border/60">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-medium transition hover:bg-muted/40"
-                onClick={() => toggleSeason(group.season)}
-              >
-                <span>Season {group.season}</span>
-                <span className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span>
-                    {group.watchedCount}/{group.episodes.length} watched
+              <div className="flex w-full items-center gap-2 px-3 py-2.5">
+                <button
+                  type="button"
+                  className="flex flex-1 items-center justify-between gap-2 text-left text-sm font-medium transition"
+                  onClick={() => toggleSeason(group.season)}
+                >
+                  <span>Season {group.season}</span>
+                  <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>
+                      {group.watchedCount}/{group.episodes.length} watched
+                    </span>
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                    />
                   </span>
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                  />
-                </span>
-              </button>
+                </button>
+                <Checkbox
+                  checked={
+                    group.watchedCount === group.episodes.length
+                      ? true
+                      : group.watchedCount === 0
+                        ? false
+                        : "indeterminate"
+                  }
+                  onCheckedChange={(checked) =>
+                    toggleSeasonMutation.mutate({
+                      season: group.season,
+                      watched: checked === true,
+                    })
+                  }
+                  aria-label={`Mark all Season ${group.season} as watched`}
+                />
+              </div>
               {isExpanded && (
                 <div className="border-t border-border/40">
                   {group.episodes.map((ep) => (
