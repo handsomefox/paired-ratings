@@ -31,7 +31,7 @@ export function LibraryPage() {
   const [yearFrom, setYearFrom] = useState(() => initialParams.get("year_from") ?? "");
   const [yearTo, setYearTo] = useState(() => initialParams.get("year_to") ?? "");
   const [unrated, setUnrated] = useState(() => initialParams.get("unrated") === "1");
-  const [sort, setSort] = useState(() => initialParams.get("sort") ?? "updated");
+  const [sort, setSort] = useState(() => initialParams.get("sort") ?? "created");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ApiShow | null>(null);
   const queryClient = useQueryClient();
@@ -70,7 +70,7 @@ export function LibraryPage() {
     if (debouncedFilters.yearFrom) p.set("year_from", debouncedFilters.yearFrom);
     if (debouncedFilters.yearTo) p.set("year_to", debouncedFilters.yearTo);
     if (debouncedFilters.unrated) p.set("unrated", "1");
-    if (debouncedFilters.sort && debouncedFilters.sort !== "updated")
+    if (debouncedFilters.sort && debouncedFilters.sort !== "created")
       p.set("sort", debouncedFilters.sort);
     return p;
   }, [
@@ -139,7 +139,7 @@ export function LibraryPage() {
     if (debouncedFilters.yearFrom) next.set("year_from", debouncedFilters.yearFrom);
     if (debouncedFilters.yearTo) next.set("year_to", debouncedFilters.yearTo);
     if (debouncedFilters.unrated) next.set("unrated", "1");
-    if (debouncedFilters.sort && debouncedFilters.sort !== "updated")
+    if (debouncedFilters.sort && debouncedFilters.sort !== "created")
       next.set("sort", debouncedFilters.sort);
 
     const query = next.toString();
@@ -166,6 +166,7 @@ export function LibraryPage() {
   const gfName = sessionQuery.data?.gf_name ?? "GF";
 
   const sortOptions = [
+    { value: "created", label: "Date added" },
     { value: "updated", label: "Recently updated" },
     { value: "avg", label: "Average rating" },
     { value: "bf", label: `${bfName} rating` },
@@ -183,7 +184,7 @@ export function LibraryPage() {
     setYearFrom("");
     setYearTo("");
     setUnrated(false);
-    setSort("updated");
+    setSort("created");
   };
 
   const FiltersForm = (

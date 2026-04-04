@@ -76,7 +76,11 @@ function SortableRow({
   const startEditing = () => {
     setInputValue(String(index + 1));
     setEditing(true);
-    setTimeout(() => inputRef.current?.select(), 0);
+    // Focus must be called synchronously from the user gesture so mobile
+    // browsers open the keyboard. The input is always in the DOM (just
+    // visually hidden) so this works without a setTimeout.
+    inputRef.current?.focus();
+    inputRef.current?.select();
   };
 
   const commitEdit = () => {
@@ -103,10 +107,20 @@ function SortableRow({
         <GripVertical className="h-5 w-5" />
       </button>
 
-      {editing ? (
+      {/* Both elements stay in the DOM so focus() can be called synchronously
+          from the click handler, which is required for mobile keyboards. */}
+      <div className="relative w-6 shrink-0">
+        <button
+          onClick={startEditing}
+          title="Click to enter position"
+          className={`w-full text-center text-xs font-semibold tabular-nums text-muted-foreground hover:text-primary ${editing ? "invisible" : ""}`}
+        >
+          {index + 1}
+        </button>
         <input
           ref={inputRef}
           type="number"
+          inputMode="numeric"
           min={1}
           max={total}
           value={inputValue}
@@ -116,17 +130,9 @@ function SortableRow({
             if (e.key === "Enter") commitEdit();
             else if (e.key === "Escape") setEditing(false);
           }}
-          className="w-8 shrink-0 rounded border border-primary bg-background text-center text-xs font-semibold tabular-nums text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className={`absolute inset-0 w-full rounded border border-primary bg-background text-center text-xs font-semibold tabular-nums text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${editing ? "" : "invisible"}`}
         />
-      ) : (
-        <button
-          onClick={startEditing}
-          title="Click to enter position"
-          className="w-6 shrink-0 cursor-pointer text-center text-xs font-semibold tabular-nums text-muted-foreground hover:text-primary"
-        >
-          {index + 1}
-        </button>
-      )}
+      </div>
 
       <ViewTransitionLink
         to="/show/$showId"

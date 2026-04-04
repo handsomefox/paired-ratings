@@ -108,8 +108,10 @@ END DESC
 		q = q.OrderExpr("CASE WHEN watch_priority IS NULL THEN 1 ELSE 0 END ASC").
 			OrderExpr("watch_priority ASC").
 			OrderExpr("updated_at DESC")
-	default:
+	case "updated":
 		q = q.OrderExpr("updated_at DESC")
+	default:
+		q = q.OrderExpr("created_at DESC")
 	}
 
 	err = q.Scan(ctx)
