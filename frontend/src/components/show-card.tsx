@@ -94,7 +94,7 @@ export function ShowCard({
         {posterLink ? posterLink(poster) : poster}
         {topRight ? <div className="absolute right-3 top-3">{topRight}</div> : null}
         {statusBadge ? (
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2.5 pb-2 pt-6">
+          <div className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-black/40 px-2.5 py-1.5 backdrop-blur-sm">
             {statusBadge}
           </div>
         ) : null}
