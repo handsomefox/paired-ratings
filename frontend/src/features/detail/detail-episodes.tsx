@@ -118,7 +118,7 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <button
           type="button"
-          className="flex flex-1 items-center gap-2 text-left cursor-pointer lg:cursor-default"
+          className="flex flex-1 cursor-pointer items-center gap-2 text-left lg:cursor-default"
           onClick={() => setMobileOpen((o) => !o)}
           aria-expanded={mobileOpen}
         >

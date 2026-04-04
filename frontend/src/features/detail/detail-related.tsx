@@ -95,12 +95,16 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
                     votes={item.vote_count}
                     className="col-span-2 flex w-full justify-center"
                   />
-                  <LanguageBadge code={item.original_language} label={item.original_language?.toUpperCase()} />
-                  <Badge
-                    variant="outline"
-                    className="flex justify-center"
-                  >
-                    {item.media_type === "movie" ? "Movie" : item.media_type === "tv" ? "TV" : item.media_type}
+                  <LanguageBadge
+                    code={item.original_language}
+                    label={item.original_language?.toUpperCase()}
+                  />
+                  <Badge variant="outline" className="flex justify-center">
+                    {item.media_type === "movie"
+                      ? "Movie"
+                      : item.media_type === "tv"
+                        ? "TV"
+                        : item.media_type}
                   </Badge>
                 </>
               }

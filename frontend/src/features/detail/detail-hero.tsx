@@ -177,12 +177,7 @@ export function DetailHero({
             )
           ) : null}
           {findSimilarUrl ? (
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="rounded-full px-3 text-xs"
-            >
+            <Button asChild variant="outline" size="sm" className="rounded-full px-3 text-xs">
               <a href={findSimilarUrl}>Find Similar</a>
             </Button>
           ) : null}

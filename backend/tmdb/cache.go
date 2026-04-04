@@ -50,31 +50,31 @@ func (c *ttlCache[K, V]) set(key K, value V, ttl time.Duration) {
 
 // CachedClient wraps an Interface and caches responses that are safe to reuse.
 type CachedClient struct {
-	inner           Interface
-	details         *ttlCache[string, *Detail]
-	genres          *ttlCache[string, []Genre]
-	countries       *ttlCache[string, []Country]
-	languages       *ttlCache[string, []Language]
-	search          *ttlCache[string, SearchPage]
-	discover        *ttlCache[string, SearchPage]
-	collections     *ttlCache[int64, []SearchResult]
-	similar *ttlCache[string, []SearchResult]
-	seasons         *ttlCache[string, Season]
+	inner       Interface
+	details     *ttlCache[string, *Detail]
+	genres      *ttlCache[string, []Genre]
+	countries   *ttlCache[string, []Country]
+	languages   *ttlCache[string, []Language]
+	search      *ttlCache[string, SearchPage]
+	discover    *ttlCache[string, SearchPage]
+	collections *ttlCache[int64, []SearchResult]
+	similar     *ttlCache[string, []SearchResult]
+	seasons     *ttlCache[string, Season]
 }
 
 // NewCachedClient wraps inner with an in-memory TTL cache.
 func NewCachedClient(inner Interface) *CachedClient {
 	return &CachedClient{
-		inner:           inner,
-		details:         newCache[string, *Detail](),
-		genres:          newCache[string, []Genre](),
-		countries:       newCache[string, []Country](),
-		languages:       newCache[string, []Language](),
-		search:          newCache[string, SearchPage](),
-		discover:        newCache[string, SearchPage](),
-		collections:     newCache[int64, []SearchResult](),
-		similar: newCache[string, []SearchResult](),
-		seasons:         newCache[string, Season](),
+		inner:       inner,
+		details:     newCache[string, *Detail](),
+		genres:      newCache[string, []Genre](),
+		countries:   newCache[string, []Country](),
+		languages:   newCache[string, []Language](),
+		search:      newCache[string, SearchPage](),
+		discover:    newCache[string, SearchPage](),
+		collections: newCache[int64, []SearchResult](),
+		similar:     newCache[string, []SearchResult](),
+		seasons:     newCache[string, Season](),
 	}
 }
 

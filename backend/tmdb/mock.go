@@ -4,15 +4,15 @@ import "context"
 
 // Mock is a configurable TMDB client for tests.
 type Mock struct {
-	FetchDetailsFunc         func(ctx context.Context, id int64, mediaType string) (*Detail, error)
-	FetchGenresFunc          func(ctx context.Context, mediaType string) ([]Genre, error)
-	FetchCountriesFunc       func(ctx context.Context) ([]Country, error)
-	FetchLanguagesFunc       func(ctx context.Context) ([]Language, error)
-	SearchPageFunc           func(ctx context.Context, query string, mediaType string, page int) (SearchPage, error)
-	DiscoverPageFunc         func(ctx context.Context, mediaType string, filters DiscoverFilters, page int) (SearchPage, error)
-	FetchCollectionFunc      func(ctx context.Context, collectionID int64) ([]SearchResult, error)
-	FetchSimilarFunc func(ctx context.Context, id int64, mediaType string) ([]SearchResult, error)
-	FetchSeasonFunc          func(ctx context.Context, showID int64, seasonNumber int) (Season, error)
+	FetchDetailsFunc    func(ctx context.Context, id int64, mediaType string) (*Detail, error)
+	FetchGenresFunc     func(ctx context.Context, mediaType string) ([]Genre, error)
+	FetchCountriesFunc  func(ctx context.Context) ([]Country, error)
+	FetchLanguagesFunc  func(ctx context.Context) ([]Language, error)
+	SearchPageFunc      func(ctx context.Context, query string, mediaType string, page int) (SearchPage, error)
+	DiscoverPageFunc    func(ctx context.Context, mediaType string, filters DiscoverFilters, page int) (SearchPage, error)
+	FetchCollectionFunc func(ctx context.Context, collectionID int64) ([]SearchResult, error)
+	FetchSimilarFunc    func(ctx context.Context, id int64, mediaType string) ([]SearchResult, error)
+	FetchSeasonFunc     func(ctx context.Context, showID int64, seasonNumber int) (Season, error)
 }
 
 var _ Interface = (*Mock)(nil)
