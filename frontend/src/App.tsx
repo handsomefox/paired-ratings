@@ -111,7 +111,7 @@ const RootLayout = () => {
 
   if (sessionQuery.isLoading) {
     return (
-      <main className="mx-auto w-full max-w-[1440px] px-4 py-16 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+      <main className="mx-auto w-full max-w-[1720px] px-4 py-16 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <Loading />
       </main>
     );
@@ -122,7 +122,7 @@ const RootLayout = () => {
       {authed ? (
         <Navbar onExport={handleExport} onExportDB={handleExportDB} onLogout={handleLogout} />
       ) : null}
-      <main className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 md:py-8 lg:px-8 xl:px-10 2xl:px-12">
+      <main className="mx-auto w-full max-w-[1720px] px-4 py-6 sm:px-6 md:py-8 lg:px-8 xl:px-10 2xl:px-12">
         <Outlet />
       </main>
       {authed ? <ScrollToTop /> : null}
