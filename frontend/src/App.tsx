@@ -119,7 +119,9 @@ const RootLayout = () => {
 
   return (
     <div className="min-h-screen">
-      {authed ? <Navbar onExport={handleExport} onExportDB={handleExportDB} onLogout={handleLogout} /> : null}
+      {authed ? (
+        <Navbar onExport={handleExport} onExportDB={handleExportDB} onLogout={handleLogout} />
+      ) : null}
       <main className="mx-auto w-full px-4 py-6 sm:px-6 md:py-8 lg:max-w-[88vw] lg:px-8 xl:max-w-[84vw] xl:px-10 2xl:max-w-[80vw] 2xl:px-12">
         <Outlet />
       </main>

@@ -327,6 +327,78 @@ func (h *Handler) postShowRefreshTMDB(w http.ResponseWriter, r *http.Request) er
 	return nil
 }
 
+func (h *Handler) getShowRelated(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	id, err := idParam(r, "id")
+	if err != nil {
+		return notFound("not found")
+	}
+
+	show, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	var related []tmdb.SearchResult
+	var collectionName string
+
+	if show.MediaType == "movie" && show.CollectionID.Valid && show.CollectionID.V != 0 {
+		collectionName = show.CollectionName.V
+		items, err := h.tmdb.FetchCollection(ctx, show.CollectionID.V)
+		if err != nil {
+			slog.Warn("related: fetch collection failed", logger.Error(err))
+		} else {
+			related = items
+		}
+	} else {
+		items, err := h.tmdb.FetchRecommendations(ctx, show.TMDBID, show.MediaType)
+		if err != nil {
+			slog.Warn("related: fetch recommendations failed", logger.Error(err))
+		} else {
+			related = items
+		}
+	}
+
+	inLibrary, err := h.lookupInLibrary(ctx, related)
+	if err != nil {
+		return internal(err)
+	}
+
+	results := make([]*pb.SearchResult, 0, len(related))
+	for i := range related {
+		item := &related[i]
+		if item.ID == show.TMDBID {
+			continue
+		}
+		results = append(results, &pb.SearchResult{
+			Id:          item.ID,
+			MediaType:   item.MediaType,
+			Title:       item.Title,
+			Year:        item.Year,
+			PosterPath:  item.PosterPath,
+			Overview:    item.Overview,
+			VoteAverage: item.VoteAverage,
+			VoteCount:   int32(item.VoteCount),
+			InLibrary:   inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
+		})
+	}
+
+	var collNamePtr *string
+	if collectionName != "" {
+		collNamePtr = &collectionName
+	}
+
+	writeJSON(w, http.StatusOK, &pb.GetRelatedResponse{
+		Results:        results,
+		CollectionName: collNamePtr,
+	})
+	return nil
+}
+
 func (h *Handler) getGenres(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
@@ -338,7 +410,7 @@ func (h *Handler) getGenres(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func parseListFilters(r *http.Request) store.ListFilters {
+func parseListFilters(r *http.Request) *store.ListFilters {
 	country := strings.TrimSpace(r.URL.Query().Get("origin_country"))
 	if country != "" {
 		country = strings.ToUpper(country)
@@ -367,7 +439,7 @@ func parseListFilters(r *http.Request) store.ListFilters {
 		}
 	}
 
-	return filters
+	return &filters
 }
 
 func showFromDetail(detail *tmdb.Detail, status string) store.Show {
@@ -396,44 +468,57 @@ func showFromDetail(detail *tmdb.Detail, status string) store.Show {
 		originCountry = sql.Null[string]{Valid: true, V: strings.Join(detail.OriginCountry, ", ")}
 	}
 
+	var collectionID sql.Null[int64]
+	if detail.CollectionID != 0 {
+		collectionID = sql.Null[int64]{Valid: true, V: detail.CollectionID}
+	}
+	var collectionName sql.Null[string]
+	if strings.TrimSpace(detail.CollectionName) != "" {
+		collectionName = sql.Null[string]{Valid: true, V: detail.CollectionName}
+	}
+
 	return store.Show{
-		TMDBID:        detail.TMDBID,
-		MediaType:     detail.MediaType,
-		Title:         detail.Title,
-		Year:          year,
-		Genres:        genres,
-		Overview:      overview,
-		PosterPath:    poster,
-		IMDbID:        toSQLNullString(detail.IMDbID),
-		TMDBRating:    toSQLNullNumeric(detail.VoteAverage),
-		TMDBVotes:     toSQLNullNumeric(int64(detail.VoteCount)),
-		OriginCountry: originCountry,
-		Status:        status,
+		TMDBID:         detail.TMDBID,
+		MediaType:      detail.MediaType,
+		Title:          detail.Title,
+		Year:           year,
+		Genres:         genres,
+		Overview:       overview,
+		PosterPath:     poster,
+		IMDbID:         toSQLNullString(detail.IMDbID),
+		TMDBRating:     toSQLNullNumeric(detail.VoteAverage),
+		TMDBVotes:      toSQLNullNumeric(int64(detail.VoteCount)),
+		OriginCountry:  originCountry,
+		Status:         status,
+		CollectionID:   collectionID,
+		CollectionName: collectionName,
 	}
 }
 
 func toPBShow(show *store.Show) *pb.Show {
 	return &pb.Show{
-		Id:              show.ID,
-		TmdbId:          show.TMDBID,
-		MediaType:       show.MediaType,
-		Title:           show.Title,
-		Year:            fromSQLNull(show.Year),
-		Genres:          fromSQLNull(show.Genres),
-		Overview:        fromSQLNull(show.Overview),
-		PosterPath:      fromSQLNull(show.PosterPath),
-		ImdbId:          fromSQLNull(show.IMDbID),
-		TmdbRating:      fromSQLNull(show.TMDBRating),
-		TmdbVotes:       fromSQLNull(show.TMDBVotes),
-		Status:          show.Status,
-		BfRating:        fromSQLNull(show.BfRating),
-		GfRating:        fromSQLNull(show.GfRating),
-		BfComment:       fromSQLNull(show.BfComment),
-		GfComment:       fromSQLNull(show.GfComment),
-		WatchPriority: fromSQLNull(show.WatchPriority),
-		CreatedAt:       show.CreatedAt,
-		UpdatedAt:       show.UpdatedAt,
-		OriginCountry:   splitCommaValues(show.OriginCountry),
+		Id:             show.ID,
+		TmdbId:         show.TMDBID,
+		MediaType:      show.MediaType,
+		Title:          show.Title,
+		Year:           fromSQLNull(show.Year),
+		Genres:         fromSQLNull(show.Genres),
+		Overview:       fromSQLNull(show.Overview),
+		PosterPath:     fromSQLNull(show.PosterPath),
+		ImdbId:         fromSQLNull(show.IMDbID),
+		TmdbRating:     fromSQLNull(show.TMDBRating),
+		TmdbVotes:      fromSQLNull(show.TMDBVotes),
+		Status:         show.Status,
+		BfRating:       fromSQLNull(show.BfRating),
+		GfRating:       fromSQLNull(show.GfRating),
+		BfComment:      fromSQLNull(show.BfComment),
+		GfComment:      fromSQLNull(show.GfComment),
+		WatchPriority:  fromSQLNull(show.WatchPriority),
+		CollectionId:   fromSQLNull(show.CollectionID),
+		CollectionName: fromSQLNull(show.CollectionName),
+		CreatedAt:      show.CreatedAt,
+		UpdatedAt:      show.UpdatedAt,
+		OriginCountry:  splitCommaValues(show.OriginCountry),
 	}
 }
 
@@ -452,5 +537,3 @@ func parseOptionalRating(val *int32) sql.Null[int64] {
 	n := min(max(int(*val), 1), 10)
 	return sql.Null[int64]{Valid: true, V: int64(n)}
 }
-
-

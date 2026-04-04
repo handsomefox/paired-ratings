@@ -26,21 +26,24 @@ func (c *Client) FetchDetails(ctx context.Context, id int64, mediaType string) (
 	}
 
 	detail := &Detail{
-		TMDBID:        payload.ID,
-		MediaType:     mediaType,
-		PosterPath:    payload.PosterPath,
-		Overview:      payload.Overview,
-		Genres:        nil,
-		OriginCountry: nil,
-		VoteAverage:   payload.VoteAverage,
-		VoteCount:     payload.VoteCount,
-		IMDbID:        payload.ExternalIDs.IMDbID,
-		Year:          yearFromDate(payload.ReleaseDate),
+		TMDBID:         payload.ID,
+		MediaType:      mediaType,
+		PosterPath:     payload.PosterPath,
+		Overview:       payload.Overview,
+		Genres:         nil,
+		OriginCountry:  nil,
+		VoteAverage:    payload.VoteAverage,
+		VoteCount:      payload.VoteCount,
+		IMDbID:         payload.ExternalIDs.IMDbID,
+		Year:           yearFromDate(payload.ReleaseDate),
+		CollectionID:   payload.BelongsToCollection.ID,
+		CollectionName: payload.BelongsToCollection.Name,
 	}
 
 	if mediaType == "tv" {
 		detail.Title = payload.Name
 		detail.Year = yearFromDate(payload.FirstAirDate)
+		detail.NumberOfSeasons = payload.NumberOfSeasons
 	} else {
 		detail.Title = payload.Title
 	}

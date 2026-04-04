@@ -11,6 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { DetailHero } from "@/features/detail/detail-hero";
 import { DetailRatings } from "@/features/detail/detail-ratings";
+import { DetailEpisodes } from "@/features/detail/detail-episodes";
+import { DetailRelated } from "@/features/detail/detail-related";
 import type { ApiShow } from "@/lib/api";
 import { api } from "@/lib/api";
 import { combinedRating } from "@/lib/utils";
@@ -28,7 +30,6 @@ export type DetailContentProps = {
   backLabel: string;
   onBack: () => void;
 };
-
 
 export function DetailContent({
   show,
@@ -206,6 +207,12 @@ export function DetailContent({
         saveDisabled={!isDirty}
         savePending={updateMutation.isPending}
       />
+
+      {show.media_type === "tv" && (
+        <DetailEpisodes showId={showId} bfName={bfName} gfName={gfName} />
+      )}
+
+      <DetailRelated showId={showId} imageBase={imageBase} />
 
       <AlertDialog open={pendingDelete} onOpenChange={setPendingDelete}>
         <AlertDialogContent>

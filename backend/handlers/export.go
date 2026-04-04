@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -17,7 +18,7 @@ import (
 func (h *Handler) getExportDB(w http.ResponseWriter, r *http.Request) error {
 	dbPath := h.store.DBPath()
 	if dbPath == "" {
-		return internal(fmt.Errorf("db path not available"))
+		return internal(errors.New("db path not available"))
 	}
 
 	f, err := os.Open(dbPath)
@@ -42,7 +43,7 @@ func (h *Handler) getExportDB(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) postExport(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	shows, err := h.store.ListShows(ctx, store.ListFilters{Status: "all"})
+	shows, err := h.store.ListShows(ctx, &store.ListFilters{Status: "all"})
 	if err != nil {
 		return internal(err)
 	}

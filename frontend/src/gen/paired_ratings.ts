@@ -40,6 +40,8 @@ export interface Show {
   updated_at: string;
   origin_country: string[];
   watch_priority?: number | undefined;
+  collection_id?: number | undefined;
+  collection_name?: string | undefined;
 }
 
 export interface ShowDetail {
@@ -160,6 +162,32 @@ export interface SetStatusRequest {
 
 export interface RefreshResponse {
   updated: number;
+}
+
+export interface GetRelatedResponse {
+  results: SearchResult[];
+  collection_name?: string | undefined;
+}
+
+export interface Episode {
+  id: number;
+  season_number: number;
+  episode_number: number;
+  title?: string | undefined;
+  air_date?: string | undefined;
+  runtime?: number | undefined;
+  bf_watched: boolean;
+  gf_watched: boolean;
+}
+
+export interface EpisodesResponse {
+  episodes: Episode[];
+  total_seasons: number;
+}
+
+export interface ToggleEpisodeRequest {
+  person: string;
+  watched: boolean;
 }
 
 export interface ExportPayload {

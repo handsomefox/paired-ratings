@@ -36,6 +36,8 @@ message Show {
   string updated_at = 18 [json_name = "updated_at"];
   repeated string origin_country = 19 [json_name = "origin_country"];
   optional int32 watch_priority = 20 [json_name = "watch_priority"];
+  optional int64 collection_id = 21 [json_name = "collection_id"];
+  optional string collection_name = 22 [json_name = "collection_name"];
 }
 
 message ShowDetail {
@@ -153,6 +155,32 @@ message SetStatusRequest {
 
 message RefreshResponse {
   int32 updated = 1 [json_name = "updated"];
+}
+
+message GetRelatedResponse {
+  repeated SearchResult results = 1 [json_name = "results"];
+  optional string collection_name = 2 [json_name = "collection_name"];
+}
+
+message Episode {
+  int64 id = 1 [json_name = "id"];
+  int32 season_number = 2 [json_name = "season_number"];
+  int32 episode_number = 3 [json_name = "episode_number"];
+  optional string title = 4 [json_name = "title"];
+  optional string air_date = 5 [json_name = "air_date"];
+  optional int32 runtime = 6 [json_name = "runtime"];
+  bool bf_watched = 7 [json_name = "bf_watched"];
+  bool gf_watched = 8 [json_name = "gf_watched"];
+}
+
+message EpisodesResponse {
+  repeated Episode episodes = 1 [json_name = "episodes"];
+  int32 total_seasons = 2 [json_name = "total_seasons"];
+}
+
+message ToggleEpisodeRequest {
+  string person = 1 [json_name = "person"];
+  bool watched = 2 [json_name = "watched"];
 }
 
 message ExportPayload {

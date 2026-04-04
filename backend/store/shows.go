@@ -14,7 +14,6 @@ type RatingsUpdate struct {
 	GfComment *sql.Null[string]
 }
 
-
 func nowUTC() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }
@@ -57,6 +56,8 @@ func (s *Store) UpsertShow(ctx context.Context, show *Show) (int64, error) {
 			"gf_rating",
 			"bf_comment",
 			"gf_comment",
+			"collection_id",
+			"collection_name",
 			"created_at",
 			"updated_at",
 		).
@@ -71,6 +72,8 @@ func (s *Store) UpsertShow(ctx context.Context, show *Show) (int64, error) {
 		Set("tmdb_votes = EXCLUDED.tmdb_votes").
 		Set("origin_country = EXCLUDED.origin_country").
 		Set("status = EXCLUDED.status").
+		Set("collection_id = EXCLUDED.collection_id").
+		Set("collection_name = EXCLUDED.collection_name").
 		Set("updated_at = EXCLUDED.updated_at").
 		Exec(ctx)
 	if err != nil {
@@ -198,6 +201,7 @@ func (s *Store) ClearRatings(ctx context.Context, id int64) error {
 	}
 	return expectRowsAffected(res)
 }
+
 
 func (s *Store) DeleteShow(ctx context.Context, id int64) error {
 	res, err := s.db.NewDelete().

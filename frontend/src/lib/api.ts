@@ -18,6 +18,10 @@ export type RefreshResponse = pb.RefreshResponse;
 export type ExportPayload = pb.ExportPayload;
 export type ReorderRequest = pb.ReorderRequest;
 export type SetStatusRequest = pb.SetStatusRequest;
+export type GetRelatedResponse = pb.GetRelatedResponse;
+export type EpisodesResponse = pb.EpisodesResponse;
+export type ApiEpisode = pb.Episode;
+export type ToggleEpisodeRequest = pb.ToggleEpisodeRequest;
 
 let _onUnauthorized: (() => void) | undefined;
 export const registerUnauthorizedHandler = (fn: () => void) => {
@@ -92,6 +96,17 @@ export const api = {
   refreshShow: (id: number) =>
     jsonRequest<ApiShowDetail>(`/api/shows/${id}/refresh-tmdb`, {
       method: "POST",
+    }),
+  getRelated: (id: number) => jsonRequest<GetRelatedResponse>(`/api/shows/${id}/related`),
+  getEpisodes: (id: number) => jsonRequest<EpisodesResponse>(`/api/shows/${id}/episodes`),
+  syncEpisodes: (id: number) =>
+    jsonRequest<EpisodesResponse>(`/api/shows/${id}/episodes/sync`, {
+      method: "POST",
+    }),
+  toggleEpisode: (episodeId: number, person: string, watched: boolean) =>
+    jsonRequest<void>(`/api/episodes/${episodeId}/toggle`, {
+      method: "POST",
+      body: JSON.stringify({ person, watched } satisfies ToggleEpisodeRequest),
     }),
   search: (params: URLSearchParams) =>
     jsonRequest<SearchResponse>(`/api/search?${params.toString()}`),

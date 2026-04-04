@@ -109,7 +109,7 @@ func selectPrecompressed(acceptEncoding string, distFS fs.FS, originalPath strin
 }
 
 func acceptsEncoding(acceptEncoding, encoding string) bool {
-	for _, part := range strings.Split(acceptEncoding, ",") {
+	for part := range strings.SplitSeq(acceptEncoding, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue

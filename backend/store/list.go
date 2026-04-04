@@ -56,7 +56,7 @@ func (s *Store) InLibraryByTMDB(ctx context.Context, refs []TMDBRef) (map[TMDBRe
 	return out, nil
 }
 
-func (s *Store) ListShows(ctx context.Context, filters ListFilters) (out []Show, err error) {
+func (s *Store) ListShows(ctx context.Context, filters *ListFilters) (out []Show, err error) {
 	q := s.db.NewSelect().Model(&out)
 
 	if filters.Status != "" && filters.Status != "all" {
@@ -130,7 +130,7 @@ func (s *Store) ListAllGenres(ctx context.Context) ([]string, error) {
 
 	seen := map[string]struct{}{}
 	for _, genres := range rows {
-		for _, g := range strings.Split(genres, ",") {
+		for g := range strings.SplitSeq(genres, ",") {
 			g = strings.TrimSpace(g)
 			if g == "" {
 				continue
@@ -164,7 +164,7 @@ func (s *Store) ListAllCountries(ctx context.Context) ([]string, error) {
 
 	seen := map[string]struct{}{}
 	for _, codes := range rows {
-		for _, code := range strings.Split(codes, ",") {
+		for code := range strings.SplitSeq(codes, ",") {
 			code = strings.TrimSpace(code)
 			if code == "" {
 				continue

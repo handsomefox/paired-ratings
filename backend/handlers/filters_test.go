@@ -112,10 +112,10 @@ func TestParseSearchRequest(t *testing.T) {
 }
 
 func TestSearchFiltersIsEmpty(t *testing.T) {
-	require.True(t, searchFilters{MediaType: "all"}.isEmpty())
-	require.False(t, searchFilters{MediaType: "movie"}.isEmpty())
+	require.True(t, (&searchFilters{MediaType: "all"}).isEmpty())
+	require.False(t, (&searchFilters{MediaType: "movie"}).isEmpty())
 	year := 2024
-	require.False(t, searchFilters{MediaType: "all", YearFrom: &year}.isEmpty())
+	require.False(t, (&searchFilters{MediaType: "all", YearFrom: &year}).isEmpty())
 }
 
 func TestPaginateSearchResults(t *testing.T) {
@@ -154,4 +154,3 @@ func TestParseOptionalRating(t *testing.T) {
 	rating = parseOptionalRating(&val)
 	require.Equal(t, int64(10), rating.V)
 }
-
