@@ -318,10 +318,10 @@ export function LibraryPage() {
                   <button
                     key={size}
                     onClick={() => handlePageSizeChange(size)}
-                    className={`cursor-pointer rounded px-2 py-0.5 text-xs transition-colors ${
+                    className={`cursor-pointer rounded-md px-2 py-0.5 text-xs transition-colors ${
                       pageSize === size
-                        ? "bg-foreground text-background"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     }`}
                   >
                     {size}
