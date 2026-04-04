@@ -95,7 +95,7 @@ export function DetailRatingPanel({
             <button
               type="button"
               onClick={() => onEditingChange(true)}
-              className="rounded-lg border border-border/60 px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
+              className="cursor-pointer rounded-lg border border-border/60 px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
             >
               ✎
             </button>

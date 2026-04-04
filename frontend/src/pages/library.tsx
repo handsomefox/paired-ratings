@@ -54,7 +54,7 @@ function Pagination({
           ? "bg-foreground text-background"
           : disabled
             ? "cursor-default text-muted-foreground/40"
-            : "text-muted-foreground hover:text-foreground"
+            : "cursor-pointer text-muted-foreground hover:text-foreground"
       }`}
     >
       {label}
@@ -315,7 +315,7 @@ export function LibraryPage() {
                   <button
                     key={size}
                     onClick={() => handlePageSizeChange(size)}
-                    className={`rounded px-2 py-0.5 text-xs transition-colors ${
+                    className={`cursor-pointer rounded px-2 py-0.5 text-xs transition-colors ${
                       pageSize === size
                         ? "bg-foreground text-background"
                         : "text-muted-foreground hover:text-foreground"

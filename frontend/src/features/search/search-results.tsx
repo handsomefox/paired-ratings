@@ -70,7 +70,7 @@ export function SearchResults({
                   &rdquo;.{" "}
                   <button
                     type="button"
-                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    className="cursor-pointer font-medium text-primary underline-offset-2 hover:underline"
                     onClick={() => onSwitchMediaType(mediaType === "movie" ? "tv" : "movie")}
                   >
                     Try {mediaType === "movie" ? "TV shows" : "movies"} instead?

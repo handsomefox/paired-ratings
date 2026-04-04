@@ -113,8 +113,8 @@ function SortableRow({
       <div className="relative w-6 shrink-0">
         <button
           onClick={startEditing}
-          title="Click to enter position"
-          className={`w-full text-center text-xs font-semibold tabular-nums text-muted-foreground hover:text-primary ${editing ? "invisible" : ""}`}
+          aria-label="Click to enter position"
+          className={`w-full cursor-pointer text-center text-xs font-semibold tabular-nums text-muted-foreground hover:text-primary ${editing ? "invisible" : ""}`}
         >
           {index + 1}
         </button>

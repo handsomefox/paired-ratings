@@ -80,7 +80,7 @@ export function SearchPagination({
               <DialogTrigger asChild>
                 <button
                   type="button"
-                  className="rounded-md border border-border/60 bg-card/40 px-3 py-2 text-sm tabular-nums"
+                  className="cursor-pointer rounded-md border border-border/60 bg-card/40 px-3 py-2 text-sm tabular-nums"
                 >
                   {activePage} / {totalPages}
                 </button>

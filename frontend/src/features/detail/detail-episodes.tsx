@@ -118,8 +118,9 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <button
           type="button"
-          className="flex flex-1 items-center gap-2 text-left lg:cursor-default"
+          className="flex flex-1 items-center gap-2 text-left cursor-pointer lg:cursor-default"
           onClick={() => setMobileOpen((o) => !o)}
+          aria-expanded={mobileOpen}
         >
           <CardTitle className="text-base">Episodes</CardTitle>
           {seasons.length > 0 && (
@@ -160,8 +161,9 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
                   <div className="flex w-full items-center gap-2 px-3 py-2.5">
                     <button
                       type="button"
-                      className="flex flex-1 items-center justify-between gap-2 text-left text-sm font-medium transition"
+                      className="flex flex-1 cursor-pointer items-center justify-between gap-2 text-left text-sm font-medium transition"
                       onClick={() => toggleSeason(group.season)}
+                      aria-expanded={isExpanded}
                     >
                       <span>Season {group.season}</span>
                       <span className="flex items-center gap-3 text-xs text-muted-foreground">

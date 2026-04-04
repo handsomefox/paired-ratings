@@ -449,7 +449,7 @@ export function SearchPage() {
                   key={option.value}
                   type="button"
                   onClick={() => handleMediaTypeChange(option.value as MediaType)}
-                  className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                  className={`cursor-pointer rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
                     mediaType === option.value
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
