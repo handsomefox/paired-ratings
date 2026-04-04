@@ -21,6 +21,7 @@ type SeasonGroup = {
 export function DetailEpisodes({ showId }: DetailEpisodesProps) {
   const queryClient = useQueryClient();
   const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(() => new Set());
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const episodesQuery = useQuery<EpisodesResponse>({
     queryKey: ["episodes", showId],
@@ -109,25 +110,27 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
     });
   };
 
-  if (episodesQuery.isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Episodes</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center py-6">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
+  const totalWatched = seasons.reduce((acc, g) => acc + g.watchedCount, 0);
+  const totalEpisodes = seasons.reduce((acc, g) => acc + g.episodes.length, 0);
 
-  if (seasons.length === 0) return null;
-
-  return (
+  const episodesCard = (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <CardTitle className="text-base">Episodes</CardTitle>
+        <button
+          type="button"
+          className="flex flex-1 items-center gap-2 text-left lg:cursor-default"
+          onClick={() => setMobileOpen((o) => !o)}
+        >
+          <CardTitle className="text-base">Episodes</CardTitle>
+          {seasons.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {totalWatched}/{totalEpisodes}
+            </span>
+          )}
+          <ChevronDown
+            className={`ml-auto h-4 w-4 shrink-0 transition-transform lg:hidden ${mobileOpen ? "rotate-180" : ""}`}
+          />
+        </button>
         <Button
           variant="ghost"
           size="sm"
@@ -143,80 +146,96 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
           Sync
         </Button>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {seasons.map((group) => {
-          const isExpanded = expandedSeasons.has(group.season);
-          return (
-            <div key={group.season} className="rounded-lg border border-border/60">
-              <div className="flex w-full items-center gap-2 px-3 py-2.5">
-                <button
-                  type="button"
-                  className="flex flex-1 items-center justify-between gap-2 text-left text-sm font-medium transition"
-                  onClick={() => toggleSeason(group.season)}
-                >
-                  <span>Season {group.season}</span>
-                  <span className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>
-                      {group.watchedCount}/{group.episodes.length} watched
-                    </span>
-                    <ChevronDown
-                      className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                    />
-                  </span>
-                </button>
-                <Checkbox
-                  checked={
-                    group.watchedCount === group.episodes.length
-                      ? true
-                      : group.watchedCount === 0
-                        ? false
-                        : "indeterminate"
-                  }
-                  onCheckedChange={(checked) =>
-                    toggleSeasonMutation.mutate({
-                      season: group.season,
-                      watched: checked === true,
-                    })
-                  }
-                  aria-label={`Mark all Season ${group.season} as watched`}
-                />
-              </div>
-              {isExpanded && (
-                <div className="border-t border-border/40">
-                  {group.episodes.map((ep) => (
-                    <div
-                      key={ep.id}
-                      className="flex items-center gap-3 border-b border-border/20 px-3 py-2 last:border-b-0"
+      <div className={`${mobileOpen ? "block" : "hidden"} lg:block`}>
+        {episodesQuery.isLoading ? (
+          <CardContent className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </CardContent>
+        ) : (
+          <CardContent className="space-y-2">
+            {seasons.map((group) => {
+              const isExpanded = expandedSeasons.has(group.season);
+              return (
+                <div key={group.season} className="rounded-lg border border-border/60">
+                  <div className="flex w-full items-center gap-2 px-3 py-2.5">
+                    <button
+                      type="button"
+                      className="flex flex-1 items-center justify-between gap-2 text-left text-sm font-medium transition"
+                      onClick={() => toggleSeason(group.season)}
                     >
-                      <span className="w-6 shrink-0 text-center text-xs text-muted-foreground">
-                        {ep.episode_number}
+                      <span>Season {group.season}</span>
+                      <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>
+                          {group.watchedCount}/{group.episodes.length} watched
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                        />
                       </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm">
-                          {ep.title ?? `Episode ${ep.episode_number}`}
+                    </button>
+                    <Checkbox
+                      checked={
+                        group.watchedCount === group.episodes.length
+                          ? true
+                          : group.watchedCount === 0
+                            ? false
+                            : "indeterminate"
+                      }
+                      onCheckedChange={(checked) =>
+                        toggleSeasonMutation.mutate({
+                          season: group.season,
+                          watched: checked === true,
+                        })
+                      }
+                      aria-label={`Mark all Season ${group.season} as watched`}
+                    />
+                  </div>
+                  {isExpanded && (
+                    <div className="border-t border-border/40">
+                      {group.episodes.map((ep) => (
+                        <div
+                          key={ep.id}
+                          className="flex items-center gap-3 border-b border-border/20 px-3 py-2 last:border-b-0"
+                        >
+                          <span className="w-6 shrink-0 text-center text-xs text-muted-foreground">
+                            {ep.episode_number}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm">
+                              {ep.title ?? `Episode ${ep.episode_number}`}
+                            </div>
+                            <div className="flex gap-3 text-[10px] text-muted-foreground">
+                              {ep.air_date && <span>{ep.air_date}</span>}
+                              {ep.runtime != null && ep.runtime > 0 && <span>{ep.runtime}m</span>}
+                            </div>
+                          </div>
+                          <Checkbox
+                            checked={ep.watched}
+                            onCheckedChange={(checked) =>
+                              toggleMutation.mutate({
+                                episodeId: ep.id,
+                                watched: checked === true,
+                              })
+                            }
+                          />
                         </div>
-                        <div className="flex gap-3 text-[10px] text-muted-foreground">
-                          {ep.air_date && <span>{ep.air_date}</span>}
-                          {ep.runtime != null && ep.runtime > 0 && <span>{ep.runtime}m</span>}
-                        </div>
-                      </div>
-                      <Checkbox
-                        checked={ep.watched}
-                        onCheckedChange={(checked) =>
-                          toggleMutation.mutate({
-                            episodeId: ep.id,
-                            watched: checked === true,
-                          })
-                        }
-                      />
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </CardContent>
+              );
+            })}
+          </CardContent>
+        )}
+      </div>
     </Card>
   );
+
+  if (episodesQuery.isLoading && seasons.length === 0) {
+    return episodesCard;
+  }
+
+  if (!episodesQuery.isLoading && seasons.length === 0) return null;
+
+  return episodesCard;
 }
