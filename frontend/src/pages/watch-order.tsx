@@ -142,9 +142,9 @@ function SortableRow({
         className="overflow-hidden rounded-lg border border-border/60"
       >
         {posterUrl ? (
-          <img src={posterUrl} alt={show.title} className="h-14 w-10 object-cover" loading="lazy" />
+          <img src={posterUrl} alt={show.title} className="h-28 w-20 object-cover" loading="lazy" />
         ) : (
-          <div className="flex h-14 w-10 items-center justify-center bg-muted/50 text-[10px] uppercase text-muted-foreground">
+          <div className="flex h-28 w-20 items-center justify-center bg-muted/50 text-[10px] uppercase text-muted-foreground">
             —
           </div>
         )}
@@ -242,7 +242,10 @@ export function WatchOrderPage() {
     });
   }, [serverShows, localOrder]);
 
-  const isDirty = localOrder !== null;
+  const serverIds = useMemo(() => serverShows.map((s) => s.id), [serverShows]);
+  const isDirty =
+    localOrder !== null &&
+    (localOrder.length !== serverIds.length || localOrder.some((id, i) => serverIds[i] !== id));
   const isInitialLoading =
     showsQuery.isLoading || (showsQuery.isFetching && serverShows.length === 0);
   const isEmpty = !showsQuery.isLoading && !showsQuery.isFetching && serverShows.length === 0;
@@ -282,9 +285,14 @@ export function WatchOrderPage() {
             </p>
           </div>
           {isDirty ? (
-            <Button onClick={handleSave} disabled={reorderMutation.isPending}>
-              Save order
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setLocalOrder(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={reorderMutation.isPending}>
+                Save order
+              </Button>
+            </div>
           ) : null}
         </div>
 

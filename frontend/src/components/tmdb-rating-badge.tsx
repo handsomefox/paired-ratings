@@ -11,7 +11,7 @@ export function TmdbRatingBadge({ rating, votes, className }: TmdbRatingBadgePro
   if (!rating || rating <= 0) {
     return (
       <Badge variant="outline" className={cn("gap-1", tmdbRatingTone(rating), className)}>
-        No TMDB score
+        N/A
       </Badge>
     );
   }
