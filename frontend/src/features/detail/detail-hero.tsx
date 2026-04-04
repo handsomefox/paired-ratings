@@ -69,36 +69,36 @@ export function DetailHero({
             <h1 className="font-display text-2xl">{show.title}</h1>
             {show.year ? <span className="text-sm text-muted-foreground">{show.year}</span> : null}
           </div>
-          <Select
-            value={show.status || "planned"}
-            onValueChange={onSetStatus}
-            disabled={statusPending}
-          >
-            <SelectTrigger
-              className={cn(
-                "h-7 w-auto cursor-pointer rounded-md border px-2.5 text-xs font-semibold uppercase tracking-wide shadow-none focus:ring-0 [&>svg]:ml-1 [&>svg]:h-3 [&>svg]:w-3",
-                show.status === "watched"
-                  ? "border-bf/40 bg-bf/10 text-bf hover:bg-bf/20"
-                  : show.status === "watching"
-                    ? "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                    : "border-gf/40 bg-gf/10 text-gf hover:bg-gf/20",
-              )}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent style={{ minWidth: "var(--radix-select-trigger-width)" }}>
-              {showStatusOptions.map((opt) => (
-                <SelectItem
-                  key={opt.value}
-                  value={opt.value}
-                  className="text-xs uppercase tracking-wide"
-                >
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <div className="flex flex-wrap items-center gap-2 text-xs">
+            <Select
+              value={show.status || "planned"}
+              onValueChange={onSetStatus}
+              disabled={statusPending}
+            >
+              <SelectTrigger
+                className={cn(
+                  "h-7 w-auto cursor-pointer rounded-md border px-2.5 text-xs font-semibold uppercase tracking-wide shadow-none focus:ring-0 [&>svg]:ml-1 [&>svg]:h-3 [&>svg]:w-3",
+                  show.status === "watched"
+                    ? "border-bf/40 bg-bf/10 text-bf hover:bg-bf/20"
+                    : show.status === "watching"
+                      ? "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                      : "border-gf/40 bg-gf/10 text-gf hover:bg-gf/20",
+                )}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent style={{ minWidth: "var(--radix-select-trigger-width)" }}>
+                {showStatusOptions.map((opt) => (
+                  <SelectItem
+                    key={opt.value}
+                    value={opt.value}
+                    className="text-xs uppercase tracking-wide"
+                  >
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <OriginCountriesChip codes={show.origin_country} />
             {show.genres ? <span className="text-muted-foreground">{show.genres}</span> : null}
           </div>
