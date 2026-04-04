@@ -38,6 +38,8 @@ message Show {
   optional int32 watch_priority = 20 [json_name = "watch_priority"];
   optional int64 collection_id = 21 [json_name = "collection_id"];
   optional string collection_name = 22 [json_name = "collection_name"];
+  optional int32 watched_episodes = 23 [json_name = "watched_episodes"];
+  optional int32 total_episodes = 24 [json_name = "total_episodes"];
 }
 
 message ShowDetail {

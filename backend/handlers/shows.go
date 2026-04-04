@@ -35,8 +35,34 @@ func (h *Handler) getShows(w http.ResponseWriter, r *http.Request) error {
 		return internal(err)
 	}
 
+	// Fetch episode counts for TV shows so library cards can show progress.
+	var tvIDs []int64
+	for i := range shows {
+		if shows[i].MediaType == "tv" {
+			tvIDs = append(tvIDs, shows[i].ID)
+		}
+	}
+	episodeCounts, err := h.store.GetEpisodeCounts(ctx, tvIDs)
+	if err != nil {
+		slog.Warn("get episode counts failed", logger.Error(err))
+		// Non-fatal: omit counts rather than fail the whole request.
+		episodeCounts = nil
+	}
+
+	pbShows := toPBShows(shows)
+	if episodeCounts != nil {
+		for _, pb := range pbShows {
+			if counts, ok := episodeCounts[pb.Id]; ok {
+				total := counts.TotalEpisodes
+				watched := counts.WatchedEpisodes
+				pb.TotalEpisodes = &total
+				pb.WatchedEpisodes = &watched
+			}
+		}
+	}
+
 	writeJSON(w, http.StatusOK, &pb.ListResponse{
-		Shows:     toPBShows(shows),
+		Shows:     pbShows,
 		Genres:    genres,
 		Countries: countries,
 	})

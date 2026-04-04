@@ -237,7 +237,6 @@ func (s *Store) ClearRatings(ctx context.Context, id int64) error {
 	return expectRowsAffected(res)
 }
 
-
 func (s *Store) DeleteShow(ctx context.Context, id int64) error {
 	res, err := s.db.NewDelete().
 		Table("shows").

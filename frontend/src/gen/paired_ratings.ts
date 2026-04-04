@@ -42,6 +42,8 @@ export interface Show {
   watch_priority?: number | undefined;
   collection_id?: number | undefined;
   collection_name?: string | undefined;
+  watched_episodes?: number | undefined;
+  total_episodes?: number | undefined;
 }
 
 export interface ShowDetail {

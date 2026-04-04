@@ -95,6 +95,36 @@ func (s *Store) EpisodeCountForShow(ctx context.Context, showID int64) (int, err
 	return count, err
 }
 
+type EpisodeCounts struct {
+	ShowID          int64 `bun:"show_id"`
+	TotalEpisodes   int32 `bun:"total_episodes"`
+	WatchedEpisodes int32 `bun:"watched_episodes"`
+}
+
+// GetEpisodeCounts returns watched and total episode counts for the given show IDs.
+func (s *Store) GetEpisodeCounts(ctx context.Context, showIDs []int64) (map[int64]EpisodeCounts, error) {
+	if len(showIDs) == 0 {
+		return nil, nil
+	}
+	var rows []EpisodeCounts
+	err := s.db.NewSelect().
+		TableExpr("episodes").
+		ColumnExpr("show_id").
+		ColumnExpr("COUNT(*) AS total_episodes").
+		ColumnExpr("SUM(CASE WHEN watched = 1 THEN 1 ELSE 0 END) AS watched_episodes").
+		Where("show_id IN (?)", bun.List(showIDs)).
+		GroupExpr("show_id").
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int64]EpisodeCounts, len(rows))
+	for _, r := range rows {
+		out[r.ShowID] = r
+	}
+	return out, nil
+}
+
 func (s *Store) ToggleSeason(ctx context.Context, showID int64, seasonNumber int, watched bool) error {
 	val := 0
 	if watched {
