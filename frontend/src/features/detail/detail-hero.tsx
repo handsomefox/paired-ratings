@@ -103,13 +103,13 @@ export function DetailHero({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {imdbUrl ? (
             <Button
               asChild
               variant="secondary"
               size="sm"
-              className="rounded-md px-3 text-xs font-semibold uppercase tracking-wide"
+              className="justify-start rounded-md px-3 text-xs font-semibold uppercase tracking-wide"
             >
               <a href={imdbUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-3 w-3" />
@@ -122,7 +122,7 @@ export function DetailHero({
               asChild
               variant="secondary"
               size="sm"
-              className="rounded-md px-3 text-xs font-semibold uppercase tracking-wide"
+              className="justify-start rounded-md px-3 text-xs font-semibold uppercase tracking-wide"
             >
               <a href={tmdbUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-3 w-3" />
@@ -144,7 +144,7 @@ export function DetailHero({
               variant="secondary"
               size="sm"
               disabled
-              className="rounded-md px-3 text-xs font-semibold uppercase tracking-wide"
+              className="justify-start rounded-md px-3 text-xs font-semibold uppercase tracking-wide"
             >
               TMDB
               <span className="font-normal normal-case text-muted-foreground">
@@ -165,7 +165,7 @@ export function DetailHero({
                 type="button"
                 variant="secondary"
                 size="sm"
-                className="rounded-md px-3 text-xs"
+                className="justify-start rounded-md px-3 text-xs"
                 onClick={onRemoveFromWatchOrder}
                 disabled={watchOrderPending}
               >
@@ -177,7 +177,7 @@ export function DetailHero({
                 type="button"
                 variant="secondary"
                 size="sm"
-                className="rounded-md px-3 text-xs"
+                className="justify-start rounded-md px-3 text-xs"
                 onClick={onAddToWatchOrder}
                 disabled={watchOrderPending}
               >
@@ -191,7 +191,7 @@ export function DetailHero({
               asChild
               variant="secondary"
               size="sm"
-              className="rounded-md px-3 text-xs"
+              className="justify-start rounded-md px-3 text-xs"
             >
               <a href={findSimilarUrl}>
                 <Telescope className="h-3.5 w-3.5" />
@@ -203,7 +203,7 @@ export function DetailHero({
             type="button"
             variant="secondary"
             size="sm"
-            className="rounded-md px-3 text-xs"
+            className="justify-start rounded-md px-3 text-xs"
             onClick={onRefresh}
             disabled={refreshPending}
           >
