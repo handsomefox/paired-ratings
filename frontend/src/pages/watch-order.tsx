@@ -101,6 +101,7 @@ function SortableRow({
       <button
         {...attributes}
         {...listeners}
+        onContextMenu={(e) => e.preventDefault()}
         className="cursor-grab touch-none text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing"
         aria-label="Drag to reorder"
       >

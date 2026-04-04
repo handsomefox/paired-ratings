@@ -133,6 +133,12 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
                   </ViewTransitionLink>
                 </SheetClose>
                 <SheetClose asChild>
+                  <button type="button" className={mobileItemClass()} onClick={handleLogout}>
+                    <LogOut className="h-4 w-4" />
+                    <span>Log out</span>
+                  </button>
+                </SheetClose>
+                <SheetClose asChild>
                   <button type="button" className={mobileItemClass()} onClick={handleExport}>
                     <Download className="h-4 w-4" />
                     <span>Export JSON</span>
@@ -142,12 +148,6 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
                   <button type="button" className={mobileItemClass()} onClick={handleExportDB}>
                     <Download className="h-4 w-4" />
                     <span>Export DB</span>
-                  </button>
-                </SheetClose>
-                <SheetClose asChild>
-                  <button type="button" className={mobileItemClass()} onClick={handleLogout}>
-                    <LogOut className="h-4 w-4" />
-                    <span>Log out</span>
                   </button>
                 </SheetClose>
               </div>
