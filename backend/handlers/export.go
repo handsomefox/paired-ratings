@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -28,15 +29,13 @@ func (h *Handler) getExportDB(w http.ResponseWriter, r *http.Request) error {
 	}
 	defer func() { _ = f.Close() }()
 
-	fi, err := f.Stat()
-	if err != nil {
-		return internal(err)
-	}
-
 	date := time.Now().UTC().Format("2006-01-02")
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="paired-ratings-%s.db"`, date))
-	http.ServeContent(w, r, "paired-ratings.db", fi.ModTime(), f)
+	w.Header().Set("Cache-Control", "no-store")
+	if _, err := io.Copy(w, f); err != nil {
+		slog.Warn("export db: write failed", logger.Error(err))
+	}
 	return nil
 }
 
