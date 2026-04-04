@@ -342,7 +342,10 @@ export function LibraryPage() {
             <Pagination
               page={page}
               totalPages={totalPages}
-              onPageChange={setPage}
+              onPageChange={(p) => {
+                setPage(p);
+                window.scrollTo({ top: 0, behavior: "instant" });
+              }}
             />
           )}
         </FiltersPaneContent>
