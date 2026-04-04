@@ -43,7 +43,7 @@ export function DetailHero({
   watchOrderPending,
 }: DetailHeroProps) {
   const inWatchOrder = show.watch_priority != null;
-  const showWatchOrderButton = show.status === "planned" || inWatchOrder;
+  const showWatchOrderButton = show.status !== "watched";
   return (
     <div className="grid gap-6 rounded-2xl border border-border/60 bg-card/70 shadow-lg lg:grid-cols-[minmax(240px,320px)_minmax(0,1fr)] lg:gap-8">
       <div className="overflow-hidden bg-muted/40">

@@ -178,8 +178,8 @@ func (s *Store) UpdateStatus(ctx context.Context, id int64, status string) error
 		Set("updated_at = ?", now).
 		Where("id = ?", id)
 
-	// Auto-remove from watch order when marking as watched or watching.
-	if status == "watched" || status == "watching" {
+	// Auto-remove from watch order when marking as watched.
+	if status == "watched" {
 		q = q.Set("watch_priority = NULL")
 	}
 

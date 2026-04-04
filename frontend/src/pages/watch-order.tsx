@@ -194,7 +194,6 @@ export function WatchOrderPage() {
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
-    p.set("status", "planned");
     p.set("sort", "priority");
     return p;
   }, []);
