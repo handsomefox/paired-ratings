@@ -215,6 +215,66 @@ func (h *Handler) postShowsReorder(w http.ResponseWriter, r *http.Request) error
 	return nil
 }
 
+func (h *Handler) postShowAddToWatchOrder(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	id, err := idParam(r, "id")
+	if err != nil {
+		return notFound("not found")
+	}
+
+	if err := h.store.AddToWatchOrder(ctx, id); err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	updated, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	writeJSON(w, http.StatusOK, &pb.ShowDetail{
+		Show:    toPBShow(&updated),
+		ImdbUrl: optionalString(imdbURL(updated.IMDbID)),
+	})
+	return nil
+}
+
+func (h *Handler) deleteShowFromWatchOrder(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	id, err := idParam(r, "id")
+	if err != nil {
+		return notFound("not found")
+	}
+
+	if err := h.store.RemoveFromWatchOrder(ctx, id); err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	updated, err := h.store.GetShow(ctx, id)
+	if err != nil {
+		if isNoRows(err) {
+			return notFound("not found")
+		}
+		return internal(err)
+	}
+
+	writeJSON(w, http.StatusOK, &pb.ShowDetail{
+		Show:    toPBShow(&updated),
+		ImdbUrl: optionalString(imdbURL(updated.IMDbID)),
+	})
+	return nil
+}
+
 func (h *Handler) postShowSetStatus(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 

@@ -148,6 +148,20 @@ export function DetailContent({
     },
   });
 
+  const watchOrderMutation = useMutation({
+    mutationFn: (inWatchOrder: boolean) =>
+      inWatchOrder ? api.removeFromWatchOrder(showId) : api.addToWatchOrder(showId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["show", String(showId)], data);
+      queryClient.invalidateQueries({ queryKey: ["shows"] });
+      const added = data?.show?.watch_priority != null;
+      toast.success(added ? "Added to watch order." : "Removed from watch order.");
+    },
+    onError: () => {
+      toast.error("Failed to update watch order.");
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteShow(showId),
     onSuccess: () => {
@@ -184,6 +198,9 @@ export function DetailContent({
         refreshPending={refreshMutation.isPending}
         onClearRatings={() => clearRatingsMutation.mutate()}
         clearPending={clearRatingsMutation.isPending}
+        onAddToWatchOrder={() => watchOrderMutation.mutate(false)}
+        onRemoveFromWatchOrder={() => watchOrderMutation.mutate(true)}
+        watchOrderPending={watchOrderMutation.isPending}
       />
 
       <DetailRatings

@@ -171,7 +171,7 @@ function SortableRow({
         className="shrink-0 text-muted-foreground/60 hover:text-destructive"
         onClick={() => onDelete(show)}
       >
-        Delete
+        Remove
       </Button>
     </div>
   );
@@ -218,15 +218,15 @@ export function WatchOrderPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.deleteShow(id),
+    mutationFn: (id: number) => api.removeFromWatchOrder(id),
     onSuccess: () => {
       setPendingDelete(null);
       setLocalOrder(null);
       queryClient.invalidateQueries({ queryKey: ["shows"] });
-      toast.success("Show deleted.");
+      toast.success("Removed from watch order.");
     },
     onError: () => {
-      toast.error("Failed to delete show.");
+      toast.error("Failed to remove from watch order.");
     },
   });
 
@@ -278,7 +278,7 @@ export function WatchOrderPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <h1 className="font-display text-xl sm:text-2xl">Watch order</h1>
-            <p className="text-sm text-muted-foreground">Drag to reorder your planned shows.</p>
+            <p className="text-sm text-muted-foreground">Drag to reorder. Add shows from the detail page.</p>
           </div>
           {isDirty ? (
             <Button onClick={handleSave} disabled={reorderMutation.isPending}>
@@ -295,8 +295,8 @@ export function WatchOrderPage() {
               <EmptyMedia variant="icon">
                 <Film />
               </EmptyMedia>
-              <EmptyTitle>No planned shows yet</EmptyTitle>
-              <EmptyDescription>Add something in the library first.</EmptyDescription>
+              <EmptyTitle>Watch order is empty</EmptyTitle>
+              <EmptyDescription>Add shows via the detail page.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : null}
@@ -334,9 +334,9 @@ export function WatchOrderPage() {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete show?</AlertDialogTitle>
+              <AlertDialogTitle>Remove from watch order?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will remove "{pendingDelete?.title}" from your library.
+                "{pendingDelete?.title}" will be removed from the watch order but kept in your library.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -346,7 +346,7 @@ export function WatchOrderPage() {
                   if (pendingDelete) deleteMutation.mutate(pendingDelete.id);
                 }}
               >
-                Delete
+                Remove
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

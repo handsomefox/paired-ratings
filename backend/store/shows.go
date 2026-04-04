@@ -172,9 +172,44 @@ func (s *Store) UpdateWatchOrder(ctx context.Context, orderedIDs []int64) error 
 func (s *Store) UpdateStatus(ctx context.Context, id int64, status string) error {
 	now := nowUTC()
 
-	res, err := s.db.NewUpdate().
+	q := s.db.NewUpdate().
 		Table("shows").
 		Set("status = ?", status).
+		Set("updated_at = ?", now).
+		Where("id = ?", id)
+
+	// Auto-remove from watch order when marking as watched.
+	if status == "watched" {
+		q = q.Set("watch_priority = NULL")
+	}
+
+	res, err := q.Exec(ctx)
+	if err != nil {
+		return err
+	}
+	return expectRowsAffected(res)
+}
+
+func (s *Store) AddToWatchOrder(ctx context.Context, id int64) error {
+	now := nowUTC()
+	// Append at the end by using MAX(watch_priority) + 1.
+	res, err := s.db.NewUpdate().
+		Table("shows").
+		Set("watch_priority = (SELECT COALESCE(MAX(watch_priority), 0) + 1 FROM shows)").
+		Set("updated_at = ?", now).
+		Where("id = ?", id).
+		Exec(ctx)
+	if err != nil {
+		return err
+	}
+	return expectRowsAffected(res)
+}
+
+func (s *Store) RemoveFromWatchOrder(ctx context.Context, id int64) error {
+	now := nowUTC()
+	res, err := s.db.NewUpdate().
+		Table("shows").
+		Set("watch_priority = NULL").
 		Set("updated_at = ?", now).
 		Where("id = ?", id).
 		Exec(ctx)

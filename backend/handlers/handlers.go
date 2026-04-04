@@ -95,6 +95,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 				r.Method(http.MethodPost, "/set-status", Adapt(h.postShowSetStatus))
 				r.Method(http.MethodPost, "/clear-ratings", Adapt(h.postShowClearRatings))
 				r.Method(http.MethodPost, "/refresh-tmdb", Adapt(h.postShowRefreshTMDB))
+				r.Method(http.MethodPost, "/watch-order", Adapt(h.postShowAddToWatchOrder))
+				r.Method(http.MethodDelete, "/watch-order", Adapt(h.deleteShowFromWatchOrder))
 			})
 
 			r.Route("/episodes/{id:[0-9]+}", func(r chi.Router) {

@@ -108,6 +108,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ watched } satisfies ToggleEpisodeRequest),
     }),
+  toggleSeason: (showId: number, seasonNumber: number, watched: boolean) =>
+    jsonRequest<void>(`/api/shows/${showId}/episodes/season/${seasonNumber}/toggle`, {
+      method: "POST",
+      body: JSON.stringify({ watched } satisfies ToggleEpisodeRequest),
+    }),
+  addToWatchOrder: (id: number) =>
+    jsonRequest<ApiShowDetail>(`/api/shows/${id}/watch-order`, {
+      method: "POST",
+    }),
+  removeFromWatchOrder: (id: number) =>
+    jsonRequest<ApiShowDetail>(`/api/shows/${id}/watch-order`, {
+      method: "DELETE",
+    }),
   search: (params: URLSearchParams) =>
     jsonRequest<SearchResponse>(`/api/search?${params.toString()}`),
   searchGenres: () => jsonRequest<SearchGenresResponse>("/api/search/genres"),
