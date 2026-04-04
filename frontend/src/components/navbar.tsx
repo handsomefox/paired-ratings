@@ -98,7 +98,7 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
         <div className="flex items-center gap-2">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="h-11 w-11 md:hidden">
+              <Button variant="outline" size="icon" className="h-11 w-11 rounded-full md:hidden">
                 <span className="sr-only">Open menu</span>
                 <Menu className="h-5 w-5" />
               </Button>
@@ -157,7 +157,7 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
           <Button
             variant="outline"
             size="sm"
-            className="hidden md:inline-flex"
+            className="hidden rounded-full md:inline-flex"
             onClick={handleExport}
           >
             Export JSON
@@ -166,7 +166,7 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
           <Button
             variant="outline"
             size="sm"
-            className="hidden md:inline-flex"
+            className="hidden rounded-full md:inline-flex"
             onClick={handleExportDB}
           >
             Export DB
@@ -175,7 +175,7 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
           <Button
             variant="outline"
             size="sm"
-            className="hidden md:inline-flex"
+            className="hidden rounded-full md:inline-flex"
             onClick={handleLogout}
           >
             Log out

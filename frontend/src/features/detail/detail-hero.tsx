@@ -101,7 +101,7 @@ export function DetailHero({
               asChild
               variant="outline"
               size="sm"
-              className="px-3 text-xs font-semibold uppercase tracking-wide"
+              className="rounded-full px-3 text-xs font-semibold uppercase tracking-wide"
             >
               <a href={imdbUrl} target="_blank" rel="noopener noreferrer">
                 IMDb
@@ -113,7 +113,7 @@ export function DetailHero({
               asChild
               variant="outline"
               size="sm"
-              className="px-3 text-xs font-semibold uppercase tracking-wide"
+              className="rounded-full px-3 text-xs font-semibold uppercase tracking-wide"
             >
               <a href={tmdbUrl} target="_blank" rel="noopener noreferrer">
                 TMDB
@@ -134,7 +134,7 @@ export function DetailHero({
               asChild
               variant="outline"
               size="sm"
-              className="px-3 text-xs font-semibold uppercase tracking-wide"
+              className="rounded-full px-3 text-xs font-semibold uppercase tracking-wide"
             >
               <span aria-disabled="true">
                 TMDB
@@ -157,7 +157,7 @@ export function DetailHero({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="px-3 text-xs"
+                className="rounded-full px-3 text-xs"
                 onClick={onRemoveFromWatchOrder}
                 disabled={watchOrderPending}
               >
@@ -168,7 +168,7 @@ export function DetailHero({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="px-3 text-xs"
+                className="rounded-full px-3 text-xs"
                 onClick={onAddToWatchOrder}
                 disabled={watchOrderPending}
               >
@@ -181,7 +181,7 @@ export function DetailHero({
               asChild
               variant="outline"
               size="sm"
-              className="px-3 text-xs"
+              className="rounded-full px-3 text-xs"
             >
               <a href={findSimilarUrl}>Find Similar</a>
             </Button>
@@ -190,7 +190,7 @@ export function DetailHero({
             type="button"
             variant="outline"
             size="sm"
-            className="px-3 text-xs"
+            className="rounded-full px-3 text-xs"
             onClick={onRefresh}
             disabled={refreshPending}
           >
@@ -200,7 +200,7 @@ export function DetailHero({
             type="button"
             variant="secondary"
             size="sm"
-            className="px-3 text-xs"
+            className="rounded-full px-3 text-xs"
             onClick={onClearRatings}
             disabled={clearPending}
           >

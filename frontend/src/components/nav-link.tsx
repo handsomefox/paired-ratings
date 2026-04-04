@@ -15,7 +15,7 @@ export function NavLink({ to, children }: NavLinkProps) {
     <ViewTransitionLink
       to={to}
       className={cn(
-        "rounded-md px-4 py-2 text-sm font-medium transition",
+        "rounded-full px-4 py-2 text-sm font-medium transition",
         active
           ? "bg-primary/15 text-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.4)]"
           : "text-muted-foreground hover:text-foreground",
