@@ -88,6 +88,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 				r.Method(http.MethodGet, "/", Adapt(h.getShow))
 				r.Method(http.MethodDelete, "/", Adapt(h.deleteShow))
 
+				r.Method(http.MethodGet, "/related", Adapt(h.getShowRelated))
 				r.Method(http.MethodPost, "/ratings", Adapt(h.postShowRatings))
 				r.Method(http.MethodPost, "/set-status", Adapt(h.postShowSetStatus))
 				r.Method(http.MethodPost, "/clear-ratings", Adapt(h.postShowClearRatings))
@@ -97,6 +98,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		})
 
 		r.Method(http.MethodPost, "/export", Adapt(h.postExport))
+		r.Method(http.MethodGet, "/export/db", Adapt(h.getExportDB))
 		r.Method(http.MethodPost, "/refresh-tmdb", Adapt(h.postRefreshTMDBAll))
 	})
 }

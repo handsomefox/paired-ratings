@@ -18,6 +18,7 @@ export type RefreshResponse = pb.RefreshResponse;
 export type ExportPayload = pb.ExportPayload;
 export type ReorderRequest = pb.ReorderRequest;
 export type SetStatusRequest = pb.SetStatusRequest;
+export type GetRelatedResponse = pb.GetRelatedResponse;
 
 let _onUnauthorized: (() => void) | undefined;
 export const registerUnauthorizedHandler = (fn: () => void) => {
@@ -93,6 +94,8 @@ export const api = {
     jsonRequest<ApiShowDetail>(`/api/shows/${id}/refresh-tmdb`, {
       method: "POST",
     }),
+  getRelated: (id: number) =>
+    jsonRequest<GetRelatedResponse>(`/api/shows/${id}/related`),
   search: (params: URLSearchParams) =>
     jsonRequest<SearchResponse>(`/api/search?${params.toString()}`),
   searchGenres: () => jsonRequest<SearchGenresResponse>("/api/search/genres"),

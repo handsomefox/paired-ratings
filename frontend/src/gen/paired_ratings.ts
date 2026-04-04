@@ -40,6 +40,8 @@ export interface Show {
   updated_at: string;
   origin_country: string[];
   watch_priority?: number | undefined;
+  collection_id?: number | undefined;
+  collection_name?: string | undefined;
 }
 
 export interface ShowDetail {
@@ -160,6 +162,11 @@ export interface SetStatusRequest {
 
 export interface RefreshResponse {
   updated: number;
+}
+
+export interface GetRelatedResponse {
+  results: SearchResult[];
+  collection_name?: string | undefined;
 }
 
 export interface ExportPayload {

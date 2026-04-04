@@ -134,29 +134,31 @@ func (x *ErrorResponse) GetError() string {
 }
 
 type Show struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	TmdbId        int64                  `protobuf:"varint,2,opt,name=tmdb_id,proto3" json:"tmdb_id,omitempty"`
-	MediaType     string                 `protobuf:"bytes,3,opt,name=media_type,proto3" json:"media_type,omitempty"`
-	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
-	Year          *int64                 `protobuf:"varint,5,opt,name=year,proto3,oneof" json:"year,omitempty"`
-	Genres        *string                `protobuf:"bytes,6,opt,name=genres,proto3,oneof" json:"genres,omitempty"`
-	Overview      *string                `protobuf:"bytes,7,opt,name=overview,proto3,oneof" json:"overview,omitempty"`
-	PosterPath    *string                `protobuf:"bytes,8,opt,name=poster_path,proto3,oneof" json:"poster_path,omitempty"`
-	ImdbId        *string                `protobuf:"bytes,9,opt,name=imdb_id,proto3,oneof" json:"imdb_id,omitempty"`
-	TmdbRating    *float64               `protobuf:"fixed64,10,opt,name=tmdb_rating,proto3,oneof" json:"tmdb_rating,omitempty"`
-	TmdbVotes     *int64                 `protobuf:"varint,11,opt,name=tmdb_votes,proto3,oneof" json:"tmdb_votes,omitempty"`
-	Status        string                 `protobuf:"bytes,12,opt,name=status,proto3" json:"status,omitempty"`
-	BfRating      *int64                 `protobuf:"varint,13,opt,name=bf_rating,proto3,oneof" json:"bf_rating,omitempty"`
-	GfRating      *int64                 `protobuf:"varint,14,opt,name=gf_rating,proto3,oneof" json:"gf_rating,omitempty"`
-	BfComment     *string                `protobuf:"bytes,15,opt,name=bf_comment,proto3,oneof" json:"bf_comment,omitempty"`
-	GfComment     *string                `protobuf:"bytes,16,opt,name=gf_comment,proto3,oneof" json:"gf_comment,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,17,opt,name=created_at,proto3" json:"created_at,omitempty"`
-	UpdatedAt     string                 `protobuf:"bytes,18,opt,name=updated_at,proto3" json:"updated_at,omitempty"`
-	OriginCountry []string               `protobuf:"bytes,19,rep,name=origin_country,proto3" json:"origin_country,omitempty"`
-	WatchPriority *int32                 `protobuf:"varint,20,opt,name=watch_priority,proto3,oneof" json:"watch_priority,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	TmdbId         int64                  `protobuf:"varint,2,opt,name=tmdb_id,proto3" json:"tmdb_id,omitempty"`
+	MediaType      string                 `protobuf:"bytes,3,opt,name=media_type,proto3" json:"media_type,omitempty"`
+	Title          string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Year           *int64                 `protobuf:"varint,5,opt,name=year,proto3,oneof" json:"year,omitempty"`
+	Genres         *string                `protobuf:"bytes,6,opt,name=genres,proto3,oneof" json:"genres,omitempty"`
+	Overview       *string                `protobuf:"bytes,7,opt,name=overview,proto3,oneof" json:"overview,omitempty"`
+	PosterPath     *string                `protobuf:"bytes,8,opt,name=poster_path,proto3,oneof" json:"poster_path,omitempty"`
+	ImdbId         *string                `protobuf:"bytes,9,opt,name=imdb_id,proto3,oneof" json:"imdb_id,omitempty"`
+	TmdbRating     *float64               `protobuf:"fixed64,10,opt,name=tmdb_rating,proto3,oneof" json:"tmdb_rating,omitempty"`
+	TmdbVotes      *int64                 `protobuf:"varint,11,opt,name=tmdb_votes,proto3,oneof" json:"tmdb_votes,omitempty"`
+	Status         string                 `protobuf:"bytes,12,opt,name=status,proto3" json:"status,omitempty"`
+	BfRating       *int64                 `protobuf:"varint,13,opt,name=bf_rating,proto3,oneof" json:"bf_rating,omitempty"`
+	GfRating       *int64                 `protobuf:"varint,14,opt,name=gf_rating,proto3,oneof" json:"gf_rating,omitempty"`
+	BfComment      *string                `protobuf:"bytes,15,opt,name=bf_comment,proto3,oneof" json:"bf_comment,omitempty"`
+	GfComment      *string                `protobuf:"bytes,16,opt,name=gf_comment,proto3,oneof" json:"gf_comment,omitempty"`
+	CreatedAt      string                 `protobuf:"bytes,17,opt,name=created_at,proto3" json:"created_at,omitempty"`
+	UpdatedAt      string                 `protobuf:"bytes,18,opt,name=updated_at,proto3" json:"updated_at,omitempty"`
+	OriginCountry  []string               `protobuf:"bytes,19,rep,name=origin_country,proto3" json:"origin_country,omitempty"`
+	WatchPriority  *int32                 `protobuf:"varint,20,opt,name=watch_priority,proto3,oneof" json:"watch_priority,omitempty"`
+	CollectionId   *int64                 `protobuf:"varint,21,opt,name=collection_id,proto3,oneof" json:"collection_id,omitempty"`
+	CollectionName *string                `protobuf:"bytes,22,opt,name=collection_name,proto3,oneof" json:"collection_name,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Show) Reset() {
@@ -327,6 +329,20 @@ func (x *Show) GetWatchPriority() int32 {
 		return *x.WatchPriority
 	}
 	return 0
+}
+
+func (x *Show) GetCollectionId() int64 {
+	if x != nil && x.CollectionId != nil {
+		return *x.CollectionId
+	}
+	return 0
+}
+
+func (x *Show) GetCollectionName() string {
+	if x != nil && x.CollectionName != nil {
+		return *x.CollectionName
+	}
+	return ""
 }
 
 type ShowDetail struct {
@@ -1457,6 +1473,58 @@ func (x *RefreshResponse) GetUpdated() int32 {
 	return 0
 }
 
+type GetRelatedResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Results        []*SearchResult        `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	CollectionName *string                `protobuf:"bytes,2,opt,name=collection_name,proto3,oneof" json:"collection_name,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetRelatedResponse) Reset() {
+	*x = GetRelatedResponse{}
+	mi := &file_paired_ratings_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRelatedResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRelatedResponse) ProtoMessage() {}
+
+func (x *GetRelatedResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_paired_ratings_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRelatedResponse.ProtoReflect.Descriptor instead.
+func (*GetRelatedResponse) Descriptor() ([]byte, []int) {
+	return file_paired_ratings_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetRelatedResponse) GetResults() []*SearchResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+func (x *GetRelatedResponse) GetCollectionName() string {
+	if x != nil && x.CollectionName != nil {
+		return *x.CollectionName
+	}
+	return ""
+}
+
 type ExportPayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ExportedAt    string                 `protobuf:"bytes,1,opt,name=exported_at,proto3" json:"exported_at,omitempty"`
@@ -1467,7 +1535,7 @@ type ExportPayload struct {
 
 func (x *ExportPayload) Reset() {
 	*x = ExportPayload{}
-	mi := &file_paired_ratings_proto_msgTypes[22]
+	mi := &file_paired_ratings_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1479,7 +1547,7 @@ func (x *ExportPayload) String() string {
 func (*ExportPayload) ProtoMessage() {}
 
 func (x *ExportPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[22]
+	mi := &file_paired_ratings_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1492,7 +1560,7 @@ func (x *ExportPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportPayload.ProtoReflect.Descriptor instead.
 func (*ExportPayload) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{22}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ExportPayload) GetExportedAt() string {
@@ -1528,7 +1596,7 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\n" +
 	"\b_gf_name\"%\n" +
 	"\rErrorResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"\xb5\x06\n" +
+	"\x05error\x18\x01 \x01(\tR\x05error\"\xb5\a\n" +
 	"\x04Show\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x18\n" +
 	"\atmdb_id\x18\x02 \x01(\x03R\atmdb_id\x12\x1e\n" +
@@ -1563,7 +1631,9 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"updated_at\x18\x12 \x01(\tR\n" +
 	"updated_at\x12&\n" +
 	"\x0eorigin_country\x18\x13 \x03(\tR\x0eorigin_country\x12+\n" +
-	"\x0ewatch_priority\x18\x14 \x01(\x05H\vR\x0ewatch_priority\x88\x01\x01B\a\n" +
+	"\x0ewatch_priority\x18\x14 \x01(\x05H\vR\x0ewatch_priority\x88\x01\x01\x12)\n" +
+	"\rcollection_id\x18\x15 \x01(\x03H\fR\rcollection_id\x88\x01\x01\x12-\n" +
+	"\x0fcollection_name\x18\x16 \x01(\tH\rR\x0fcollection_name\x88\x01\x01B\a\n" +
 	"\x05_yearB\t\n" +
 	"\a_genresB\v\n" +
 	"\t_overviewB\x0e\n" +
@@ -1578,7 +1648,9 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"_gf_ratingB\r\n" +
 	"\v_bf_commentB\r\n" +
 	"\v_gf_commentB\x11\n" +
-	"\x0f_watch_priority\"f\n" +
+	"\x0f_watch_priorityB\x10\n" +
+	"\x0e_collection_idB\x12\n" +
+	"\x10_collection_name\"f\n" +
 	"\n" +
 	"ShowDetail\x12*\n" +
 	"\x04show\x18\x01 \x01(\v2\x16.pairedratings.v1.ShowR\x04show\x12\x1f\n" +
@@ -1680,7 +1752,11 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\x10SetStatusRequest\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\"+\n" +
 	"\x0fRefreshResponse\x12\x18\n" +
-	"\aupdated\x18\x01 \x01(\x05R\aupdated\"_\n" +
+	"\aupdated\x18\x01 \x01(\x05R\aupdated\"\x91\x01\n" +
+	"\x12GetRelatedResponse\x128\n" +
+	"\aresults\x18\x01 \x03(\v2\x1e.pairedratings.v1.SearchResultR\aresults\x12-\n" +
+	"\x0fcollection_name\x18\x02 \x01(\tH\x00R\x0fcollection_name\x88\x01\x01B\x12\n" +
+	"\x10_collection_name\"_\n" +
 	"\rExportPayload\x12 \n" +
 	"\vexported_at\x18\x01 \x01(\tR\vexported_at\x12,\n" +
 	"\x05shows\x18\x02 \x03(\v2\x16.pairedratings.v1.ShowR\x05showsB6Z4github.com/handsomefox/paired-ratings/backend/gen/pbb\x06proto3"
@@ -1697,7 +1773,7 @@ func file_paired_ratings_proto_rawDescGZIP() []byte {
 	return file_paired_ratings_proto_rawDescData
 }
 
-var file_paired_ratings_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_paired_ratings_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_paired_ratings_proto_goTypes = []any{
 	(*SessionResponse)(nil),         // 0: pairedratings.v1.SessionResponse
 	(*ErrorResponse)(nil),           // 1: pairedratings.v1.ErrorResponse
@@ -1721,7 +1797,8 @@ var file_paired_ratings_proto_goTypes = []any{
 	(*ReorderRequest)(nil),          // 19: pairedratings.v1.ReorderRequest
 	(*SetStatusRequest)(nil),        // 20: pairedratings.v1.SetStatusRequest
 	(*RefreshResponse)(nil),         // 21: pairedratings.v1.RefreshResponse
-	(*ExportPayload)(nil),           // 22: pairedratings.v1.ExportPayload
+	(*GetRelatedResponse)(nil),      // 22: pairedratings.v1.GetRelatedResponse
+	(*ExportPayload)(nil),           // 23: pairedratings.v1.ExportPayload
 }
 var file_paired_ratings_proto_depIdxs = []int32{
 	2,  // 0: pairedratings.v1.ShowDetail.show:type_name -> pairedratings.v1.Show
@@ -1731,12 +1808,13 @@ var file_paired_ratings_proto_depIdxs = []int32{
 	9,  // 4: pairedratings.v1.SearchGenresResponse.tv_genres:type_name -> pairedratings.v1.Genre
 	10, // 5: pairedratings.v1.SearchCountriesResponse.countries:type_name -> pairedratings.v1.Country
 	11, // 6: pairedratings.v1.SearchLanguagesResponse.languages:type_name -> pairedratings.v1.Language
-	2,  // 7: pairedratings.v1.ExportPayload.shows:type_name -> pairedratings.v1.Show
-	8,  // [8:8] is the sub-list for method output_type
-	8,  // [8:8] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	6,  // 7: pairedratings.v1.GetRelatedResponse.results:type_name -> pairedratings.v1.SearchResult
+	2,  // 8: pairedratings.v1.ExportPayload.shows:type_name -> pairedratings.v1.Show
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_paired_ratings_proto_init() }
@@ -1749,13 +1827,14 @@ func file_paired_ratings_proto_init() {
 	file_paired_ratings_proto_msgTypes[3].OneofWrappers = []any{}
 	file_paired_ratings_proto_msgTypes[15].OneofWrappers = []any{}
 	file_paired_ratings_proto_msgTypes[18].OneofWrappers = []any{}
+	file_paired_ratings_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_paired_ratings_proto_rawDesc), len(file_paired_ratings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -4,12 +4,14 @@ import "context"
 
 // Mock is a configurable TMDB client for tests.
 type Mock struct {
-	FetchDetailsFunc   func(ctx context.Context, id int64, mediaType string) (*Detail, error)
-	FetchGenresFunc    func(ctx context.Context, mediaType string) ([]Genre, error)
-	FetchCountriesFunc func(ctx context.Context) ([]Country, error)
-	FetchLanguagesFunc func(ctx context.Context) ([]Language, error)
-	SearchPageFunc     func(ctx context.Context, query string, mediaType string, page int) (SearchPage, error)
-	DiscoverPageFunc   func(ctx context.Context, mediaType string, filters DiscoverFilters, page int) (SearchPage, error)
+	FetchDetailsFunc         func(ctx context.Context, id int64, mediaType string) (*Detail, error)
+	FetchGenresFunc          func(ctx context.Context, mediaType string) ([]Genre, error)
+	FetchCountriesFunc       func(ctx context.Context) ([]Country, error)
+	FetchLanguagesFunc       func(ctx context.Context) ([]Language, error)
+	SearchPageFunc           func(ctx context.Context, query string, mediaType string, page int) (SearchPage, error)
+	DiscoverPageFunc         func(ctx context.Context, mediaType string, filters DiscoverFilters, page int) (SearchPage, error)
+	FetchCollectionFunc      func(ctx context.Context, collectionID int64) ([]SearchResult, error)
+	FetchRecommendationsFunc func(ctx context.Context, id int64, mediaType string) ([]SearchResult, error)
 }
 
 var _ Interface = (*Mock)(nil)
@@ -54,4 +56,18 @@ func (m *Mock) DiscoverPage(ctx context.Context, mediaType string, filters Disco
 		return SearchPage{}, nil
 	}
 	return m.DiscoverPageFunc(ctx, mediaType, filters, page)
+}
+
+func (m *Mock) FetchCollection(ctx context.Context, collectionID int64) ([]SearchResult, error) {
+	if m.FetchCollectionFunc == nil {
+		return nil, nil
+	}
+	return m.FetchCollectionFunc(ctx, collectionID)
+}
+
+func (m *Mock) FetchRecommendations(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
+	if m.FetchRecommendationsFunc == nil {
+		return nil, nil
+	}
+	return m.FetchRecommendationsFunc(ctx, id, mediaType)
 }

@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DetailHero } from "@/features/detail/detail-hero";
 import { DetailRatings } from "@/features/detail/detail-ratings";
+import { DetailRelated } from "@/features/detail/detail-related";
 import type { ApiShow } from "@/lib/api";
 import { api } from "@/lib/api";
 import { combinedRating } from "@/lib/utils";
@@ -206,6 +207,8 @@ export function DetailContent({
         saveDisabled={!isDirty}
         savePending={updateMutation.isPending}
       />
+
+      <DetailRelated showId={showId} imageBase={imageBase} />
 
       <AlertDialog open={pendingDelete} onOpenChange={setPendingDelete}>
         <AlertDialogContent>

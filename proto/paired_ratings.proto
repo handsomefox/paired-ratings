@@ -36,6 +36,8 @@ message Show {
   string updated_at = 18 [json_name = "updated_at"];
   repeated string origin_country = 19 [json_name = "origin_country"];
   optional int32 watch_priority = 20 [json_name = "watch_priority"];
+  optional int64 collection_id = 21 [json_name = "collection_id"];
+  optional string collection_name = 22 [json_name = "collection_name"];
 }
 
 message ShowDetail {
@@ -153,6 +155,11 @@ message SetStatusRequest {
 
 message RefreshResponse {
   int32 updated = 1 [json_name = "updated"];
+}
+
+message GetRelatedResponse {
+  repeated SearchResult results = 1 [json_name = "results"];
+  optional string collection_name = 2 [json_name = "collection_name"];
 }
 
 message ExportPayload {

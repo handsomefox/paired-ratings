@@ -27,17 +27,19 @@ type SearchPage struct {
 }
 
 type Detail struct {
-	MediaType     string
-	Title         string
-	Year          string
-	Overview      string
-	PosterPath    string
-	IMDbID        string
-	Genres        []string
-	OriginCountry []string
-	TMDBID        int64
-	VoteAverage   float64
-	VoteCount     int
+	MediaType      string
+	Title          string
+	Year           string
+	Overview       string
+	PosterPath     string
+	IMDbID         string
+	Genres         []string
+	OriginCountry  []string
+	TMDBID         int64
+	VoteAverage    float64
+	VoteCount      int
+	CollectionID   int64
+	CollectionName string
 }
 
 type DiscoverFilters struct {
@@ -104,9 +106,43 @@ type detailResponse struct {
 	Genres []struct {
 		Name string `json:"name"`
 	} `json:"genres"`
+	BelongsToCollection struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+	} `json:"belongs_to_collection"`
 	ID          int64   `json:"id"`
 	VoteAverage float64 `json:"vote_average"`
 	VoteCount   int     `json:"vote_count"`
+}
+
+type collectionResponse struct {
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Parts []struct {
+		ID          int64   `json:"id"`
+		Title       string  `json:"title"`
+		ReleaseDate string  `json:"release_date"`
+		PosterPath  string  `json:"poster_path"`
+		Overview    string  `json:"overview"`
+		VoteAverage float64 `json:"vote_average"`
+		VoteCount   int     `json:"vote_count"`
+	} `json:"parts"`
+}
+
+type recommendationsResponse struct {
+	Results []struct {
+		ID           int64    `json:"id"`
+		Name         string   `json:"name"`
+		Title        string   `json:"title"`
+		FirstAirDate string   `json:"first_air_date"`
+		ReleaseDate  string   `json:"release_date"`
+		PosterPath   string   `json:"poster_path"`
+		Overview     string   `json:"overview"`
+		VoteAverage  float64  `json:"vote_average"`
+		VoteCount    int      `json:"vote_count"`
+		GenreIDs     []int    `json:"genre_ids"`
+		OriginalLanguage string `json:"original_language"`
+	} `json:"results"`
 }
 
 type genreResponse struct {

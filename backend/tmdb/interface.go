@@ -10,6 +10,8 @@ type Interface interface {
 	FetchLanguages(ctx context.Context) ([]Language, error)
 	SearchPage(ctx context.Context, query string, mediaType string, page int) (SearchPage, error)
 	DiscoverPage(ctx context.Context, mediaType string, filters DiscoverFilters, page int) (SearchPage, error)
+	FetchCollection(ctx context.Context, collectionID int64) ([]SearchResult, error)
+	FetchRecommendations(ctx context.Context, id int64, mediaType string) ([]SearchResult, error)
 }
 
 var _ Interface = (*Client)(nil)
