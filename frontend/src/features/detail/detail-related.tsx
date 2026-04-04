@@ -71,7 +71,7 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
             >
               {item.poster_path ? (
                 <img
-                  src={`${imageBase}w300${item.poster_path}`}
+                  src={`${imageBase}${item.poster_path}`}
                   alt={item.title}
                   className="aspect-[2/3] w-full object-cover"
                   loading="lazy"
