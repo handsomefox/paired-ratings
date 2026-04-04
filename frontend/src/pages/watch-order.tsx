@@ -142,9 +142,9 @@ function SortableRow({
         className="overflow-hidden rounded-lg border border-border/60"
       >
         {posterUrl ? (
-          <img src={posterUrl} alt={show.title} className="h-28 w-20 object-cover" loading="lazy" />
+          <img src={posterUrl} alt={show.title} className="h-14 w-10 object-cover md:h-28 md:w-20" loading="lazy" />
         ) : (
-          <div className="flex h-28 w-20 items-center justify-center bg-muted/50 text-[10px] uppercase text-muted-foreground">
+          <div className="flex h-14 w-10 items-center justify-center bg-muted/50 text-[10px] uppercase text-muted-foreground md:h-28 md:w-20">
             —
           </div>
         )}
