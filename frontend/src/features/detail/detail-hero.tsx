@@ -10,6 +10,7 @@ import {
 import { showStatusOptions } from "@/features/library/library-utils";
 import type { ApiShow } from "@/lib/api";
 import { cn, formatScore, formatVotes } from "@/lib/utils";
+import { ExternalLink, ListOrdered, Telescope, RefreshCw, Trash2 } from "lucide-react";
 
 export type DetailHeroProps = {
   show: ApiShow;
@@ -104,112 +105,134 @@ export function DetailHero({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {imdbUrl ? (
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="rounded-full px-3 text-xs font-semibold uppercase tracking-wide"
-            >
-              <a href={imdbUrl} target="_blank" rel="noopener noreferrer">
-                IMDb
-              </a>
-            </Button>
-          ) : null}
-          {tmdbUrl ? (
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="rounded-full px-3 text-xs font-semibold uppercase tracking-wide"
-            >
-              <a href={tmdbUrl} target="_blank" rel="noopener noreferrer">
-                TMDB
-                <span className="font-normal normal-case text-muted-foreground">
-                  {show.tmdb_rating ? (
-                    <>
-                      {formatScore(show.tmdb_rating)}
-                      {show.tmdb_votes ? ` (${formatVotes(show.tmdb_votes)})` : ""}
-                    </>
-                  ) : (
-                    "—"
-                  )}
-                </span>
-              </a>
-            </Button>
-          ) : (
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="rounded-full px-3 text-xs font-semibold uppercase tracking-wide"
-            >
-              <span aria-disabled="true">
-                TMDB
-                <span className="font-normal normal-case text-muted-foreground">
-                  {show.tmdb_rating ? (
-                    <>
-                      {formatScore(show.tmdb_rating)}
-                      {show.tmdb_votes ? ` (${formatVotes(show.tmdb_votes)})` : ""}
-                    </>
-                  ) : (
-                    "—"
-                  )}
-                </span>
-              </span>
-            </Button>
-          )}
-          {showWatchOrderButton ? (
-            inWatchOrder ? (
+        <div className="space-y-2">
+          {/* Row 1: External links */}
+          <div className="flex flex-wrap items-center gap-2">
+            {imdbUrl ? (
               <Button
-                type="button"
+                asChild
                 variant="outline"
                 size="sm"
-                className="rounded-full px-3 text-xs"
-                onClick={onRemoveFromWatchOrder}
-                disabled={watchOrderPending}
+                className="rounded-full px-3 text-xs font-semibold uppercase tracking-wide"
               >
-                Remove from watch order
+                <a href={imdbUrl} target="_blank" rel="noopener noreferrer">
+                  IMDb
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </Button>
+            ) : null}
+            {tmdbUrl ? (
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="rounded-full px-3 text-xs font-semibold uppercase tracking-wide"
+              >
+                <a href={tmdbUrl} target="_blank" rel="noopener noreferrer">
+                  TMDB
+                  <span className="font-normal normal-case text-muted-foreground">
+                    {show.tmdb_rating ? (
+                      <>
+                        {formatScore(show.tmdb_rating)}
+                        {show.tmdb_votes ? ` (${formatVotes(show.tmdb_votes)})` : ""}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
               </Button>
             ) : (
               <Button
-                type="button"
+                asChild
                 variant="outline"
                 size="sm"
-                className="rounded-full px-3 text-xs"
-                onClick={onAddToWatchOrder}
-                disabled={watchOrderPending}
+                className="rounded-full px-3 text-xs font-semibold uppercase tracking-wide"
               >
-                Add to watch order
+                <span aria-disabled="true">
+                  TMDB
+                  <span className="font-normal normal-case text-muted-foreground">
+                    {show.tmdb_rating ? (
+                      <>
+                        {formatScore(show.tmdb_rating)}
+                        {show.tmdb_votes ? ` (${formatVotes(show.tmdb_votes)})` : ""}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </span>
+                </span>
               </Button>
-            )
+            )}
+          </div>
+
+          {/* Row 2: Primary actions */}
+          {(showWatchOrderButton || findSimilarUrl) ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {showWatchOrderButton ? (
+                inWatchOrder ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-full px-3 text-xs"
+                    onClick={onRemoveFromWatchOrder}
+                    disabled={watchOrderPending}
+                  >
+                    <ListOrdered className="h-3.5 w-3.5" />
+                    Remove from watch order
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-full px-3 text-xs"
+                    onClick={onAddToWatchOrder}
+                    disabled={watchOrderPending}
+                  >
+                    <ListOrdered className="h-3.5 w-3.5" />
+                    Add to watch order
+                  </Button>
+                )
+              ) : null}
+              {findSimilarUrl ? (
+                <Button asChild variant="secondary" size="sm" className="rounded-full px-3 text-xs">
+                  <a href={findSimilarUrl}>
+                    <Telescope className="h-3.5 w-3.5" />
+                    Find Similar
+                  </a>
+                </Button>
+              ) : null}
+            </div>
           ) : null}
-          {findSimilarUrl ? (
-            <Button asChild variant="outline" size="sm" className="rounded-full px-3 text-xs">
-              <a href={findSimilarUrl}>Find Similar</a>
+
+          {/* Row 3: Utility */}
+          <div className="flex flex-wrap items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="rounded-full px-3 text-xs text-muted-foreground hover:text-foreground"
+              onClick={onRefresh}
+              disabled={refreshPending}
+            >
+              <RefreshCw className="h-3 w-3" />
+              Refresh TMDB
             </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full px-3 text-xs"
-            onClick={onRefresh}
-            disabled={refreshPending}
-          >
-            Refresh TMDB
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="rounded-full px-3 text-xs"
-            onClick={onClearRatings}
-            disabled={clearPending}
-          >
-            Clear ratings
-          </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="rounded-full px-3 text-xs text-muted-foreground hover:text-destructive"
+              onClick={onClearRatings}
+              disabled={clearPending}
+            >
+              <Trash2 className="h-3 w-3" />
+              Clear ratings
+            </Button>
+          </div>
         </div>
 
         {show.overview ? <p className="text-sm text-muted-foreground">{show.overview}</p> : null}
