@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { showStatusOptions } from "@/features/library/library-utils";
 import type { ApiShow } from "@/lib/api";
-import { formatScore, formatVotes } from "@/lib/utils";
+import { cn, formatScore, formatVotes } from "@/lib/utils";
 
 export type DetailHeroProps = {
   show: ApiShow;
@@ -64,33 +64,42 @@ export function DetailHero({
         </div>
       </div>
       <div className="space-y-6 p-6 lg:p-8">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-display text-2xl">{show.title}</h1>
             {show.year ? <span className="text-sm text-muted-foreground">{show.year}</span> : null}
           </div>
+          <Select
+            value={show.status || "planned"}
+            onValueChange={onSetStatus}
+            disabled={statusPending}
+          >
+            <SelectTrigger
+              className={cn(
+                "h-7 w-auto cursor-pointer rounded-md border px-2.5 text-xs font-semibold uppercase tracking-wide shadow-none focus:ring-0 [&>svg]:ml-1 [&>svg]:h-3 [&>svg]:w-3",
+                show.status === "watched"
+                  ? "border-bf/40 bg-bf/10 text-bf hover:bg-bf/20"
+                  : show.status === "watching"
+                    ? "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                    : "border-gf/40 bg-gf/10 text-gf hover:bg-gf/20",
+              )}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent style={{ minWidth: "var(--radix-select-trigger-width)" }}>
+              {showStatusOptions.map((opt) => (
+                <SelectItem
+                  key={opt.value}
+                  value={opt.value}
+                  className="text-xs uppercase tracking-wide"
+                >
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <OriginCountriesChip codes={show.origin_country} />
-            <Select
-              value={show.status || "planned"}
-              onValueChange={onSetStatus}
-              disabled={statusPending}
-            >
-              <SelectTrigger className="h-6 w-auto rounded-full border-0 bg-transparent px-2 text-[0.65rem] uppercase tracking-wide shadow-none focus:ring-0 [&>svg]:ml-0.5 [&>svg]:h-3 [&>svg]:w-3">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {showStatusOptions.map((opt) => (
-                  <SelectItem
-                    key={opt.value}
-                    value={opt.value}
-                    className="text-xs uppercase tracking-wide"
-                  >
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             {show.genres ? <span className="text-muted-foreground">{show.genres}</span> : null}
           </div>
         </div>

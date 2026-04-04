@@ -49,12 +49,12 @@ function Pagination({
       key={`${label}-${target}`}
       onClick={() => !disabled && onPageChange(target)}
       disabled={disabled}
-      className={`min-w-[2rem] rounded px-2 py-1 text-xs transition-colors ${
+      className={`min-w-[2rem] rounded-md px-2 py-1 text-xs transition-colors ${
         active
-          ? "bg-foreground text-background"
+          ? "bg-primary text-primary-foreground"
           : disabled
             ? "cursor-default text-muted-foreground/40"
-            : "cursor-pointer text-muted-foreground hover:text-foreground"
+            : "cursor-pointer text-muted-foreground hover:bg-muted hover:text-foreground"
       }`}
     >
       {label}

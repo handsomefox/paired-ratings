@@ -60,7 +60,7 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/75 backdrop-blur">
-      <div className="mx-auto flex h-14 w-full items-center justify-between gap-4 px-4 sm:h-16 sm:px-6 lg:max-w-[88vw] lg:px-8 xl:max-w-[84vw] xl:px-10 2xl:max-w-[80vw] 2xl:px-12">
+      <div className="mx-auto flex h-14 w-full max-w-[1720px] items-center justify-between gap-4 px-4 sm:h-16 sm:px-6 lg:px-8 xl:px-10">
         <div className="flex items-center gap-3">
           <ViewTransitionLink
             to="/"
