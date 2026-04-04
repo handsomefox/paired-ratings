@@ -182,7 +182,7 @@ func TestShowLifecycleHandlers(t *testing.T) {
 
 	authCookie := login(t, r, "secret")
 
-	ratingsPayload, err := json.Marshal(&pb.RatingsRequest{BfRating: ptr(int32(7))})
+	ratingsPayload, err := json.Marshal(&pb.RatingsRequest{BfRating: new(int32(7))})
 	require.NoError(t, err)
 
 	rec := httptest.NewRecorder()

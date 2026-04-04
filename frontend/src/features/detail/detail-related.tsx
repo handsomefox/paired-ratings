@@ -89,7 +89,9 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
                 )}
               </a>
               <div className="flex flex-1 flex-col gap-1 p-2">
-                <span className="line-clamp-2 break-words text-xs font-medium leading-tight">{item.title}</span>
+                <span className="line-clamp-2 break-words text-xs font-medium leading-tight">
+                  {item.title}
+                </span>
                 {item.year && (
                   <span className="text-[10px] text-muted-foreground">{item.year}</span>
                 )}

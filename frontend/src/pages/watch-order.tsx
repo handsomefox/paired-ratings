@@ -277,7 +277,9 @@ export function WatchOrderPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <h1 className="font-display text-xl sm:text-2xl">Watch order</h1>
-            <p className="text-sm text-muted-foreground">Drag to reorder. Add shows from the detail page.</p>
+            <p className="text-sm text-muted-foreground">
+              Drag to reorder. Add shows from the detail page.
+            </p>
           </div>
           {isDirty ? (
             <Button onClick={handleSave} disabled={reorderMutation.isPending}>
@@ -335,7 +337,8 @@ export function WatchOrderPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Remove from watch order?</AlertDialogTitle>
               <AlertDialogDescription>
-                "{pendingDelete?.title}" will be removed from the watch order but kept in your library.
+                "{pendingDelete?.title}" will be removed from the watch order but kept in your
+                library.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

@@ -34,5 +34,3 @@ func optionalString(val string) *string {
 	}
 	return &val
 }
-
-func ptr[T any](v T) *T { return &v }

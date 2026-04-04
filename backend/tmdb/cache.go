@@ -9,11 +9,11 @@ import (
 
 // ttl cache durations
 const (
-	ttlStatic   = 24 * time.Hour     // genres, countries, languages — almost never change
-	ttlDetail   = 24 * time.Hour     // show details — user can force-refresh via the UI
-	ttlSeason   = 6 * time.Hour      // season/episode data
-	ttlRelated  = 6 * time.Hour      // collections, recommendations
-	ttlSearch   = 10 * time.Minute   // search & discover results
+	ttlStatic  = 24 * time.Hour   // genres, countries, languages: almost never change
+	ttlDetail  = 24 * time.Hour   // show details: user can force-refresh via the UI
+	ttlSeason  = 6 * time.Hour    // season/episode data
+	ttlRelated = 6 * time.Hour    // collections, recommendations
+	ttlSearch  = 10 * time.Minute // search & discover results
 )
 
 // ttlCache is a generic in-memory cache with per-entry TTLs. Safe for concurrent use.

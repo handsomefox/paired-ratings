@@ -127,10 +127,7 @@ END DESC
 	}
 
 	if filters.PageSize > 0 {
-		page := filters.Page
-		if page < 1 {
-			page = 1
-		}
+		page := max(filters.Page, 1)
 		q = q.Limit(filters.PageSize).Offset((page - 1) * filters.PageSize)
 	}
 
