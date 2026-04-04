@@ -104,6 +104,7 @@ export function DetailContent({
     onSuccess: (data) => {
       queryClient.setQueryData(["show", String(showId)], data);
       queryClient.invalidateQueries({ queryKey: ["shows"] });
+      queryClient.invalidateQueries({ queryKey: ["episodes", showId] });
       toast.success(`Marked ${data.show?.status ?? "updated"}.`);
     },
     onError: () => {
@@ -141,6 +142,7 @@ export function DetailContent({
     onSuccess: (data) => {
       queryClient.setQueryData(["show", String(showId)], data);
       queryClient.invalidateQueries({ queryKey: ["shows"] });
+      queryClient.invalidateQueries({ queryKey: ["episodes", showId] });
       toast.success("TMDB refreshed.");
     },
     onError: () => {

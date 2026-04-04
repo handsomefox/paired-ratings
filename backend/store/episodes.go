@@ -125,6 +125,17 @@ func (s *Store) GetEpisodeCounts(ctx context.Context, showIDs []int64) (map[int6
 	return out, nil
 }
 
+func (s *Store) MarkAllEpisodesWatched(ctx context.Context, showID int64) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := s.db.NewUpdate().
+		Table("episodes").
+		Set("watched = 1").
+		Set("updated_at = ?", now).
+		Where("show_id = ?", showID).
+		Exec(ctx)
+	return err
+}
+
 func (s *Store) ToggleSeason(ctx context.Context, showID int64, seasonNumber int, watched bool) error {
 	val := 0
 	if watched {

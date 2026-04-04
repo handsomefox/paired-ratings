@@ -327,6 +327,12 @@ func (h *Handler) postShowSetStatus(w http.ResponseWriter, r *http.Request) erro
 		return internal(err)
 	}
 
+	if status == "watched" {
+		if err := h.store.MarkAllEpisodesWatched(ctx, id); err != nil {
+			slog.Warn("show: mark episodes watched failed", logger.Error(err))
+		}
+	}
+
 	updated, err := h.store.GetShow(ctx, id)
 	if err != nil {
 		if isNoRows(err) {
@@ -400,6 +406,12 @@ func (h *Handler) postShowRefreshTMDB(w http.ResponseWriter, r *http.Request) er
 	if _, err := h.store.UpsertShow(ctx, &updated); err != nil {
 		slog.Warn("show: tmdb upsert failed", logger.Error(err))
 		return internal(err)
+	}
+
+	if show.MediaType == "tv" && detail.NumberOfSeasons > 0 {
+		if err := h.syncAllSeasons(ctx, id, show.TMDBID, detail.NumberOfSeasons); err != nil {
+			slog.Warn("show: episode sync on refresh failed", logger.Error(err))
+		}
 	}
 
 	stored, err := h.store.GetShow(ctx, id)
