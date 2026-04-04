@@ -369,7 +369,8 @@ func (h *Handler) getShowRelated(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	results := make([]*pb.SearchResult, 0, len(related))
-	for _, item := range related {
+	for i := range related {
+		item := &related[i]
 		if item.ID == show.TMDBID {
 			continue
 		}
@@ -409,7 +410,7 @@ func (h *Handler) getGenres(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func parseListFilters(r *http.Request) store.ListFilters {
+func parseListFilters(r *http.Request) *store.ListFilters {
 	country := strings.TrimSpace(r.URL.Query().Get("origin_country"))
 	if country != "" {
 		country = strings.ToUpper(country)
@@ -438,7 +439,7 @@ func parseListFilters(r *http.Request) store.ListFilters {
 		}
 	}
 
-	return filters
+	return &filters
 }
 
 func showFromDetail(detail *tmdb.Detail, status string) store.Show {
@@ -536,5 +537,3 @@ func parseOptionalRating(val *int32) sql.Null[int64] {
 	n := min(max(int(*val), 1), 10)
 	return sql.Null[int64]{Valid: true, V: int64(n)}
 }
-
-

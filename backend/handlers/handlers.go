@@ -100,7 +100,6 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 			r.Route("/episodes/{id:[0-9]+}", func(r chi.Router) {
 				r.Method(http.MethodPost, "/toggle", Adapt(h.postEpisodeToggle))
 			})
-
 		})
 
 		r.Method(http.MethodPost, "/export", Adapt(h.postExport))

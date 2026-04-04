@@ -81,7 +81,6 @@ func (s *Store) DBPath() string {
 	return s.dbPath
 }
 
-
 func runMigrations(db *sql.DB) error {
 	goose.SetBaseFS(migrationFS)
 	goose.SetLogger(goose.NopLogger())

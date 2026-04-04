@@ -71,7 +71,11 @@ export function DetailHero({
               </SelectTrigger>
               <SelectContent>
                 {showStatusOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-xs uppercase tracking-wide">
+                  <SelectItem
+                    key={opt.value}
+                    value={opt.value}
+                    className="text-xs uppercase tracking-wide"
+                  >
                     {opt.label}
                   </SelectItem>
                 ))}

@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (c *Client) SearchPage(ctx context.Context, query string, mediaType string, page int) (SearchPage, error) {
+func (c *Client) SearchPage(ctx context.Context, query, mediaType string, page int) (SearchPage, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return SearchPage{}, nil

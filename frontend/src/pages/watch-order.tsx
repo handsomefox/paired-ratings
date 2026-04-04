@@ -180,7 +180,7 @@ export function WatchOrderPage() {
     },
   });
 
-  const serverShows = showsQuery.data?.shows ?? [];
+  const serverShows = useMemo(() => showsQuery.data?.shows ?? [], [showsQuery.data?.shows]);
   const imageBase = sessionQuery.data?.image_base ?? "";
 
   // Display order: use local drag state if present, otherwise server order
@@ -194,12 +194,11 @@ export function WatchOrderPage() {
   }, [serverShows, localOrder]);
 
   const isDirty = localOrder !== null;
-  const isInitialLoading = showsQuery.isLoading || (showsQuery.isFetching && serverShows.length === 0);
+  const isInitialLoading =
+    showsQuery.isLoading || (showsQuery.isFetching && serverShows.length === 0);
   const isEmpty = !showsQuery.isLoading && !showsQuery.isFetching && serverShows.length === 0;
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -218,77 +217,82 @@ export function WatchOrderPage() {
 
   return (
     <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: ["shows"] })}>
-    <section className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="font-display text-xl sm:text-2xl">Watch order</h1>
-          <p className="text-sm text-muted-foreground">
-            Drag to reorder your planned shows.
-          </p>
+      <section className="space-y-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h1 className="font-display text-xl sm:text-2xl">Watch order</h1>
+            <p className="text-sm text-muted-foreground">Drag to reorder your planned shows.</p>
+          </div>
+          {isDirty ? (
+            <Button onClick={handleSave} disabled={reorderMutation.isPending}>
+              Save order
+            </Button>
+          ) : null}
         </div>
-        {isDirty ? (
-          <Button onClick={handleSave} disabled={reorderMutation.isPending}>
-            Save order
-          </Button>
+
+        {isInitialLoading ? <LoadingGrid /> : null}
+
+        {isEmpty ? (
+          <Empty className="border-border/60 bg-card/30">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Film />
+              </EmptyMedia>
+              <EmptyTitle>No planned shows yet</EmptyTitle>
+              <EmptyDescription>Add something in the library first.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : null}
-      </div>
 
-      {isInitialLoading ? <LoadingGrid /> : null}
-
-      {isEmpty ? (
-        <Empty className="border-border/60 bg-card/30">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Film />
-            </EmptyMedia>
-            <EmptyTitle>No planned shows yet</EmptyTitle>
-            <EmptyDescription>Add something in the library first.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : null}
-
-      {displayShows.length > 0 ? (
-        <div className="overflow-hidden rounded-2xl border border-border/60 shadow-lg">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={displayShows.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-              {displayShows.map((show, index) => (
-                <SortableRow
-                  key={show.id}
-                  show={show}
-                  index={index}
-                  imageBase={imageBase}
-                  onDelete={setPendingDelete}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
-        </div>
-      ) : null}
-
-      <AlertDialog
-        open={Boolean(pendingDelete)}
-        onOpenChange={(open) => !open && setPendingDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete show?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove "{pendingDelete?.title}" from your library.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (pendingDelete) deleteMutation.mutate(pendingDelete.id);
-              }}
+        {displayShows.length > 0 ? (
+          <div className="overflow-hidden rounded-2xl border border-border/60 shadow-lg">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
             >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </section>
+              <SortableContext
+                items={displayShows.map((s) => s.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {displayShows.map((show, index) => (
+                  <SortableRow
+                    key={show.id}
+                    show={show}
+                    index={index}
+                    imageBase={imageBase}
+                    onDelete={setPendingDelete}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+          </div>
+        ) : null}
+
+        <AlertDialog
+          open={Boolean(pendingDelete)}
+          onOpenChange={(open) => !open && setPendingDelete(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete show?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove "{pendingDelete?.title}" from your library.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (pendingDelete) deleteMutation.mutate(pendingDelete.id);
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </section>
     </PullToRefresh>
   );
 }

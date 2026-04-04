@@ -156,7 +156,7 @@ func (h *Handler) getSearch(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	pageData, err := h.searchTMDB(ctx, query, filters)
+	pageData, err := h.searchTMDB(ctx, query, &filters)
 	if err != nil {
 		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
 	}
@@ -169,7 +169,8 @@ func (h *Handler) getSearch(w http.ResponseWriter, r *http.Request) error {
 	movieGenres, tvGenres := h.genreMaps(ctx)
 
 	results := make([]*pb.SearchResult, 0, len(pageData.Results))
-	for _, item := range pageData.Results {
+	for i := range pageData.Results {
+		item := &pageData.Results[i]
 		results = append(results, &pb.SearchResult{
 			Id:               item.ID,
 			MediaType:        item.MediaType,
@@ -180,7 +181,7 @@ func (h *Handler) getSearch(w http.ResponseWriter, r *http.Request) error {
 			VoteAverage:      item.VoteAverage,
 			VoteCount:        int32(item.VoteCount),
 			InLibrary:        inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
-			Genres:           genreNamesFor(item, movieGenres, tvGenres),
+			Genres:           genreNamesFor(*item, movieGenres, tvGenres),
 			OriginalLanguage: item.OriginalLanguage,
 		})
 	}
@@ -194,7 +195,7 @@ func (h *Handler) getSearch(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) searchTMDB(ctx context.Context, query string, filters searchFilters) (searchPage, error) {
+func (h *Handler) searchTMDB(ctx context.Context, query string, filters *searchFilters) (searchPage, error) {
 	const perPage = 20
 	const tmdbPageSize = 20
 
@@ -204,12 +205,12 @@ func (h *Handler) searchTMDB(ctx context.Context, query string, filters searchFi
 
 	if query != "" {
 		mediaType := strings.TrimSpace(filters.MediaType)
-		type pageFetcher func(page int) (tmdb.SearchPage, error)
 		fetch := func(page int) (tmdb.SearchPage, error) {
 			return h.tmdb.SearchPage(ctx, query, mediaType, page)
 		}
 		startFromFirst := !filters.isEmpty() || filters.Sort != "relevance"
 		return h.searchWithFilterPaging(ctx, fetch, filters, perPage, tmdbPageSize, startFromFirst, true)
+
 	}
 
 	if filters.isEmpty() {
@@ -266,7 +267,7 @@ func (h *Handler) searchTMDB(ctx context.Context, query string, filters searchFi
 func (h *Handler) searchWithFilterPaging(
 	ctx context.Context,
 	fetch func(page int) (tmdb.SearchPage, error),
-	filters searchFilters,
+	filters *searchFilters,
 	perPage int,
 	remotePageSize int,
 	startFromFirst bool,
@@ -278,7 +279,7 @@ func (h *Handler) searchWithFilterPaging(
 	offset := (filters.Page - 1) * perPage
 	tmdbPage := 1
 	if !startFromFirst {
-		offset = offset % remotePageSize
+		offset %= remotePageSize
 		tmdbPage = (filters.Page-1)*perPage/remotePageSize + 1
 	}
 
@@ -437,7 +438,7 @@ func searchFiltersFromRequest(req *pb.SearchRequest) searchFilters {
 	}
 }
 
-func (f searchFilters) isEmpty() bool {
+func (f *searchFilters) isEmpty() bool {
 	return f.MediaType == "all" &&
 		f.YearFrom == nil &&
 		f.YearTo == nil &&
@@ -448,13 +449,14 @@ func (f searchFilters) isEmpty() bool {
 		f.OriginalLanguage == ""
 }
 
-func applySearchFilters(items []tmdb.SearchResult, filters searchFilters) []tmdb.SearchResult {
+func applySearchFilters(items []tmdb.SearchResult, filters *searchFilters) []tmdb.SearchResult {
 	if len(items) == 0 {
 		return items
 	}
 
 	out := make([]tmdb.SearchResult, 0, len(items))
-	for _, item := range items {
+	for i := range items {
+		item := &items[i]
 		if filters.MediaType != "all" && item.MediaType != filters.MediaType {
 			continue
 		}
@@ -501,7 +503,7 @@ func applySearchFilters(items []tmdb.SearchResult, filters searchFilters) []tmdb
 				continue
 			}
 		}
-		out = append(out, item)
+		out = append(out, *item)
 	}
 	return out
 }
@@ -543,7 +545,7 @@ func parseGenreFilter(raw string) ([]int, string, string) {
 	return ids, mode, strings.Join(rawParts, separator)
 }
 
-func matchesGenres(itemIDs []int, filterIDs []int, mode string) bool {
+func matchesGenres(itemIDs, filterIDs []int, mode string) bool {
 	if len(filterIDs) == 0 {
 		return true
 	}
@@ -667,21 +669,18 @@ func paginateSearchResults(items []tmdb.SearchResult, offset, limit int) []tmdb.
 	if offset >= len(items) {
 		return []tmdb.SearchResult{}
 	}
-	end := offset + limit
-	if end > len(items) {
-		end = len(items)
-	}
+	end := min(offset+limit, len(items))
 	return items[offset:end]
 }
 
 func (h *Handler) lookupInLibrary(ctx context.Context, items []tmdb.SearchResult) (map[store.TMDBRef]bool, error) {
 	refs := make([]store.TMDBRef, 0, len(items))
-	for _, item := range items {
-		mediaType := strings.TrimSpace(item.MediaType)
-		if item.ID == 0 || mediaType == "" {
+	for i := range items {
+		mediaType := strings.TrimSpace(items[i].MediaType)
+		if items[i].ID == 0 || mediaType == "" {
 			continue
 		}
-		refs = append(refs, store.TMDBRef{ID: item.ID, MediaType: mediaType})
+		refs = append(refs, store.TMDBRef{ID: items[i].ID, MediaType: mediaType})
 	}
 	return h.store.InLibraryByTMDB(ctx, refs)
 }

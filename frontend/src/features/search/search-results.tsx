@@ -66,7 +66,8 @@ export function SearchResults({
             <EmptyDescription>
               {query && mediaType && onSwitchMediaType ? (
                 <>
-                  No {mediaType === "movie" ? "movie" : "TV show"} results for &ldquo;{query}&rdquo;.{" "}
+                  No {mediaType === "movie" ? "movie" : "TV show"} results for &ldquo;{query}
+                  &rdquo;.{" "}
                   <button
                     type="button"
                     className="font-medium text-primary underline-offset-2 hover:underline"

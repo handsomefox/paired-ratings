@@ -8,7 +8,7 @@ type Interface interface {
 	FetchGenres(ctx context.Context, mediaType string) ([]Genre, error)
 	FetchCountries(ctx context.Context) ([]Country, error)
 	FetchLanguages(ctx context.Context) ([]Language, error)
-	SearchPage(ctx context.Context, query string, mediaType string, page int) (SearchPage, error)
+	SearchPage(ctx context.Context, query, mediaType string, page int) (SearchPage, error)
 	DiscoverPage(ctx context.Context, mediaType string, filters DiscoverFilters, page int) (SearchPage, error)
 	FetchCollection(ctx context.Context, collectionID int64) ([]SearchResult, error)
 	FetchRecommendations(ctx context.Context, id int64, mediaType string) ([]SearchResult, error)

@@ -31,7 +31,6 @@ export type DetailContentProps = {
   onBack: () => void;
 };
 
-
 export function DetailContent({
   show,
   showId,

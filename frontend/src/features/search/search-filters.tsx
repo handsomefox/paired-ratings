@@ -13,10 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import {
-  sortOptions,
-  type Sort,
-} from "@/features/search/search-constants";
+import { sortOptions, type Sort } from "@/features/search/search-constants";
 
 export type SearchGenreOption = {
   id: number;

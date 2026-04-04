@@ -62,7 +62,7 @@ func TestStoreLifecycle(t *testing.T) {
 	require.False(t, cleared.BfRating.Valid)
 	require.False(t, cleared.GfRating.Valid)
 
-	shows, err := st.ListShows(ctx, ListFilters{Status: "all"})
+	shows, err := st.ListShows(ctx, &ListFilters{Status: "all"})
 	require.NoError(t, err)
 	require.Len(t, shows, 1)
 

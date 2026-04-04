@@ -14,7 +14,6 @@ type RatingsUpdate struct {
 	GfComment *sql.Null[string]
 }
 
-
 func nowUTC() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }
@@ -203,14 +202,6 @@ func (s *Store) ClearRatings(ctx context.Context, id int64) error {
 	return expectRowsAffected(res)
 }
 
-func (s *Store) GetByCollectionID(ctx context.Context, collectionID int64) ([]Show, error) {
-	var shows []Show
-	err := s.db.NewSelect().
-		Model(&shows).
-		Where("collection_id = ?", collectionID).
-		Scan(ctx)
-	return shows, err
-}
 
 func (s *Store) DeleteShow(ctx context.Context, id int64) error {
 	res, err := s.db.NewDelete().

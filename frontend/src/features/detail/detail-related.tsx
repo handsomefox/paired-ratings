@@ -60,9 +60,7 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">
-          {collectionName ? collectionName : "Related"}
-        </CardTitle>
+        <CardTitle className="text-base">{collectionName ? collectionName : "Related"}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -84,9 +82,7 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
                 </div>
               )}
               <div className="flex flex-1 flex-col gap-1 p-2">
-                <span className="line-clamp-2 text-xs font-medium leading-tight">
-                  {item.title}
-                </span>
+                <span className="line-clamp-2 text-xs font-medium leading-tight">{item.title}</span>
                 {item.year && (
                   <span className="text-[10px] text-muted-foreground">{item.year}</span>
                 )}

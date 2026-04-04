@@ -45,7 +45,7 @@ func (m *Mock) FetchLanguages(ctx context.Context) ([]Language, error) {
 	return m.FetchLanguagesFunc(ctx)
 }
 
-func (m *Mock) SearchPage(ctx context.Context, query string, mediaType string, page int) (SearchPage, error) {
+func (m *Mock) SearchPage(ctx context.Context, query, mediaType string, page int) (SearchPage, error) {
 	if m.SearchPageFunc == nil {
 		return SearchPage{}, nil
 	}

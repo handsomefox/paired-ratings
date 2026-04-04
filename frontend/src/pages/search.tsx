@@ -423,72 +423,72 @@ export function SearchPage() {
 
   return (
     <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: ["search"] })}>
-    <FiltersPane
-      filtersOpen={filtersOpen}
-      onOpenChange={setFiltersOpen}
-      filters={FiltersForm}
-      headerClassName="flex-wrap items-end gap-4"
-    >
-      <FiltersPaneContent>
-        <form className="flex w-full justify-center" onSubmit={(event) => event.preventDefault()}>
-          <Input
-            type="text"
-            name="q"
-            placeholder="Search TMDB"
-            value={queryInput}
-            onChange={(event) => handleQueryChange(event.target.value)}
-            autoFocus
-            className="w-full max-w-md md:max-w-lg lg:max-w-xl"
-          />
-        </form>
+      <FiltersPane
+        filtersOpen={filtersOpen}
+        onOpenChange={setFiltersOpen}
+        filters={FiltersForm}
+        headerClassName="flex-wrap items-end gap-4"
+      >
+        <FiltersPaneContent>
+          <form className="flex w-full justify-center" onSubmit={(event) => event.preventDefault()}>
+            <Input
+              type="text"
+              name="q"
+              placeholder="Search TMDB"
+              value={queryInput}
+              onChange={(event) => handleQueryChange(event.target.value)}
+              autoFocus
+              className="w-full max-w-md md:max-w-lg lg:max-w-xl"
+            />
+          </form>
 
-        <div className="flex items-center justify-between gap-4">
-          <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-1">
-            {mediaTypeOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => handleMediaTypeChange(option.value as MediaType)}
-                className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-                  mediaType === option.value
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {option.label === "TV" ? "TV Shows" : option.label}
-              </button>
-            ))}
+          <div className="flex items-center justify-between gap-4">
+            <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-1">
+              {mediaTypeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleMediaTypeChange(option.value as MediaType)}
+                  className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                    mediaType === option.value
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {option.label === "TV" ? "TV Shows" : option.label}
+                </button>
+              ))}
+            </div>
+            <div className="text-xs text-muted-foreground sm:text-sm">{renderResultsCount()}</div>
           </div>
-          <div className="text-xs text-muted-foreground sm:text-sm">{renderResultsCount()}</div>
-        </div>
 
-        <SearchResults
-          isInitialLoading={isInitialLoading}
-          isFetching={isFetching}
-          results={results}
-          availableLanguages={availableLanguages}
-          imageBase={imageBase}
-          libraryMap={libraryMap}
-          expandedOverviews={expandedOverviews}
-          onToggleOverview={toggleOverview}
-          onOpenImdb={(item) => void handleOpenImdb(item)}
-          onAdd={handleAdd}
-          addPending={addMutation.isPending}
-          fromLocation={fromLocation}
-          query={trimmedQuery}
-          mediaType={mediaType}
-          onSwitchMediaType={handleMediaTypeChange}
-        />
+          <SearchResults
+            isInitialLoading={isInitialLoading}
+            isFetching={isFetching}
+            results={results}
+            availableLanguages={availableLanguages}
+            imageBase={imageBase}
+            libraryMap={libraryMap}
+            expandedOverviews={expandedOverviews}
+            onToggleOverview={toggleOverview}
+            onOpenImdb={(item) => void handleOpenImdb(item)}
+            onAdd={handleAdd}
+            addPending={addMutation.isPending}
+            fromLocation={fromLocation}
+            query={trimmedQuery}
+            mediaType={mediaType}
+            onSwitchMediaType={handleMediaTypeChange}
+          />
 
-        <SearchPagination
-          totalPages={totalPages}
-          activePage={activePage}
-          isCompact={isCompactPagination}
-          pageItems={pageItems}
-          onGoToPage={goToPage}
-        />
-      </FiltersPaneContent>
-    </FiltersPane>
+          <SearchPagination
+            totalPages={totalPages}
+            activePage={activePage}
+            isCompact={isCompactPagination}
+            pageItems={pageItems}
+            onGoToPage={goToPage}
+          />
+        </FiltersPaneContent>
+      </FiltersPane>
     </PullToRefresh>
   );
 }

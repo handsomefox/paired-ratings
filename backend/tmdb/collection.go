@@ -46,7 +46,8 @@ func (c *Client) FetchRecommendations(ctx context.Context, id int64, mediaType s
 	}
 
 	results := make([]SearchResult, 0, len(payload.Results))
-	for _, r := range payload.Results {
+	for i := range payload.Results {
+		r := &payload.Results[i]
 		title := r.Title
 		year := yearFromDate(r.ReleaseDate)
 		if mediaType == "tv" {

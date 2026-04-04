@@ -19,4 +19,3 @@ export function statusBadgeVariant(status?: string): StatusBadgeVariant {
   if (status === "watching") return "watching";
   return "outline";
 }
-

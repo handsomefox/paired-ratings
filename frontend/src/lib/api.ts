@@ -97,10 +97,8 @@ export const api = {
     jsonRequest<ApiShowDetail>(`/api/shows/${id}/refresh-tmdb`, {
       method: "POST",
     }),
-  getRelated: (id: number) =>
-    jsonRequest<GetRelatedResponse>(`/api/shows/${id}/related`),
-  getEpisodes: (id: number) =>
-    jsonRequest<EpisodesResponse>(`/api/shows/${id}/episodes`),
+  getRelated: (id: number) => jsonRequest<GetRelatedResponse>(`/api/shows/${id}/related`),
+  getEpisodes: (id: number) => jsonRequest<EpisodesResponse>(`/api/shows/${id}/episodes`),
   syncEpisodes: (id: number) =>
     jsonRequest<EpisodesResponse>(`/api/shows/${id}/episodes/sync`, {
       method: "POST",
