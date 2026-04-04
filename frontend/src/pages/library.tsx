@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { LibraryFilters } from "@/features/library/library-filters";
 import { LibraryResults } from "@/features/library/library-results";
-import { baseStatusOptions, statusBadgeVariant } from "@/features/library/library-utils";
+import { baseStatusOptions } from "@/features/library/library-utils";
 import type { ApiShow } from "@/lib/api";
 import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
@@ -131,10 +131,8 @@ export function LibraryPage() {
     250,
   );
 
-  // Reset to page 1 whenever filters change.
-  useEffect(() => {
-    setPage(1);
-  }, [
+  // Reset to page 1 whenever filters change (derived state pattern avoids effect).
+  const filterKey = [
     debouncedFilters.status,
     debouncedFilters.genre,
     debouncedFilters.originCountry,
@@ -142,7 +140,12 @@ export function LibraryPage() {
     debouncedFilters.yearTo,
     debouncedFilters.unrated,
     debouncedFilters.sort,
-  ]);
+  ].join("|");
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setPage(1);
+  }
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
@@ -334,7 +337,6 @@ export function LibraryPage() {
             isInitialLoading={isInitialLoading}
             isEmpty={isEmpty}
             onDelete={setPendingDelete}
-            statusBadgeVariant={statusBadgeVariant}
             fromLocation={fromLocation}
           />
 

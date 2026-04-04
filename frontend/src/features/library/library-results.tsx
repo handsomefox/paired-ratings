@@ -5,7 +5,6 @@ import RatingChips from "@/components/rating-chips";
 import { ShowCard } from "@/components/show-card";
 import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
 import { ViewTransitionLink } from "@/components/view-transition-link";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,15 +22,12 @@ import {
 import type { ApiShow } from "@/lib/api";
 import { shortGenres } from "@/lib/utils";
 import { Film } from "lucide-react";
-import type { StatusBadgeVariant } from "@/features/library/library-utils";
-
 export type LibraryResultsProps = {
   shows: ApiShow[];
   imageBase: string;
   isInitialLoading: boolean;
   isEmpty: boolean;
   onDelete: (show: ApiShow) => void;
-  statusBadgeVariant: (status?: string) => StatusBadgeVariant;
   fromLocation: string;
 };
 
@@ -41,7 +37,6 @@ export function LibraryResults({
   isInitialLoading,
   isEmpty,
   onDelete,
-  statusBadgeVariant,
   fromLocation,
 }: LibraryResultsProps) {
   return (
