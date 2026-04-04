@@ -69,18 +69,25 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
               key={`${item.media_type}:${item.id}`}
               className="group relative flex flex-col overflow-hidden rounded-lg border border-border/60 bg-card/60"
             >
-              {item.poster_path ? (
-                <img
-                  src={`${imageBase}${item.poster_path}`}
-                  alt={item.title}
-                  className="aspect-[2/3] w-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex aspect-[2/3] w-full items-center justify-center bg-muted text-xs text-muted-foreground">
-                  No poster
-                </div>
-              )}
+              <a
+                href={`https://www.themoviedb.org/${item.media_type}/${item.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                {item.poster_path ? (
+                  <img
+                    src={`${imageBase}${item.poster_path}`}
+                    alt={item.title}
+                    className="aspect-[2/3] w-full object-cover transition duration-300 hover:opacity-80"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex aspect-[2/3] w-full items-center justify-center bg-muted text-xs text-muted-foreground hover:opacity-80">
+                    No poster
+                  </div>
+                )}
+              </a>
               <div className="flex flex-1 flex-col gap-1 p-2">
                 <span className="line-clamp-2 text-xs font-medium leading-tight">{item.title}</span>
                 {item.year && (
