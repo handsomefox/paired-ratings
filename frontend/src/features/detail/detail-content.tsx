@@ -203,39 +203,31 @@ export function DetailContent({
         watchOrderPending={watchOrderMutation.isPending}
       />
 
-      <div className={show.media_type === "tv" ? "lg:grid lg:grid-cols-[1fr_minmax(280px,360px)] lg:items-start lg:gap-6" : undefined}>
-        <div className="space-y-6">
-          <DetailRatings
-            bfName={bfName}
-            gfName={gfName}
-            bfRating={bfRating}
-            gfRating={gfRating}
-            bfComment={bfComment}
-            gfComment={gfComment}
-            bfEditing={bfEditing}
-            gfEditing={gfEditing}
-            onBfRatingChange={setBfRating}
-            onGfRatingChange={setGfRating}
-            onBfCommentChange={setBfComment}
-            onGfCommentChange={setGfComment}
-            onBfEditingChange={setBfEditing}
-            onGfEditingChange={setGfEditing}
-            average={combinedRating(bfRating, gfRating)}
-            onRequestDelete={() => setPendingDelete(true)}
-            onSave={() => updateMutation.mutate()}
-            saveDisabled={!isDirty}
-            savePending={updateMutation.isPending}
-          />
+      <DetailRatings
+        bfName={bfName}
+        gfName={gfName}
+        bfRating={bfRating}
+        gfRating={gfRating}
+        bfComment={bfComment}
+        gfComment={gfComment}
+        bfEditing={bfEditing}
+        gfEditing={gfEditing}
+        onBfRatingChange={setBfRating}
+        onGfRatingChange={setGfRating}
+        onBfCommentChange={setBfComment}
+        onGfCommentChange={setGfComment}
+        onBfEditingChange={setBfEditing}
+        onGfEditingChange={setGfEditing}
+        average={combinedRating(bfRating, gfRating)}
+        onRequestDelete={() => setPendingDelete(true)}
+        onSave={() => updateMutation.mutate()}
+        saveDisabled={!isDirty}
+        savePending={updateMutation.isPending}
+      />
 
-          <DetailRelated showId={showId} imageBase={imageBase} />
-        </div>
+      {show.media_type === "tv" && <DetailEpisodes showId={showId} />}
 
-        {show.media_type === "tv" && (
-          <div className="mt-6 lg:sticky lg:top-6 lg:mt-0">
-            <DetailEpisodes showId={showId} />
-          </div>
-        )}
-      </div>
+      <DetailRelated showId={showId} imageBase={imageBase} />
 
       <AlertDialog open={pendingDelete} onOpenChange={setPendingDelete}>
         <AlertDialogContent>

@@ -15,6 +15,7 @@ type ShowCardProps = {
   metaBadges?: ReactNode;
   metaBadgesClassName?: string;
   genresText?: string | null;
+  episodeMeta?: ReactNode;
   overview?: string | null;
   footer?: ReactNode;
   overviewExpanded?: boolean;
@@ -34,6 +35,7 @@ export function ShowCard({
   metaBadges,
   metaBadgesClassName,
   genresText,
+  episodeMeta,
   overview,
   footer,
   overviewExpanded,
@@ -105,6 +107,8 @@ export function ShowCard({
           {genresText ? (
             <div className="text-xs text-muted-foreground sm:text-sm">{genresText}</div>
           ) : null}
+
+          {episodeMeta ?? null}
 
           {overview ? (
             <div className="space-y-1">

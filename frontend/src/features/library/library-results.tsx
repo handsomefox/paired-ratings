@@ -128,22 +128,20 @@ export function LibraryResults({
                   />
                 </>
               }
-              footer={
-                <div className="space-y-1">
-                  {show.media_type === "tv" &&
-                    show.status === "watching" &&
-                    show.total_episodes != null &&
-                    show.total_episodes > 0 ? (
-                    <div className="flex items-center justify-center gap-1 text-[0.65rem] text-muted-foreground">
-                      <span className="tabular-nums">
-                        {show.watched_episodes ?? 0}/{show.total_episodes} eps
-                      </span>
-                    </div>
-                  ) : null}
-                  <RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />
-                </div>
-              }
+              footer={<RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />}
               genresText={show.genres ? shortGenres(show.genres) : ""}
+              episodeMeta={
+                show.media_type === "tv" &&
+                show.status === "watching" &&
+                show.total_episodes != null &&
+                show.total_episodes > 0 ? (
+                  <div className="text-xs text-muted-foreground">
+                    <span className="tabular-nums">
+                      {show.watched_episodes ?? 0}/{show.total_episodes} eps
+                    </span>
+                  </div>
+                ) : undefined
+              }
               overview={show.overview}
             />
           );

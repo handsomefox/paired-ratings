@@ -43,6 +43,7 @@ export function DetailHero({
   watchOrderPending,
 }: DetailHeroProps) {
   const inWatchOrder = show.watch_priority != null;
+  const showWatchOrderButton = show.status === "planned" || inWatchOrder;
   return (
     <div className="grid gap-6 rounded-2xl border border-border/60 bg-card/70 shadow-lg lg:grid-cols-[minmax(240px,320px)_minmax(0,1fr)] lg:gap-8">
       <div className="overflow-hidden bg-muted/40">
@@ -148,6 +149,31 @@ export function DetailHero({
               </span>
             </Button>
           )}
+          {showWatchOrderButton ? (
+            inWatchOrder ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full px-3 text-xs"
+                onClick={onRemoveFromWatchOrder}
+                disabled={watchOrderPending}
+              >
+                Remove from watch order
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full px-3 text-xs"
+                onClick={onAddToWatchOrder}
+                disabled={watchOrderPending}
+              >
+                Add to watch order
+              </Button>
+            )
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -168,29 +194,6 @@ export function DetailHero({
           >
             Clear ratings
           </Button>
-          {inWatchOrder ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-full px-3 text-xs"
-              onClick={onRemoveFromWatchOrder}
-              disabled={watchOrderPending}
-            >
-              Remove from watch order
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-full px-3 text-xs"
-              onClick={onAddToWatchOrder}
-              disabled={watchOrderPending}
-            >
-              Add to watch order
-            </Button>
-          )}
         </div>
 
         {show.overview ? <p className="text-sm text-muted-foreground">{show.overview}</p> : null}
