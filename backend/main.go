@@ -87,7 +87,7 @@ func run() error {
 
 	app, err := handlers.New(&handlers.Config{
 		Store:     st,
-		TMDB:      tmdb.New(cfg.TMDBAPIKey, cfg.TMDBReadToken),
+		TMDB:      tmdb.NewCachedClient(tmdb.New(cfg.TMDBAPIKey, cfg.TMDBReadToken)),
 		Password:  cfg.Password,
 		ImageBase: cfg.ImageBase,
 		BfName:    cfg.BFName,
