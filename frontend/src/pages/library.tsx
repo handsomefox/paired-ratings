@@ -320,7 +320,9 @@ export function LibraryPage() {
               totalPages={totalPages}
               onPageChange={(p) => {
                 setPage(p);
-                const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+                const prefersReducedMotion = window.matchMedia?.(
+                  "(prefers-reduced-motion: reduce)",
+                ).matches;
                 window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "auto" : "smooth" });
               }}
             />
