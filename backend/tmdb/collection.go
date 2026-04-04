@@ -38,7 +38,7 @@ func (c *Client) FetchSimilar(ctx context.Context, id int64, mediaType string) (
 	values := url.Values{}
 	c.maybeSetAPIKey(values)
 
-	endpoint := fmt.Sprintf("%s/%s/%d/similar?%s", baseURL, mediaType, id, values.Encode())
+	endpoint := fmt.Sprintf("%s/%s/%d/recommendations?%s", baseURL, mediaType, id, values.Encode())
 
 	var payload recommendationsResponse
 	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
@@ -48,14 +48,21 @@ func (c *Client) FetchSimilar(ctx context.Context, id int64, mediaType string) (
 	results := make([]SearchResult, 0, len(payload.Results))
 	for i := range payload.Results {
 		r := &payload.Results[i]
-		title := r.Title
-		year := yearFromDate(r.ReleaseDate)
-		if mediaType == "tv" {
+		// Use the media_type from the response; fall back to the requested type.
+		mt := r.MediaType
+		if mt == "" {
+			mt = mediaType
+		}
+		var title, year string
+		if mt == "tv" {
 			title = r.Name
 			year = yearFromDate(r.FirstAirDate)
+		} else {
+			title = r.Title
+			year = yearFromDate(r.ReleaseDate)
 		}
 		results = append(results, SearchResult{
-			MediaType:        mediaType,
+			MediaType:        mt,
 			ID:               r.ID,
 			Title:            title,
 			Year:             year,
@@ -65,6 +72,7 @@ func (c *Client) FetchSimilar(ctx context.Context, id int64, mediaType string) (
 			VoteCount:        r.VoteCount,
 			GenreIDs:         r.GenreIDs,
 			OriginalLanguage: r.OriginalLanguage,
+			OriginCountry:    r.OriginCountry,
 		})
 	}
 	return results, nil

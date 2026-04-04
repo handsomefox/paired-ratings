@@ -133,17 +133,19 @@ type collectionResponse struct {
 
 type recommendationsResponse struct {
 	Results []struct {
-		ID               int64   `json:"id"`
-		Name             string  `json:"name"`
-		Title            string  `json:"title"`
-		FirstAirDate     string  `json:"first_air_date"`
-		ReleaseDate      string  `json:"release_date"`
-		PosterPath       string  `json:"poster_path"`
-		Overview         string  `json:"overview"`
-		VoteAverage      float64 `json:"vote_average"`
-		VoteCount        int     `json:"vote_count"`
-		GenreIDs         []int   `json:"genre_ids"`
-		OriginalLanguage string  `json:"original_language"`
+		ID               int64    `json:"id"`
+		MediaType        string   `json:"media_type"`
+		Name             string   `json:"name"`
+		Title            string   `json:"title"`
+		FirstAirDate     string   `json:"first_air_date"`
+		ReleaseDate      string   `json:"release_date"`
+		PosterPath       string   `json:"poster_path"`
+		Overview         string   `json:"overview"`
+		VoteAverage      float64  `json:"vote_average"`
+		VoteCount        int      `json:"vote_count"`
+		GenreIDs         []int    `json:"genre_ids"`
+		OriginalLanguage string   `json:"original_language"`
+		OriginCountry    []string `json:"origin_country"`
 	} `json:"results"`
 }
 
