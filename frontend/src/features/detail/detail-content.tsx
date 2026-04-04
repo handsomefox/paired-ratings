@@ -149,13 +149,13 @@ export function DetailContent({
   });
 
   const findSimilarUrl = useMemo(() => {
-    const genres = show.genres
+    const genreNames = show.genres
       ?.split(",")
       .map((g) => g.trim())
       .filter(Boolean)
       .join(",");
     const params = new URLSearchParams({ media_type: show.media_type });
-    if (genres) params.set("genres", genres);
+    if (genreNames) params.set("genre_names", genreNames);
     return `/search?${params.toString()}`;
   }, [show.genres, show.media_type]);
 

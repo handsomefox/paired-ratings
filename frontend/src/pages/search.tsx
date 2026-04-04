@@ -56,6 +56,19 @@ export function SearchPage() {
   const [genreMode, setGenreMode] = useState<"all" | "any">(initialGenres.mode);
   const [selectedGenres, setSelectedGenres] = useState<string[]>(initialGenres.selected);
 
+  // Support "genre_names" URL param (set by Find Similar) — resolved to IDs once genres load.
+  const initialGenreNames = useMemo(
+    () =>
+      initialParams
+        .get("genre_names")
+        ?.split(",")
+        .map((s) => s.trim())
+        .filter(Boolean) ?? [],
+    [initialParams],
+  );
+  // Track whether we've already applied the resolved names (derived state pattern).
+  const [resolvedNamesKey, setResolvedNamesKey] = useState("");
+
   const resetPageAndOverviews = () => {
     setPage(1);
     setExpandedOverviews(new Set());
@@ -128,6 +141,7 @@ export function SearchPage() {
     return () => document.removeEventListener("keydown", handleKey);
   }, []);
 
+
   const sessionQuery = useQuery({
     queryKey: ["session"],
     queryFn: api.session,
@@ -147,6 +161,22 @@ export function SearchPage() {
     refetchOnMount: false,
     retry: 1,
   });
+
+  // Derived state: once genres load, resolve "genre_names" URL param to IDs (one-shot).
+  const pendingNamesKey =
+    initialGenreNames.length && searchGenresQuery.data ? initialGenreNames.join(",") : "";
+  if (pendingNamesKey && pendingNamesKey !== resolvedNamesKey) {
+    setResolvedNamesKey(pendingNamesKey);
+    const list =
+      mediaType === "movie"
+        ? (searchGenresQuery.data!.movie_genres ?? [])
+        : (searchGenresQuery.data!.tv_genres ?? []);
+    const ids = initialGenreNames
+      .map((name) => list.find((g) => g.name.toLowerCase() === name.toLowerCase())?.id)
+      .filter((id): id is number => id !== undefined)
+      .map(String);
+    if (ids.length) setSelectedGenres(ids);
+  }
 
   const searchCountriesQuery = useQuery({
     queryKey: ["search-countries"],
