@@ -25,6 +25,7 @@ export type DetailHeroProps = {
   onAddToWatchOrder: () => void;
   onRemoveFromWatchOrder: () => void;
   watchOrderPending: boolean;
+  findSimilarUrl?: string;
 };
 
 export function DetailHero({
@@ -41,6 +42,7 @@ export function DetailHero({
   onAddToWatchOrder,
   onRemoveFromWatchOrder,
   watchOrderPending,
+  findSimilarUrl,
 }: DetailHeroProps) {
   const inWatchOrder = show.watch_priority != null;
   const showWatchOrderButton = show.status !== "watched";
@@ -173,6 +175,16 @@ export function DetailHero({
                 Add to watch order
               </Button>
             )
+          ) : null}
+          {findSimilarUrl ? (
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="rounded-full px-3 text-xs"
+            >
+              <a href={findSimilarUrl}>Find Similar</a>
+            </Button>
           ) : null}
           <Button
             type="button"

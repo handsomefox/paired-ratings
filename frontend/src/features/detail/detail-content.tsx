@@ -148,6 +148,17 @@ export function DetailContent({
     },
   });
 
+  const findSimilarUrl = useMemo(() => {
+    const genres = show.genres
+      ?.split(",")
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .join(",");
+    const params = new URLSearchParams({ media_type: show.media_type });
+    if (genres) params.set("genres", genres);
+    return `/search?${params.toString()}`;
+  }, [show.genres, show.media_type]);
+
   const watchOrderMutation = useMutation({
     mutationFn: (inWatchOrder: boolean) =>
       inWatchOrder ? api.removeFromWatchOrder(showId) : api.addToWatchOrder(showId),
@@ -201,6 +212,7 @@ export function DetailContent({
         onAddToWatchOrder={() => watchOrderMutation.mutate(false)}
         onRemoveFromWatchOrder={() => watchOrderMutation.mutate(true)}
         watchOrderPending={watchOrderMutation.isPending}
+        findSimilarUrl={findSimilarUrl}
       />
 
       <DetailRatings
