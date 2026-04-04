@@ -186,7 +186,7 @@ export function DetailHero({
           </Button>
           <Button
             type="button"
-            variant="destructive"
+            variant="secondary"
             size="sm"
             className="rounded-full px-3 text-xs"
             onClick={onClearRatings}
