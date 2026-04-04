@@ -162,6 +162,27 @@ message GetRelatedResponse {
   optional string collection_name = 2 [json_name = "collection_name"];
 }
 
+message Episode {
+  int64 id = 1 [json_name = "id"];
+  int32 season_number = 2 [json_name = "season_number"];
+  int32 episode_number = 3 [json_name = "episode_number"];
+  optional string title = 4 [json_name = "title"];
+  optional string air_date = 5 [json_name = "air_date"];
+  optional int32 runtime = 6 [json_name = "runtime"];
+  bool bf_watched = 7 [json_name = "bf_watched"];
+  bool gf_watched = 8 [json_name = "gf_watched"];
+}
+
+message EpisodesResponse {
+  repeated Episode episodes = 1 [json_name = "episodes"];
+  int32 total_seasons = 2 [json_name = "total_seasons"];
+}
+
+message ToggleEpisodeRequest {
+  string person = 1 [json_name = "person"];
+  bool watched = 2 [json_name = "watched"];
+}
+
 message ExportPayload {
   string exported_at = 1 [json_name = "exported_at"];
   repeated Show shows = 2 [json_name = "shows"];

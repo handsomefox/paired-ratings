@@ -12,6 +12,7 @@ type Mock struct {
 	DiscoverPageFunc         func(ctx context.Context, mediaType string, filters DiscoverFilters, page int) (SearchPage, error)
 	FetchCollectionFunc      func(ctx context.Context, collectionID int64) ([]SearchResult, error)
 	FetchRecommendationsFunc func(ctx context.Context, id int64, mediaType string) ([]SearchResult, error)
+	FetchSeasonFunc          func(ctx context.Context, showID int64, seasonNumber int) (Season, error)
 }
 
 var _ Interface = (*Mock)(nil)
@@ -70,4 +71,11 @@ func (m *Mock) FetchRecommendations(ctx context.Context, id int64, mediaType str
 		return nil, nil
 	}
 	return m.FetchRecommendationsFunc(ctx, id, mediaType)
+}
+
+func (m *Mock) FetchSeason(ctx context.Context, showID int64, seasonNumber int) (Season, error) {
+	if m.FetchSeasonFunc == nil {
+		return Season{}, nil
+	}
+	return m.FetchSeasonFunc(ctx, showID, seasonNumber)
 }

@@ -169,6 +169,27 @@ export interface GetRelatedResponse {
   collection_name?: string | undefined;
 }
 
+export interface Episode {
+  id: number;
+  season_number: number;
+  episode_number: number;
+  title?: string | undefined;
+  air_date?: string | undefined;
+  runtime?: number | undefined;
+  bf_watched: boolean;
+  gf_watched: boolean;
+}
+
+export interface EpisodesResponse {
+  episodes: Episode[];
+  total_seasons: number;
+}
+
+export interface ToggleEpisodeRequest {
+  person: string;
+  watched: boolean;
+}
+
 export interface ExportPayload {
   exported_at: string;
   shows: Show[];

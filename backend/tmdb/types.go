@@ -38,8 +38,9 @@ type Detail struct {
 	TMDBID         int64
 	VoteAverage    float64
 	VoteCount      int
-	CollectionID   int64
-	CollectionName string
+	CollectionID    int64
+	CollectionName  string
+	NumberOfSeasons int
 }
 
 type DiscoverFilters struct {
@@ -110,9 +111,10 @@ type detailResponse struct {
 		ID   int64  `json:"id"`
 		Name string `json:"name"`
 	} `json:"belongs_to_collection"`
-	ID          int64   `json:"id"`
-	VoteAverage float64 `json:"vote_average"`
-	VoteCount   int     `json:"vote_count"`
+	NumberOfSeasons int     `json:"number_of_seasons"`
+	ID              int64   `json:"id"`
+	VoteAverage     float64 `json:"vote_average"`
+	VoteCount       int     `json:"vote_count"`
 }
 
 type collectionResponse struct {
@@ -158,6 +160,31 @@ type languageResponse []struct {
 	ISO639_1    string `json:"iso_639_1"`
 	EnglishName string `json:"english_name"`
 	Name        string `json:"name"`
+}
+
+type Season struct {
+	SeasonNumber int
+	Episodes     []Episode
+}
+
+type Episode struct {
+	SeasonNumber  int
+	EpisodeNumber int
+	Title         string
+	Overview      string
+	AirDate       string
+	Runtime       int
+}
+
+type seasonResponse struct {
+	SeasonNumber int `json:"season_number"`
+	Episodes     []struct {
+		EpisodeNumber int    `json:"episode_number"`
+		Name          string `json:"name"`
+		Overview      string `json:"overview"`
+		AirDate       string `json:"air_date"`
+		Runtime       int    `json:"runtime"`
+	} `json:"episodes"`
 }
 
 func ParseYear(year string) *int {

@@ -43,6 +43,7 @@ func (c *Client) FetchDetails(ctx context.Context, id int64, mediaType string) (
 	if mediaType == "tv" {
 		detail.Title = payload.Name
 		detail.Year = yearFromDate(payload.FirstAirDate)
+		detail.NumberOfSeasons = payload.NumberOfSeasons
 	} else {
 		detail.Title = payload.Title
 	}

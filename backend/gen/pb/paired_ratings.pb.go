@@ -1525,6 +1525,210 @@ func (x *GetRelatedResponse) GetCollectionName() string {
 	return ""
 }
 
+type Episode struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	SeasonNumber  int32                  `protobuf:"varint,2,opt,name=season_number,proto3" json:"season_number,omitempty"`
+	EpisodeNumber int32                  `protobuf:"varint,3,opt,name=episode_number,proto3" json:"episode_number,omitempty"`
+	Title         *string                `protobuf:"bytes,4,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	AirDate       *string                `protobuf:"bytes,5,opt,name=air_date,proto3,oneof" json:"air_date,omitempty"`
+	Runtime       *int32                 `protobuf:"varint,6,opt,name=runtime,proto3,oneof" json:"runtime,omitempty"`
+	BfWatched     bool                   `protobuf:"varint,7,opt,name=bf_watched,proto3" json:"bf_watched,omitempty"`
+	GfWatched     bool                   `protobuf:"varint,8,opt,name=gf_watched,proto3" json:"gf_watched,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Episode) Reset() {
+	*x = Episode{}
+	mi := &file_paired_ratings_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Episode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Episode) ProtoMessage() {}
+
+func (x *Episode) ProtoReflect() protoreflect.Message {
+	mi := &file_paired_ratings_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Episode.ProtoReflect.Descriptor instead.
+func (*Episode) Descriptor() ([]byte, []int) {
+	return file_paired_ratings_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *Episode) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Episode) GetSeasonNumber() int32 {
+	if x != nil {
+		return x.SeasonNumber
+	}
+	return 0
+}
+
+func (x *Episode) GetEpisodeNumber() int32 {
+	if x != nil {
+		return x.EpisodeNumber
+	}
+	return 0
+}
+
+func (x *Episode) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
+	}
+	return ""
+}
+
+func (x *Episode) GetAirDate() string {
+	if x != nil && x.AirDate != nil {
+		return *x.AirDate
+	}
+	return ""
+}
+
+func (x *Episode) GetRuntime() int32 {
+	if x != nil && x.Runtime != nil {
+		return *x.Runtime
+	}
+	return 0
+}
+
+func (x *Episode) GetBfWatched() bool {
+	if x != nil {
+		return x.BfWatched
+	}
+	return false
+}
+
+func (x *Episode) GetGfWatched() bool {
+	if x != nil {
+		return x.GfWatched
+	}
+	return false
+}
+
+type EpisodesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Episodes      []*Episode             `protobuf:"bytes,1,rep,name=episodes,proto3" json:"episodes,omitempty"`
+	TotalSeasons  int32                  `protobuf:"varint,2,opt,name=total_seasons,proto3" json:"total_seasons,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EpisodesResponse) Reset() {
+	*x = EpisodesResponse{}
+	mi := &file_paired_ratings_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EpisodesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EpisodesResponse) ProtoMessage() {}
+
+func (x *EpisodesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_paired_ratings_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EpisodesResponse.ProtoReflect.Descriptor instead.
+func (*EpisodesResponse) Descriptor() ([]byte, []int) {
+	return file_paired_ratings_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *EpisodesResponse) GetEpisodes() []*Episode {
+	if x != nil {
+		return x.Episodes
+	}
+	return nil
+}
+
+func (x *EpisodesResponse) GetTotalSeasons() int32 {
+	if x != nil {
+		return x.TotalSeasons
+	}
+	return 0
+}
+
+type ToggleEpisodeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Person        string                 `protobuf:"bytes,1,opt,name=person,proto3" json:"person,omitempty"`
+	Watched       bool                   `protobuf:"varint,2,opt,name=watched,proto3" json:"watched,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToggleEpisodeRequest) Reset() {
+	*x = ToggleEpisodeRequest{}
+	mi := &file_paired_ratings_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToggleEpisodeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToggleEpisodeRequest) ProtoMessage() {}
+
+func (x *ToggleEpisodeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_paired_ratings_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToggleEpisodeRequest.ProtoReflect.Descriptor instead.
+func (*ToggleEpisodeRequest) Descriptor() ([]byte, []int) {
+	return file_paired_ratings_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ToggleEpisodeRequest) GetPerson() string {
+	if x != nil {
+		return x.Person
+	}
+	return ""
+}
+
+func (x *ToggleEpisodeRequest) GetWatched() bool {
+	if x != nil {
+		return x.Watched
+	}
+	return false
+}
+
 type ExportPayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ExportedAt    string                 `protobuf:"bytes,1,opt,name=exported_at,proto3" json:"exported_at,omitempty"`
@@ -1535,7 +1739,7 @@ type ExportPayload struct {
 
 func (x *ExportPayload) Reset() {
 	*x = ExportPayload{}
-	mi := &file_paired_ratings_proto_msgTypes[23]
+	mi := &file_paired_ratings_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1547,7 +1751,7 @@ func (x *ExportPayload) String() string {
 func (*ExportPayload) ProtoMessage() {}
 
 func (x *ExportPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_paired_ratings_proto_msgTypes[23]
+	mi := &file_paired_ratings_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1560,7 +1764,7 @@ func (x *ExportPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportPayload.ProtoReflect.Descriptor instead.
 func (*ExportPayload) Descriptor() ([]byte, []int) {
-	return file_paired_ratings_proto_rawDescGZIP(), []int{23}
+	return file_paired_ratings_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ExportPayload) GetExportedAt() string {
@@ -1756,7 +1960,30 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\x12GetRelatedResponse\x128\n" +
 	"\aresults\x18\x01 \x03(\v2\x1e.pairedratings.v1.SearchResultR\aresults\x12-\n" +
 	"\x0fcollection_name\x18\x02 \x01(\tH\x00R\x0fcollection_name\x88\x01\x01B\x12\n" +
-	"\x10_collection_name\"_\n" +
+	"\x10_collection_name\"\xa5\x02\n" +
+	"\aEpisode\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12$\n" +
+	"\rseason_number\x18\x02 \x01(\x05R\rseason_number\x12&\n" +
+	"\x0eepisode_number\x18\x03 \x01(\x05R\x0eepisode_number\x12\x19\n" +
+	"\x05title\x18\x04 \x01(\tH\x00R\x05title\x88\x01\x01\x12\x1f\n" +
+	"\bair_date\x18\x05 \x01(\tH\x01R\bair_date\x88\x01\x01\x12\x1d\n" +
+	"\aruntime\x18\x06 \x01(\x05H\x02R\aruntime\x88\x01\x01\x12\x1e\n" +
+	"\n" +
+	"bf_watched\x18\a \x01(\bR\n" +
+	"bf_watched\x12\x1e\n" +
+	"\n" +
+	"gf_watched\x18\b \x01(\bR\n" +
+	"gf_watchedB\b\n" +
+	"\x06_titleB\v\n" +
+	"\t_air_dateB\n" +
+	"\n" +
+	"\b_runtime\"o\n" +
+	"\x10EpisodesResponse\x125\n" +
+	"\bepisodes\x18\x01 \x03(\v2\x19.pairedratings.v1.EpisodeR\bepisodes\x12$\n" +
+	"\rtotal_seasons\x18\x02 \x01(\x05R\rtotal_seasons\"H\n" +
+	"\x14ToggleEpisodeRequest\x12\x16\n" +
+	"\x06person\x18\x01 \x01(\tR\x06person\x12\x18\n" +
+	"\awatched\x18\x02 \x01(\bR\awatched\"_\n" +
 	"\rExportPayload\x12 \n" +
 	"\vexported_at\x18\x01 \x01(\tR\vexported_at\x12,\n" +
 	"\x05shows\x18\x02 \x03(\v2\x16.pairedratings.v1.ShowR\x05showsB6Z4github.com/handsomefox/paired-ratings/backend/gen/pbb\x06proto3"
@@ -1773,7 +2000,7 @@ func file_paired_ratings_proto_rawDescGZIP() []byte {
 	return file_paired_ratings_proto_rawDescData
 }
 
-var file_paired_ratings_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_paired_ratings_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_paired_ratings_proto_goTypes = []any{
 	(*SessionResponse)(nil),         // 0: pairedratings.v1.SessionResponse
 	(*ErrorResponse)(nil),           // 1: pairedratings.v1.ErrorResponse
@@ -1798,7 +2025,10 @@ var file_paired_ratings_proto_goTypes = []any{
 	(*SetStatusRequest)(nil),        // 20: pairedratings.v1.SetStatusRequest
 	(*RefreshResponse)(nil),         // 21: pairedratings.v1.RefreshResponse
 	(*GetRelatedResponse)(nil),      // 22: pairedratings.v1.GetRelatedResponse
-	(*ExportPayload)(nil),           // 23: pairedratings.v1.ExportPayload
+	(*Episode)(nil),                 // 23: pairedratings.v1.Episode
+	(*EpisodesResponse)(nil),        // 24: pairedratings.v1.EpisodesResponse
+	(*ToggleEpisodeRequest)(nil),    // 25: pairedratings.v1.ToggleEpisodeRequest
+	(*ExportPayload)(nil),           // 26: pairedratings.v1.ExportPayload
 }
 var file_paired_ratings_proto_depIdxs = []int32{
 	2,  // 0: pairedratings.v1.ShowDetail.show:type_name -> pairedratings.v1.Show
@@ -1809,12 +2039,13 @@ var file_paired_ratings_proto_depIdxs = []int32{
 	10, // 5: pairedratings.v1.SearchCountriesResponse.countries:type_name -> pairedratings.v1.Country
 	11, // 6: pairedratings.v1.SearchLanguagesResponse.languages:type_name -> pairedratings.v1.Language
 	6,  // 7: pairedratings.v1.GetRelatedResponse.results:type_name -> pairedratings.v1.SearchResult
-	2,  // 8: pairedratings.v1.ExportPayload.shows:type_name -> pairedratings.v1.Show
-	9,  // [9:9] is the sub-list for method output_type
-	9,  // [9:9] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	23, // 8: pairedratings.v1.EpisodesResponse.episodes:type_name -> pairedratings.v1.Episode
+	2,  // 9: pairedratings.v1.ExportPayload.shows:type_name -> pairedratings.v1.Show
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_paired_ratings_proto_init() }
@@ -1828,13 +2059,14 @@ func file_paired_ratings_proto_init() {
 	file_paired_ratings_proto_msgTypes[15].OneofWrappers = []any{}
 	file_paired_ratings_proto_msgTypes[18].OneofWrappers = []any{}
 	file_paired_ratings_proto_msgTypes[22].OneofWrappers = []any{}
+	file_paired_ratings_proto_msgTypes[23].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_paired_ratings_proto_rawDesc), len(file_paired_ratings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   24,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
