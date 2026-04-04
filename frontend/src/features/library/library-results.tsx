@@ -99,17 +99,17 @@ export function LibraryResults({
                 </div>
               }
               statusBadge={
-                <span
-                  className={`text-sm font-bold capitalize drop-shadow ${
+                <div
+                  className={`py-1 pl-2.5 pr-5 text-xs font-bold capitalize tracking-wide text-white backdrop-blur-sm [clip-path:polygon(0_0,100%_0,calc(100%-10px)_100%,0_100%)] ${
                     show.status === "watched"
-                      ? "text-bf"
+                      ? "bg-bf/75"
                       : show.status === "watching"
-                        ? "text-amber-400"
-                        : "text-gf"
+                        ? "bg-amber-500/75"
+                        : "bg-gf/75"
                   }`}
                 >
                   {show.status || "planned"}
-                </span>
+                </div>
               }
               metaBadges={
                 <>

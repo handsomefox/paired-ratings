@@ -94,15 +94,7 @@ export function ShowCard({
         {posterLink ? posterLink(poster) : poster}
         {topRight ? <div className="absolute right-3 top-3">{topRight}</div> : null}
         {statusBadge ? (
-          <div className="absolute inset-x-0 bottom-0">
-            <div
-              className="absolute inset-0 backdrop-blur-md"
-              style={{ maskImage: "linear-gradient(to top, black 40%, transparent)" }}
-            />
-            <div className="relative flex justify-center bg-gradient-to-t from-black/50 to-transparent px-2.5 py-2">
-              {statusBadge}
-            </div>
-          </div>
+          <div className="absolute left-0 top-0">{statusBadge}</div>
         ) : null}
       </div>
       <CardContent className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4 lg:gap-4 lg:p-5">
