@@ -18,7 +18,8 @@ export type DetailRatingsProps = {
   onBfEditingChange: (next: boolean) => void;
   onGfEditingChange: (next: boolean) => void;
   average: string;
-  onRequestDelete: () => void;
+  onClearRatings: () => void;
+  clearPending: boolean;
   onSave: () => void;
   saveDisabled: boolean;
   savePending: boolean;
@@ -40,7 +41,8 @@ export function DetailRatings({
   onBfEditingChange,
   onGfEditingChange,
   average,
-  onRequestDelete,
+  onClearRatings,
+  clearPending,
   onSave,
   saveDisabled,
   savePending,
@@ -86,10 +88,11 @@ export function DetailRatings({
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <Button
           variant="ghost"
-          className="text-red-300 hover:bg-red-500/10 hover:text-red-200"
-          onClick={onRequestDelete}
+          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          onClick={onClearRatings}
+          disabled={clearPending}
         >
-          Delete
+          Clear ratings
         </Button>
         <Button variant="gf" onClick={onSave} disabled={saveDisabled || savePending}>
           Save ratings

@@ -141,7 +141,6 @@ export function SearchPage() {
     return () => document.removeEventListener("keydown", handleKey);
   }, []);
 
-
   const sessionQuery = useQuery({
     queryKey: ["session"],
     queryFn: api.session,

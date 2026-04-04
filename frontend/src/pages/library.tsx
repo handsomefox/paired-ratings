@@ -1,20 +1,9 @@
 import FiltersPane from "@/components/filters-pane";
 import { FiltersPaneContent } from "@/components/filters-pane-content";
 import { PullToRefresh } from "@/components/pull-to-refresh";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { LibraryFilters } from "@/features/library/library-filters";
 import { LibraryResults } from "@/features/library/library-results";
 import { baseStatusOptions } from "@/features/library/library-utils";
-import type { ApiShow } from "@/lib/api";
 import { api } from "@/lib/api";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -103,7 +92,6 @@ export function LibraryPage() {
     parsePageSize(initialParams.get("page_size")),
   );
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<ApiShow | null>(null);
   const queryClient = useQueryClient();
 
   const sessionQuery = useQuery({
@@ -195,23 +183,10 @@ export function LibraryPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.deleteShow(id),
-    onSuccess: () => {
-      setPendingDelete(null);
-      queryClient.invalidateQueries({ queryKey: ["shows"] });
-      toast.success("Show deleted.");
-    },
-    onError: () => {
-      toast.error("Failed to delete show.");
-    },
-  });
-
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setFiltersOpen(false);
-        setPendingDelete(null);
       }
     };
     document.addEventListener("keydown", handleKey);
@@ -336,7 +311,6 @@ export function LibraryPage() {
             imageBase={imageBase}
             isInitialLoading={isInitialLoading}
             isEmpty={isEmpty}
-            onDelete={setPendingDelete}
             fromLocation={fromLocation}
           />
 
@@ -352,30 +326,6 @@ export function LibraryPage() {
           )}
         </FiltersPaneContent>
       </FiltersPane>
-
-      <AlertDialog
-        open={Boolean(pendingDelete)}
-        onOpenChange={(open) => !open && setPendingDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete show?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove “{pendingDelete?.title}” from your library.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (pendingDelete) deleteMutation.mutate(pendingDelete.id);
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </PullToRefresh>
   );
 }

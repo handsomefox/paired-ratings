@@ -207,8 +207,7 @@ export function DetailContent({
         statusPending={setStatusMutation.isPending}
         onRefresh={() => refreshMutation.mutate()}
         refreshPending={refreshMutation.isPending}
-        onClearRatings={() => clearRatingsMutation.mutate()}
-        clearPending={clearRatingsMutation.isPending}
+        onRequestDelete={() => setPendingDelete(true)}
         onAddToWatchOrder={() => watchOrderMutation.mutate(false)}
         onRemoveFromWatchOrder={() => watchOrderMutation.mutate(true)}
         watchOrderPending={watchOrderMutation.isPending}
@@ -231,7 +230,8 @@ export function DetailContent({
         onBfEditingChange={setBfEditing}
         onGfEditingChange={setGfEditing}
         average={combinedRating(bfRating, gfRating)}
-        onRequestDelete={() => setPendingDelete(true)}
+        onClearRatings={() => clearRatingsMutation.mutate()}
+        clearPending={clearRatingsMutation.isPending}
         onSave={() => updateMutation.mutate()}
         saveDisabled={!isDirty}
         savePending={updateMutation.isPending}
