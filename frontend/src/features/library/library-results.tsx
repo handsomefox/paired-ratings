@@ -99,8 +99,16 @@ export function LibraryResults({
                 </div>
               }
               statusBadge={
-                <span className="text-xs font-semibold capitalize text-white drop-shadow-sm">
-                  {show.status || "tbd"}
+                <span
+                  className={`text-sm font-bold capitalize drop-shadow ${
+                    show.status === "watched"
+                      ? "text-bf"
+                      : show.status === "watching"
+                        ? "text-amber-400"
+                        : "text-gf"
+                  }`}
+                >
+                  {show.status || "planned"}
                 </span>
               }
               metaBadges={
