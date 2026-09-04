@@ -101,7 +101,6 @@ func run() error {
 	r.Use(
 		middleware.Recoverer,
 		middleware.Heartbeat("/ping"),
-		middleware.RealIP,
 		middleware.RequestID,
 		cors.Handler(cors.Options{
 			AllowedOrigins:   cfg.AllowedOrigins,
