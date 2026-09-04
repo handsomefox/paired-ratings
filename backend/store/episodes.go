@@ -58,7 +58,7 @@ func (s *Store) SyncEpisodes(ctx context.Context, showID int64, episodes []Episo
 				air_date = excluded.air_date,
 				runtime = excluded.runtime,
 				updated_at = excluded.updated_at
-		`, ep.ShowID, ep.SeasonNumber, ep.EpisodeNumber, ep.Title, ep.Overview, ep.AirDate, ep.Runtime, now)
+		`, showID, ep.SeasonNumber, ep.EpisodeNumber, ep.Title, ep.Overview, ep.AirDate, ep.Runtime, now)
 		if err != nil {
 			return err
 		}
