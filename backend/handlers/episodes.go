@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -167,6 +169,7 @@ func (h *Handler) postSeasonToggle(w http.ResponseWriter, r *http.Request) error
 }
 
 func (h *Handler) syncAllSeasons(ctx context.Context, showID, tmdbID int64, totalSeasons int) error {
+	var syncErr error
 	for s := 1; s <= totalSeasons; s++ {
 		season, err := h.tmdb.FetchSeason(ctx, tmdbID, s)
 		if err != nil {
@@ -174,6 +177,10 @@ func (h *Handler) syncAllSeasons(ctx context.Context, showID, tmdbID int64, tota
 				slog.Int("season", s),
 				logger.Error(err),
 			)
+			syncErr = errors.Join(syncErr, fmt.Errorf("fetch season %d: %w", s, err))
+			if ctx.Err() != nil {
+				return syncErr
+			}
 			continue
 		}
 
@@ -191,10 +198,10 @@ func (h *Handler) syncAllSeasons(ctx context.Context, showID, tmdbID int64, tota
 		}
 
 		if err := h.store.SyncEpisodes(ctx, showID, episodes); err != nil {
-			return err
+			return errors.Join(syncErr, err)
 		}
 	}
-	return nil
+	return syncErr
 }
 
 func toPBEpisodes(episodes []store.Episode) []*pb.Episode {
