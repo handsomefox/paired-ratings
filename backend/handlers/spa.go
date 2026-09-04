@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"mime"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -57,6 +59,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request, distFS fs.FS, index []by
 }
 
 func servePrecompressed(w http.ResponseWriter, r *http.Request, distFS fs.FS, originalPath string) bool {
+	w.Header().Add("Vary", "Accept-Encoding")
 	encoding, compressedPath := selectPrecompressed(r.Header.Get("Accept-Encoding"), distFS, originalPath)
 	if encoding == "" {
 		return false
@@ -65,7 +68,11 @@ func servePrecompressed(w http.ResponseWriter, r *http.Request, distFS fs.FS, or
 	if err != nil {
 		return false
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			slog.Warn("close static asset failed", slog.Any("error", err))
+		}
+	}()
 
 	info, err := fs.Stat(distFS, compressedPath)
 	if err != nil {
@@ -75,10 +82,8 @@ func servePrecompressed(w http.ResponseWriter, r *http.Request, distFS fs.FS, or
 	if contentType := mime.TypeByExtension(path.Ext(originalPath)); contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}
-	w.Header().Set("Content-Encoding", encoding)
-	w.Header().Add("Vary", "Accept-Encoding")
-
 	if reader, ok := file.(io.ReadSeeker); ok {
+		w.Header().Set("Content-Encoding", encoding)
 		http.ServeContent(w, r, path.Base(originalPath), info.ModTime(), reader)
 		return true
 	}
@@ -87,41 +92,50 @@ func servePrecompressed(w http.ResponseWriter, r *http.Request, distFS fs.FS, or
 	if err != nil {
 		return false
 	}
+	w.Header().Set("Content-Encoding", encoding)
 	http.ServeContent(w, r, path.Base(originalPath), info.ModTime(), bytes.NewReader(data))
 	return true
 }
 
-func selectPrecompressed(acceptEncoding string, distFS fs.FS, originalPath string) (string, string) {
-	acceptEncoding = strings.ToLower(acceptEncoding)
-	if acceptsEncoding(acceptEncoding, "zstd") {
-		candidate := originalPath + ".zst"
-		if exists(distFS, candidate) {
-			return "zstd", candidate
+func selectPrecompressed(acceptEncoding string, distFS fs.FS, originalPath string) (encoding, filePath string) {
+	var selected, selectedPath string
+	var bestQuality float64
+	for _, candidate := range []struct{ encoding, suffix string }{{"zstd", ".zst"}, {"gzip", ".gz"}} {
+		quality := encodingQuality(acceptEncoding, candidate.encoding)
+		if quality > bestQuality && exists(distFS, originalPath+candidate.suffix) {
+			selected, selectedPath = candidate.encoding, originalPath+candidate.suffix
+			bestQuality = quality
 		}
 	}
-	if acceptsEncoding(acceptEncoding, "gzip") {
-		candidate := originalPath + ".gz"
-		if exists(distFS, candidate) {
-			return "gzip", candidate
-		}
-	}
-	return "", ""
+	return selected, selectedPath
 }
 
-func acceptsEncoding(acceptEncoding, encoding string) bool {
+func encodingQuality(acceptEncoding, encoding string) float64 {
+	var wildcard float64
 	for part := range strings.SplitSeq(acceptEncoding, ",") {
-		part = strings.TrimSpace(part)
-		if part == "" {
+		name, params, _ := strings.Cut(part, ";")
+		name = strings.TrimSpace(name)
+		if !strings.EqualFold(name, encoding) && name != "*" {
 			continue
 		}
-		if strings.HasPrefix(part, encoding) {
-			if strings.Contains(part, "q=0") {
-				return false
+		quality := 1.0
+		for param := range strings.SplitSeq(params, ";") {
+			key, value, ok := strings.Cut(strings.TrimSpace(param), "=")
+			if ok && strings.EqualFold(strings.TrimSpace(key), "q") {
+				q, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+				if err != nil || !(q >= 0 && q <= 1) {
+					quality = 0
+				} else {
+					quality = q
+				}
 			}
-			return true
 		}
+		if name != "*" {
+			return quality
+		}
+		wildcard = quality
 	}
-	return false
+	return wildcard
 }
 
 func exists(distFS fs.FS, filePath string) bool {
