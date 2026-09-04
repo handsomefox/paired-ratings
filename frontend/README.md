@@ -4,9 +4,12 @@ The frontend lives in `frontend/` and is built with Vite + React + TypeScript + 
 
 ## Scripts
 
+Use Node.js 24 or newer and npm 11 or newer. `nvm use` selects Node 24.
+The build runs asset compression with Node's native gzip and Zstandard support.
+
 ```bash
-bun install
-bun run dev
+npm ci
+npm run dev
 ```
 
 For a full-stack dev loop:

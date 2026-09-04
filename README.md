@@ -34,6 +34,9 @@ ENV=local
 
 ## Common Commands
 
+Install Node.js 24 or newer and npm 11 or newer for frontend commands.
+Run `npm ci` inside `frontend/` to install the locked dependencies.
+
 - `make dev`: build the frontend and run the server locally.
 - `make watch-frontend`: run the Vite dev server.
 - `make watch-backend`: run the Go API in watch mode (no embedded static).

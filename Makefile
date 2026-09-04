@@ -2,19 +2,19 @@
 
 fmt:
 	gofumpt -w ./
-	cd frontend && bun run format
+	cd frontend && npm run format
 
 lint:
 	golangci-lint run --fix ./... --issues-exit-code=0
-	cd frontend && bun run lint:fix
+	cd frontend && npm run lint:fix
 
 build:
-	cd frontend && bun install && bun run build
+	cd frontend && npm ci && npm run build
 	@mkdir -p bin
 	go build -o ./bin/server ./backend
 
 dev:
-	cd frontend && bun install && bun run build
+	cd frontend && npm ci && npm run build
 	@DB_PATH=$${DB_PATH:-./data/website-rating.db} \
 	go run ./backend
 
@@ -23,7 +23,7 @@ watch-backend:
 	DISABLE_STATIC=true air -c backend/.air.toml
 
 watch-frontend:
-	cd frontend && bun install && bun run dev
+	cd frontend && npm ci && npm run dev
 
 watch:
 	@$(MAKE) watch-backend

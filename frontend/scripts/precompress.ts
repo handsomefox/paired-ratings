@@ -3,7 +3,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import zlib from "node:zlib";
-import { ZstdCodec } from "zstd-codec";
 
 type Row = {
   file: string;
@@ -15,6 +14,7 @@ type Row = {
 };
 
 const gzip = promisify(zlib.gzip);
+const zstdCompress = promisify(zlib.zstdCompress);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(scriptDir, "../../backend/web/dist");
 const compressExts = new Set([".js", ".css", ".html", ".svg", ".json", ".webmanifest", ".txt"]);
@@ -138,26 +138,15 @@ async function ensureZstd(
   filePath: string,
   data: Buffer,
   sourceStat: { mtimeMs: number },
-  zstdSimple: { compress(data: Uint8Array): Uint8Array },
 ): Promise<number> {
   const targetPath = filePath + ".zst";
   if (await isFresh(targetPath, sourceStat)) {
     const targetStat = await fs.stat(targetPath);
     return targetStat.size;
   }
-  const compressed = zstdSimple.compress(new Uint8Array(data));
-  await fs.writeFile(targetPath, Buffer.from(compressed));
+  const compressed = await zstdCompress(data);
+  await fs.writeFile(targetPath, compressed);
   return compressed.length;
-}
-
-async function loadZstd(): Promise<{
-  Simple: new () => { compress(data: Uint8Array): Uint8Array };
-}> {
-  return await new Promise((resolve) => {
-    ZstdCodec.run((zstd) => {
-      resolve(zstd);
-    });
-  });
 }
 
 async function main(): Promise<void> {
@@ -167,8 +156,6 @@ async function main(): Promise<void> {
   }
 
   const files = await listFiles(distDir);
-  const zstd = await loadZstd();
-  const zstdSimple = new zstd.Simple();
   const rows: Row[] = [];
 
   for (const filePath of files) {
@@ -178,7 +165,7 @@ async function main(): Promise<void> {
     const data = await fs.readFile(filePath);
     const sourceStat = await fs.stat(filePath);
     const gzipSize = await ensureGzip(filePath, data, sourceStat);
-    const zstdSize = await ensureZstd(filePath, data, sourceStat, zstdSimple);
+    const zstdSize = await ensureZstd(filePath, data, sourceStat);
     const relative = path.relative(distDir, filePath).split(path.sep).join("/");
     rows.push({
       file: relative,
