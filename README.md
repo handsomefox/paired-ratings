@@ -41,8 +41,10 @@ Run `npm ci` inside `frontend/` to install the locked dependencies.
 - `make watch-frontend`: run the Vite dev server.
 - `make watch-backend`: run the Go API in watch mode (no embedded static).
 - `make build`: build the frontend (outputs `backend/web/dist`) and the Go server.
-- `make fmt`: format Go code with `gofumpt`.
-- `make lint`: run `golangci-lint`.
+- `make fmt`: format Go code with `gofumpt` and the frontend with Prettier.
+- `make lint`: check Go and frontend code, returning a failure for lint issues.
+- `make lint-fix`: apply automatic Go and frontend lint fixes.
+- `make test`: run all Go tests with the race detector.
 - `make proto`: generate Go + TS types from `proto/paired_ratings.proto`.
 
 ## Deployment Notes
