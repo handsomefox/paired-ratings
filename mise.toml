@@ -1,0 +1,10 @@
+# Railpack, the builder Railway uses, reads this file to pick toolchains.
+# The repository root looks like a Go project because go.mod sits here, so
+# without this file the build image has no npm and `make build` fails at
+# `npm ci` with "npm: not found".
+#
+# Keep node in step with frontend/.nvmrc and go in step with go.mod. The CI
+# workflow fails when they drift.
+[tools]
+go = "1.27.1"
+node = "26.8.1"

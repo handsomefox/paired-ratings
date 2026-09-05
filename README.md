@@ -58,6 +58,9 @@ Run the frontend build once before the Go commands, because
 `backend/web/web.go` embeds `backend/web/dist` and the Go build fails while that
 directory is empty.
 
+[The CI workflow](.github/workflows/ci.yml) runs the same checks on every push
+and pull request.
+
 ## Further reading
 
 - [Run and maintain the app](docs/development.md): the reload loop, regenerating

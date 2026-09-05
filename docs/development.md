@@ -64,3 +64,13 @@ so the host needs nothing else.
    ```sh
    ENV=production ./bin/server
    ```
+
+### Build on a host that builds from source
+
+`go.mod` sits at the repository root, so Railpack, the builder Railway uses,
+reads the repository as a Go project and installs no Node. `make build` then
+stops at `npm ci` with `npm: not found`. The root [`mise.toml`](../mise.toml)
+fixes that by naming both toolchains, and Railpack installs what it lists.
+
+Keep `mise.toml` in step with `go.mod` and `frontend/.nvmrc`. CI compares the
+three and fails when they disagree.
