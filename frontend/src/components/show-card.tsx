@@ -56,8 +56,11 @@ export function ShowCard({
     const node = overviewRef.current;
     if (!node) return;
 
+    // Expanding drops the line clamp, so scrollHeight and clientHeight become
+    // equal. Measuring then would decide the text fits and unmount the button
+    // that collapses it again, stranding the reader in the expanded state.
     const update = () => {
-      if (!node) return;
+      if (!node || isExpanded) return;
       setCanToggle(node.scrollHeight > node.clientHeight + 1);
     };
 
