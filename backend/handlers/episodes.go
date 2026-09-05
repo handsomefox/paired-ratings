@@ -49,7 +49,7 @@ func (h *Handler) getShowEpisodes(w http.ResponseWriter, r *http.Request) error 
 	totalSeasons := detail.NumberOfSeasons
 
 	if count == 0 && totalSeasons > 0 {
-		if err := h.syncAllSeasons(ctx, id, show.TMDBID, totalSeasons); err != nil {
+		if err := h.syncAllSeasons(ctx, id, show.TMDBID, totalSeasons, false); err != nil {
 			slog.Warn("episodes: initial sync failed", logger.Error(err))
 			return internal(err)
 		}
@@ -87,7 +87,7 @@ func (h *Handler) postShowEpisodesSync(w http.ResponseWriter, r *http.Request) e
 		return badRequest("episodes are only available for TV shows")
 	}
 
-	detail, err := h.tmdb.FetchDetails(ctx, show.TMDBID, "tv")
+	detail, err := h.tmdb.RefreshDetails(ctx, show.TMDBID, "tv")
 	if err != nil {
 		slog.Warn("episodes: fetch details failed", logger.Error(err))
 		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
@@ -96,7 +96,7 @@ func (h *Handler) postShowEpisodesSync(w http.ResponseWriter, r *http.Request) e
 	totalSeasons := detail.NumberOfSeasons
 
 	if totalSeasons > 0 {
-		if err := h.syncAllSeasons(ctx, id, show.TMDBID, totalSeasons); err != nil {
+		if err := h.syncAllSeasons(ctx, id, show.TMDBID, totalSeasons, true); err != nil {
 			slog.Warn("episodes: sync failed", logger.Error(err))
 			return internal(err)
 		}
@@ -168,10 +168,14 @@ func (h *Handler) postSeasonToggle(w http.ResponseWriter, r *http.Request) error
 	return nil
 }
 
-func (h *Handler) syncAllSeasons(ctx context.Context, showID, tmdbID int64, totalSeasons int) error {
+func (h *Handler) syncAllSeasons(ctx context.Context, showID, tmdbID int64, totalSeasons int, refresh bool) error {
+	fetchSeason := h.tmdb.FetchSeason
+	if refresh {
+		fetchSeason = h.tmdb.RefreshSeason
+	}
 	var syncErr error
 	for s := 1; s <= totalSeasons; s++ {
-		season, err := h.tmdb.FetchSeason(ctx, tmdbID, s)
+		season, err := fetchSeason(ctx, tmdbID, s)
 		if err != nil {
 			slog.Warn("episodes: fetch season failed",
 				slog.Int("season", s),

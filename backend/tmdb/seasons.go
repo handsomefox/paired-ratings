@@ -7,6 +7,12 @@ import (
 	"net/url"
 )
 
+// RefreshSeason is the same request as FetchSeason. Client holds no cache, so
+// only CachedClient has to tell the two apart.
+func (c *Client) RefreshSeason(ctx context.Context, showID int64, seasonNumber int) (Season, error) {
+	return c.FetchSeason(ctx, showID, seasonNumber)
+}
+
 func (c *Client) FetchSeason(ctx context.Context, showID int64, seasonNumber int) (Season, error) {
 	values := url.Values{}
 	c.maybeSetAPIKey(values)

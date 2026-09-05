@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// RefreshDetails is the same request as FetchDetails. Client holds no cache, so
+// only CachedClient has to tell the two apart.
+func (c *Client) RefreshDetails(ctx context.Context, id int64, mediaType string) (*Detail, error) {
+	return c.FetchDetails(ctx, id, mediaType)
+}
+
 func (c *Client) FetchDetails(ctx context.Context, id int64, mediaType string) (*Detail, error) {
 	if mediaType != "movie" && mediaType != "tv" {
 		return nil, errors.New("invalid media type")

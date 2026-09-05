@@ -79,3 +79,11 @@ func (m *Mock) FetchSeason(ctx context.Context, showID int64, seasonNumber int) 
 	}
 	return m.FetchSeasonFunc(ctx, showID, seasonNumber)
 }
+
+func (m *Mock) RefreshDetails(ctx context.Context, id int64, mediaType string) (*Detail, error) {
+	return m.FetchDetails(ctx, id, mediaType)
+}
+
+func (m *Mock) RefreshSeason(ctx context.Context, showID int64, seasonNumber int) (Season, error) {
+	return m.FetchSeason(ctx, showID, seasonNumber)
+}

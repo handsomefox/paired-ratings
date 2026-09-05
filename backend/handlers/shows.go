@@ -394,7 +394,7 @@ func (h *Handler) postShowRefreshTMDB(w http.ResponseWriter, r *http.Request) er
 		return internal(err)
 	}
 
-	detail, err := h.tmdb.FetchDetails(ctx, show.TMDBID, show.MediaType)
+	detail, err := h.tmdb.RefreshDetails(ctx, show.TMDBID, show.MediaType)
 	if err != nil {
 		slog.Warn("show: tmdb refresh failed", logger.Error(err))
 		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
@@ -409,7 +409,7 @@ func (h *Handler) postShowRefreshTMDB(w http.ResponseWriter, r *http.Request) er
 	}
 
 	if show.MediaType == "tv" && detail.NumberOfSeasons > 0 {
-		if err := h.syncAllSeasons(ctx, id, show.TMDBID, detail.NumberOfSeasons); err != nil {
+		if err := h.syncAllSeasons(ctx, id, show.TMDBID, detail.NumberOfSeasons, true); err != nil {
 			slog.Warn("show: episode sync on refresh failed", logger.Error(err))
 		}
 	}

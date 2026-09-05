@@ -15,7 +15,7 @@ func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) err
 	}
 
 	for _, item := range items {
-		detail, err := h.tmdb.FetchDetails(ctx, item.TMDBID, item.MediaType)
+		detail, err := h.tmdb.RefreshDetails(ctx, item.TMDBID, item.MediaType)
 		if err != nil {
 			return &Error{Status: http.StatusBadGateway, Message: err.Error()}
 		}

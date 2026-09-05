@@ -27,7 +27,7 @@ func TestSyncAllSeasonsReportsPartialFailure(t *testing.T) {
 			return tmdb.Season{Episodes: []tmdb.Episode{{SeasonNumber: season, EpisodeNumber: 1}}}, nil
 		},
 	})
-	err = h.syncAllSeasons(t.Context(), showID, 1, 2)
+	err = h.syncAllSeasons(t.Context(), showID, 1, 2, false)
 	require.ErrorIs(t, err, fetchErr)
 	require.ErrorContains(t, err, "season 1")
 	require.Equal(t, []int{1, 2}, calls)
@@ -48,6 +48,6 @@ func TestSyncAllSeasonsStopsOnCancellation(t *testing.T) {
 			return tmdb.Season{}, ctx.Err()
 		},
 	}}
-	require.ErrorIs(t, h.syncAllSeasons(ctx, 1, 1, 10), context.Canceled)
+	require.ErrorIs(t, h.syncAllSeasons(ctx, 1, 1, 10, false), context.Canceled)
 	require.Equal(t, 1, calls)
 }

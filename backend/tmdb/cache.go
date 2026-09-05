@@ -3,6 +3,8 @@ package tmdb
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -14,6 +16,10 @@ const (
 	ttlSeason  = 6 * time.Hour    // season/episode data
 	ttlRelated = 6 * time.Hour    // collections, similar
 	ttlSearch  = 10 * time.Minute // search & discover results
+
+	// maxCacheEntries bounds each cache. Reaching it evicts the entry that
+	// expires first.
+	maxCacheEntries = 256
 )
 
 // ttlCache is a generic in-memory cache with per-entry TTLs. Safe for concurrent use.
@@ -42,10 +48,28 @@ func (c *ttlCache[K, V]) get(key K) (V, bool) {
 	return e.value, true
 }
 
+// set stores the value and drops every expired entry. If the cache is still at
+// capacity, it also drops the entry that expires first.
 func (c *ttlCache[K, V]) set(key K, value V, ttl time.Duration) {
 	c.mu.Lock()
-	c.entries[key] = ttlEntry[V]{value: value, expiresAt: time.Now().Add(ttl)}
-	c.mu.Unlock()
+	defer c.mu.Unlock()
+	now := time.Now()
+	for k, e := range c.entries {
+		if now.After(e.expiresAt) {
+			delete(c.entries, k)
+		}
+	}
+	if _, exists := c.entries[key]; !exists && len(c.entries) >= maxCacheEntries {
+		var oldest K
+		var earliest time.Time
+		for k, e := range c.entries {
+			if earliest.IsZero() || e.expiresAt.Before(earliest) {
+				oldest, earliest = k, e.expiresAt
+			}
+		}
+		delete(c.entries, oldest)
+	}
+	c.entries[key] = ttlEntry[V]{value: value, expiresAt: now.Add(ttl)}
 }
 
 // CachedClient wraps an Interface and caches responses that are safe to reuse.
@@ -85,7 +109,13 @@ func (c *CachedClient) FetchDetails(ctx context.Context, id int64, mediaType str
 	if v, ok := c.details.get(key); ok {
 		return v, nil
 	}
-	v, err := c.inner.FetchDetails(ctx, id, mediaType)
+	return c.RefreshDetails(ctx, id, mediaType)
+}
+
+// RefreshDetails bypasses the cache and replaces it only after a successful fetch.
+func (c *CachedClient) RefreshDetails(ctx context.Context, id int64, mediaType string) (*Detail, error) {
+	key := fmt.Sprintf("%s:%d", mediaType, id)
+	v, err := c.inner.RefreshDetails(ctx, id, mediaType)
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +172,32 @@ func (c *CachedClient) SearchPage(ctx context.Context, query, mediaType string, 
 	return v, nil
 }
 
+// cacheKey renders the filters by value. Formatting the struct with %v prints
+// the addresses of its four pointer fields, which differ on every request, so
+// the discover cache would never hit. Each part is quoted, because Genres holds
+// a raw TMDB filter that can contain the separator.
+func (f *DiscoverFilters) cacheKey() string {
+	return strings.Join([]string{
+		optional(f.YearFrom),
+		optional(f.YearTo),
+		optional(f.MinRating),
+		optional(f.MinVotes),
+		strconv.Quote(f.Genres),
+		strconv.Quote(f.Sort),
+		strconv.Quote(f.OriginCountry),
+		strconv.Quote(f.OriginalLanguage),
+	}, "|")
+}
+
+func optional[T any](p *T) string {
+	if p == nil {
+		return ""
+	}
+	return strconv.Quote(fmt.Sprint(*p))
+}
+
 func (c *CachedClient) DiscoverPage(ctx context.Context, mediaType string, filters *DiscoverFilters, page int) (SearchPage, error) {
-	key := fmt.Sprintf("%s:%v:%d", mediaType, filters, page)
+	key := fmt.Sprintf("%s:%s:%d", mediaType, filters.cacheKey(), page)
 	if v, ok := c.discover.get(key); ok {
 		return v, nil
 	}
@@ -185,7 +239,13 @@ func (c *CachedClient) FetchSeason(ctx context.Context, showID int64, seasonNumb
 	if v, ok := c.seasons.get(key); ok {
 		return v, nil
 	}
-	v, err := c.inner.FetchSeason(ctx, showID, seasonNumber)
+	return c.RefreshSeason(ctx, showID, seasonNumber)
+}
+
+// RefreshSeason fetches current episode metadata and updates the cache.
+func (c *CachedClient) RefreshSeason(ctx context.Context, showID int64, seasonNumber int) (Season, error) {
+	key := fmt.Sprintf("%d:%d", showID, seasonNumber)
+	v, err := c.inner.RefreshSeason(ctx, showID, seasonNumber)
 	if err != nil {
 		return Season{}, err
 	}
