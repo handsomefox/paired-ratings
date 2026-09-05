@@ -13,7 +13,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { ApiShow } from "@/lib/api";
-import { shortGenres } from "@/lib/utils";
+import { cn, shortGenres } from "@/lib/utils";
 import { Film } from "lucide-react";
 
 export type LibraryResultsProps = {
@@ -93,7 +93,12 @@ export function LibraryResults({
                   <TmdbRatingBadge
                     rating={show.tmdb_rating}
                     votes={show.tmdb_votes}
-                    className="flex w-full justify-center"
+                    className={cn(
+                      "flex w-full justify-center",
+                      // Not every title reports a country. Fill the row rather
+                      // than leaving half of it empty.
+                      originCountries.length === 0 && "col-span-2",
+                    )}
                   />
                   <OriginCountriesChip
                     codes={originCountries}

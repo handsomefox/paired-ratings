@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { GetRelatedResponse, ListResponse, SearchResult } from "@/lib/api";
 import { api } from "@/lib/api";
-import { shortGenreList } from "@/lib/utils";
+import { cn, shortGenreList } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
 import { useMemo } from "react";
@@ -122,7 +122,10 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
                       code={item.original_language}
                       label={item.original_language?.toUpperCase()}
                     />
-                    <Badge variant="outline" className="flex justify-center">
+                    <Badge
+                      variant="outline"
+                      className={cn("flex justify-center", !item.original_language && "col-span-2")}
+                    >
                       {item.media_type === "movie"
                         ? "Movie"
                         : item.media_type === "tv"
