@@ -34,7 +34,6 @@ export type LibraryFiltersProps = {
   countries: CountryOption[];
   onRefresh: () => void;
   refreshPending: boolean;
-  onReset: () => void;
 };
 
 export function LibraryFilters({
@@ -58,7 +57,6 @@ export function LibraryFilters({
   countries,
   onRefresh,
   refreshPending,
-  onReset,
 }: LibraryFiltersProps) {
   return (
     <div className="space-y-5">
@@ -157,10 +155,7 @@ export function LibraryFilters({
           onClick={onRefresh}
           disabled={refreshPending}
         >
-          Refresh TMDB
-        </Button>
-        <Button type="button" variant="ghost" onClick={onReset}>
-          Reset
+          {refreshPending ? "Refreshing..." : "Refresh TMDB"}
         </Button>
       </div>
     </div>

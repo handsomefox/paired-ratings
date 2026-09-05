@@ -20,6 +20,9 @@ type FiltersPaneProps = {
   gridClassName?: string;
   title?: string;
   triggerLabel?: string;
+  // Rendered beside the title in both the desktop pane and the mobile sheet,
+  // so an action that applies to the whole pane reads as belonging to it.
+  headerAction?: React.ReactNode;
 };
 
 const FiltersPane = ({
@@ -31,6 +34,7 @@ const FiltersPane = ({
   gridClassName,
   title = "Filters",
   triggerLabel = "Filters",
+  headerAction,
 }: FiltersPaneProps) => {
   const bodyStyleRef = React.useRef<{
     overflow: string;
@@ -111,7 +115,10 @@ const FiltersPane = ({
             className="flex h-[100svh] w-[100vw] flex-col overflow-hidden bg-card text-foreground sm:w-[320px]"
           >
             <SheetHeader>
-              <SheetTitle>{title}</SheetTitle>
+              <div className="flex items-center justify-between gap-2">
+                <SheetTitle>{title}</SheetTitle>
+                {headerAction}
+              </div>
               <SheetDescription className="sr-only">
                 Adjust filter options and close the panel when finished.
               </SheetDescription>
@@ -143,8 +150,11 @@ const FiltersPane = ({
       >
         <aside className="hidden lg:block">
           <div className="sticky top-24 max-h-[calc(100svh-6rem)] overflow-y-auto rounded-2xl border border-border/60 bg-card/80 p-5 pr-4 shadow-lg lg:p-6 lg:pr-5">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {title}
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {title}
+              </div>
+              {headerAction}
             </div>
             <div className="mt-5">{filters}</div>
           </div>

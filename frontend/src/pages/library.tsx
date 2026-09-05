@@ -1,4 +1,5 @@
 import FiltersPane from "@/components/filters-pane";
+import { Button } from "@/components/ui/button";
 import { FiltersPaneContent } from "@/components/filters-pane-content";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { LibraryFilters } from "@/features/library/library-filters";
@@ -226,6 +227,16 @@ export function LibraryPage() {
 
   const countryOptions = countries.map((code) => ({ code, name: countryLabel(code) }));
 
+  // Sort and page size are view preferences, not filters, so they do not count
+  // towards Reset being available.
+  const activeFilterCount =
+    (status !== "all" ? 1 : 0) +
+    (genre ? 1 : 0) +
+    (originCountry ? 1 : 0) +
+    (yearFrom ? 1 : 0) +
+    (yearTo ? 1 : 0) +
+    (unrated ? 1 : 0);
+
   const handleResetFilters = () => {
     setStatus("all");
     setGenre("");
@@ -259,8 +270,20 @@ export function LibraryPage() {
       countries={countryOptions}
       onRefresh={() => refreshMutation.mutate()}
       refreshPending={refreshMutation.isPending}
-      onReset={handleResetFilters}
     />
+  );
+
+  const resetAction = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7 px-2 text-xs"
+      onClick={handleResetFilters}
+      disabled={activeFilterCount === 0}
+    >
+      Reset{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+    </Button>
   );
 
   const isInitialLoading = showsQuery.isLoading || (showsQuery.isFetching && shows.length === 0);
@@ -282,6 +305,7 @@ export function LibraryPage() {
         filtersOpen={filtersOpen}
         onOpenChange={setFiltersOpen}
         filters={FiltersForm}
+        headerAction={resetAction}
         headerClassName="flex-wrap items-end gap-4"
       >
         <FiltersPaneContent>
