@@ -1,8 +1,14 @@
 import { useRouterState } from "@tanstack/react-router";
-import { Download, Home, ListOrdered, LogOut, Menu, Plus } from "lucide-react";
+import { Download, Home, ListOrdered, LogOut, Menu, MoreHorizontal, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { NavLink } from "./nav-link";
 import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import {
   Sheet,
   SheetClose,
@@ -154,23 +160,28 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
             </SheetContent>
           </Sheet>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="hidden rounded-full md:inline-flex"
-            onClick={handleExport}
-          >
-            Export JSON
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="hidden rounded-full md:inline-flex"
-            onClick={handleExportDB}
-          >
-            Export DB
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden rounded-full md:inline-flex"
+                aria-label="More actions"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={handleExport}>
+                <Download className="h-4 w-4" />
+                Export JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleExportDB}>
+                <Download className="h-4 w-4" />
+                Export DB
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Button
             variant="outline"
