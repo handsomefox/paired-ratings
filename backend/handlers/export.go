@@ -3,12 +3,12 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/handsomefox/paired-ratings/backend/gen/pb"
@@ -17,17 +17,30 @@ import (
 )
 
 func (h *Handler) getExportDB(w http.ResponseWriter, r *http.Request) error {
-	dbPath := h.store.DBPath()
-	if dbPath == "" {
-		return internal(errors.New("db path not available"))
+	dir, err := os.MkdirTemp("", "paired-ratings-export-")
+	if err != nil {
+		return internal(err)
+	}
+	defer func() {
+		if err := os.RemoveAll(dir); err != nil {
+			slog.Warn("export db: cleanup failed", logger.Error(err))
+		}
+	}()
+	dbPath := filepath.Join(dir, "ratings.db")
+	if err := h.store.Backup(r.Context(), dbPath); err != nil {
+		return internal(err)
 	}
 
-	f, err := os.Open(dbPath)
+	f, err := os.Open(dbPath) //nolint:gosec // Path is inside a private, server-created temporary directory.
 	if err != nil {
 		slog.Warn("export db: open failed", logger.Error(err))
 		return internal(err)
 	}
-	defer func() { _ = f.Close() }()
+	defer func() {
+		if err := f.Close(); err != nil {
+			slog.Warn("export db: close failed", logger.Error(err))
+		}
+	}()
 
 	date := time.Now().UTC().Format("2006-01-02")
 	w.Header().Set("Content-Type", "application/octet-stream")

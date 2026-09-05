@@ -23,9 +23,8 @@ import (
 var migrationFS embed.FS
 
 type Store struct {
-	sqldb  *sql.DB
-	db     *bun.DB
-	dbPath string
+	sqldb *sql.DB
+	db    *bun.DB
 }
 
 func Open(dbPath string) (*Store, error) {
@@ -74,12 +73,7 @@ func Open(dbPath string) (*Store, error) {
 
 	bdb := bun.NewDB(sqldb, sqlitedialect.New())
 	slog.Info("Database ready", slog.String("path", dbPath))
-	return &Store{sqldb: sqldb, db: bdb, dbPath: dbPath}, nil
-}
-
-// DBPath returns the filesystem path of the database file.
-func (s *Store) DBPath() string {
-	return s.dbPath
+	return &Store{sqldb: sqldb, db: bdb}, nil
 }
 
 // rollback ends a transaction that was not committed. A finished transaction is
