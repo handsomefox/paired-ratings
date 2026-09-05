@@ -68,6 +68,15 @@ function Pagination({
   );
 }
 
+// A half-typed year like "20" is not a filter anyone means. Hold it back until
+// it is a plausible four-digit year, so the list does not empty out mid-keystroke.
+function usableYear(raw: string): string {
+  const year = Number.parseInt(raw, 10);
+  if (!/^\d{4}$/.test(raw.trim()) || Number.isNaN(year)) return "";
+  if (year < 1900 || year > 2100) return "";
+  return String(year);
+}
+
 function parsePageSize(val: string | null): PageSize {
   if (val === "50") return 50;
   if (val === "100") return 100;
@@ -120,13 +129,16 @@ export function LibraryPage() {
     250,
   );
 
+  const appliedYearFrom = usableYear(debouncedFilters.yearFrom);
+  const appliedYearTo = usableYear(debouncedFilters.yearTo);
+
   // Reset to page 1 whenever filters change (derived state pattern avoids effect).
   const filterKey = [
     debouncedFilters.status,
     debouncedFilters.genre,
     debouncedFilters.originCountry,
-    debouncedFilters.yearFrom,
-    debouncedFilters.yearTo,
+    appliedYearFrom,
+    appliedYearTo,
     debouncedFilters.unrated,
     debouncedFilters.sort,
   ].join("|");
@@ -142,8 +154,8 @@ export function LibraryPage() {
       p.set("status", debouncedFilters.status);
     if (debouncedFilters.genre) p.set("genre", debouncedFilters.genre);
     if (debouncedFilters.originCountry) p.set("origin_country", debouncedFilters.originCountry);
-    if (debouncedFilters.yearFrom) p.set("year_from", debouncedFilters.yearFrom);
-    if (debouncedFilters.yearTo) p.set("year_to", debouncedFilters.yearTo);
+    if (appliedYearFrom) p.set("year_from", appliedYearFrom);
+    if (appliedYearTo) p.set("year_to", appliedYearTo);
     if (debouncedFilters.unrated) p.set("unrated", "1");
     if (debouncedFilters.sort && debouncedFilters.sort !== "created")
       p.set("sort", debouncedFilters.sort);
@@ -154,8 +166,8 @@ export function LibraryPage() {
     debouncedFilters.status,
     debouncedFilters.genre,
     debouncedFilters.originCountry,
-    debouncedFilters.yearFrom,
-    debouncedFilters.yearTo,
+    appliedYearFrom,
+    appliedYearTo,
     debouncedFilters.unrated,
     debouncedFilters.sort,
     page,
