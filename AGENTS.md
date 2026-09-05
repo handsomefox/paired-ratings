@@ -57,5 +57,8 @@ Run `make fmt`, `make lint`, and `make test` once after a coherent set of edits.
 `make lint` runs the Go linter first and stops before the frontend if it fails,
 so read the whole output.
 
+The Go commands are scoped to `./backend/...`. Keep them that way, because
+`./...` reaches into `frontend/node_modules` and lints third-party Go code.
+
 Write commit subjects in the imperative on one line. In a pull request, say what
 changed and paste the commands you ran.

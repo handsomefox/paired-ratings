@@ -1,19 +1,23 @@
-.PHONY: fmt lint lint-fix test build dev watch watch-frontend watch-backend watch-web proto
+.PHONY: fmt fmt-check lint lint-fix test build dev watch watch-frontend watch-backend watch-web proto
 
 fmt:
-	gofumpt -w ./
+	gofumpt -w ./backend
 	cd frontend && npm run format
 
+fmt-check:
+	@test -z "$$(gofumpt -l ./backend)" || (gofumpt -l ./backend; exit 1)
+	cd frontend && npm run format:check
+
 lint:
-	golangci-lint run ./...
+	golangci-lint run ./backend/...
 	cd frontend && npm run lint
 
 lint-fix:
-	golangci-lint run --fix ./...
+	golangci-lint run --fix ./backend/...
 	cd frontend && npm run lint:fix
 
 test:
-	go test -race ./...
+	go test -race ./backend/...
 
 build:
 	cd frontend && npm ci && npm run build
