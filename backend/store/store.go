@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/handsomefox/paired-ratings/backend/logger"
 	"github.com/pressly/goose/v3"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
@@ -79,6 +80,14 @@ func Open(dbPath string) (*Store, error) {
 // DBPath returns the filesystem path of the database file.
 func (s *Store) DBPath() string {
 	return s.dbPath
+}
+
+// rollback ends a transaction that was not committed. A finished transaction is
+// the normal case after a successful commit, so it is not an error.
+func rollback(tx *sql.Tx) {
+	if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+		slog.Error("rollback transaction failed", logger.Error(err))
+	}
 }
 
 func runMigrations(db *sql.DB) error {

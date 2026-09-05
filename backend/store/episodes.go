@@ -46,7 +46,7 @@ func (s *Store) SyncEpisodes(ctx context.Context, showID int64, episodes []Episo
 	if err != nil {
 		return err
 	}
-	defer func() { _ = tx.Rollback() }()
+	defer rollback(tx)
 
 	for _, ep := range episodes {
 		_, err := tx.ExecContext(ctx, `

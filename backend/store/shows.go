@@ -154,7 +154,7 @@ func (s *Store) UpdateWatchOrder(ctx context.Context, orderedIDs []int64) error 
 	if err != nil {
 		return err
 	}
-	defer func() { _ = tx.Rollback() }()
+	defer rollback(tx)
 
 	for i, id := range orderedIDs {
 		_, err := tx.ExecContext(ctx,
