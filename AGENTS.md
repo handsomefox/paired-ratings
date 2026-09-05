@@ -54,8 +54,8 @@ per-user state keyed on them.
 ## Before you commit
 
 Run `make fmt`, `make lint`, and `make test` once after a coherent set of edits.
-`make lint` runs the Go linter first and stops before the frontend if it fails,
-so read the whole output.
+Each target runs the Go side first and stops before the frontend if it fails, so
+read the whole output. `make test` covers the Go tests and the Vitest suite.
 
 The Go commands are scoped to `./backend/...`. Keep them that way, because
 `./...` reaches into `frontend/node_modules` and lints third-party Go code.

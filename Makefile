@@ -18,6 +18,7 @@ lint-fix:
 
 test:
 	go test -race ./backend/...
+	cd frontend && npm test
 
 build:
 	cd frontend && npm ci && npm run build

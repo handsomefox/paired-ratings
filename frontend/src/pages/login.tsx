@@ -43,7 +43,10 @@ export function LoginPage() {
   });
 
   if (isAuthenticated(sessionQuery.data)) {
-    return navigate({ to: "/" });
+    // navigate returns a promise. Returning it here would hand React a promise
+    // where it expects an element.
+    void navigate({ to: "/" });
+    return null;
   }
 
   return (

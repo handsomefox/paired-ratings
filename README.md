@@ -49,10 +49,14 @@ make lint
 make test
 ```
 
-`make fmt` needs `gofumpt`, and `make lint` needs `golangci-lint`. Both run over
-the Go code and then the frontend. Run the frontend build once before the Go
-commands, because `backend/web/web.go` embeds `backend/web/dist` and the Go build
-fails while that directory is empty.
+`make fmt` needs `gofumpt`, and `make lint` needs `golangci-lint`. Each target
+runs over the Go code and then the frontend, so `make test` covers the Go tests
+and the Vitest suite. To report formatting without rewriting files, run
+`make fmt-check`. That is the check CI runs.
+
+Run the frontend build once before the Go commands, because
+`backend/web/web.go` embeds `backend/web/dist` and the Go build fails while that
+directory is empty.
 
 ## Further reading
 

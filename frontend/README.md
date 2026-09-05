@@ -9,6 +9,10 @@ gzip and Zstandard through Node's built-in support. It writes to
 `backend/web/dist`, which [`backend/web/web.go`](../backend/web/web.go) embeds
 into the server binary. Nothing serves this directory directly.
 
+`npm test` runs Vitest in jsdom. A test file sits next to the module it covers
+and adds `.test` before the extension. Shared setup and render helpers live in
+[`src/test`](src/test).
+
 `npm run dev` proxies `/api` to `http://localhost:8080`. The target is set in
 [`vite.config.ts`](vite.config.ts).
 

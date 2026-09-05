@@ -219,6 +219,7 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
                                 watched: checked === true,
                               })
                             }
+                            aria-label={`Mark episode ${ep.episode_number} as watched`}
                           />
                         </div>
                       ))}
