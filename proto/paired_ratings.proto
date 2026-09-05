@@ -157,7 +157,11 @@ message SetStatusRequest {
 }
 
 message RefreshResponse {
+  // Shows whose metadata was pulled again.
   int32 updated = 1 [json_name = "updated"];
+  // Shows that were stale but whose TMDB request failed. The refresh keeps
+  // going past a failure, so both counts can be non-zero.
+  int32 failed = 2 [json_name = "failed"];
 }
 
 message GetRelatedResponse {

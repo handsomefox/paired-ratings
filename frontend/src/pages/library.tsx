@@ -187,9 +187,20 @@ export function LibraryPage() {
 
   const refreshMutation = useMutation({
     mutationFn: api.refreshTMDB,
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["shows"] });
-      toast.success("TMDB refreshed.");
+      const updated = result?.updated ?? 0;
+      const failed = result?.failed ?? 0;
+      if (updated === 0 && failed === 0) {
+        toast.success("Everything is up to date.");
+        return;
+      }
+      const refreshed = `Refreshed ${updated} ${updated === 1 ? "show" : "shows"}.`;
+      if (failed > 0) {
+        toast.warning(`${refreshed} ${failed} could not be reached.`);
+        return;
+      }
+      toast.success(refreshed);
     },
     onError: () => {
       toast.error("Failed to refresh TMDB.");

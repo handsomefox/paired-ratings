@@ -30,6 +30,8 @@ func (s *Store) UpsertShow(ctx context.Context, show *Show) (int64, error) {
 
 	sh.CreatedAt = now
 	sh.UpdatedAt = now
+	// Every caller reaches here with metadata straight from TMDB.
+	sh.TMDBRefreshedAt = sql.Null[string]{V: now, Valid: true}
 
 	// Ensure new inserts start with NULL ratings/comments.
 	sh.BfRating = sql.Null[int64]{}
@@ -60,6 +62,7 @@ func (s *Store) UpsertShow(ctx context.Context, show *Show) (int64, error) {
 			"collection_name",
 			"created_at",
 			"updated_at",
+			"tmdb_refreshed_at",
 		).
 		On("CONFLICT (tmdb_id, media_type) DO UPDATE").
 		Set("title = EXCLUDED.title").
@@ -75,6 +78,7 @@ func (s *Store) UpsertShow(ctx context.Context, show *Show) (int64, error) {
 		Set("collection_id = EXCLUDED.collection_id").
 		Set("collection_name = EXCLUDED.collection_name").
 		Set("updated_at = EXCLUDED.updated_at").
+		Set("tmdb_refreshed_at = EXCLUDED.tmdb_refreshed_at").
 		Exec(ctx)
 	if err != nil {
 		return 0, err

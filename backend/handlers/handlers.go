@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/handsomefox/paired-ratings/backend/store"
@@ -22,6 +23,10 @@ type Handler struct {
 	genres    genreCache
 	countries countryCache
 	languages languageCache
+
+	// refreshInterval is how long TMDB metadata counts as current. Zero means
+	// the default; a negative value makes every show stale, which tests use.
+	refreshInterval time.Duration
 }
 
 type Config struct {
@@ -31,6 +36,9 @@ type Config struct {
 	ImageBase string
 	BfName    string
 	GfName    string
+
+	// RefreshInterval overrides how long TMDB metadata counts as current.
+	RefreshInterval time.Duration
 }
 
 func New(cfg *Config) (*Handler, error) {
@@ -53,6 +61,11 @@ func New(cfg *Config) (*Handler, error) {
 		gfName = "Girlfriend"
 	}
 
+	interval := cfg.RefreshInterval
+	if interval == 0 {
+		interval = defaultRefreshInterval
+	}
+
 	return &Handler{
 		store:     cfg.Store,
 		tmdb:      cfg.TMDB,
@@ -61,6 +74,8 @@ func New(cfg *Config) (*Handler, error) {
 		imageBase: cfg.ImageBase,
 		bfName:    bfName,
 		gfName:    gfName,
+
+		refreshInterval: interval,
 	}, nil
 }
 

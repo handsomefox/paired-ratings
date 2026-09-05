@@ -34,6 +34,10 @@ type Show struct {
 
 	CreatedAt string `bun:"created_at,notnull"`
 	UpdatedAt string `bun:"updated_at,notnull"`
+
+	// TMDBRefreshedAt is when TMDB metadata was last pulled for this row.
+	// UpdatedAt cannot serve here, because a rating edit moves it too.
+	TMDBRefreshedAt sql.Null[string] `bun:"tmdb_refreshed_at,nullzero"`
 }
 
 type ListFilters struct {

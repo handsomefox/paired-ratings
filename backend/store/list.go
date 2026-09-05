@@ -203,12 +203,15 @@ func (s *Store) ListAllCountries(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-func (s *Store) ListTMDBMissing(ctx context.Context) ([]TMDBRefresh, error) {
+// ListTMDBStale returns the shows whose TMDB metadata was last pulled before
+// the given timestamp. A row that has never been refreshed has a NULL stamp and
+// is always returned, which covers rows added before the column existed.
+func (s *Store) ListTMDBStale(ctx context.Context, before string) ([]TMDBRefresh, error) {
 	out := []TMDBRefresh{}
 	err := s.db.NewSelect().
 		Table("shows").
 		Column("tmdb_id", "media_type", "status").
-		Where("tmdb_rating IS NULL OR tmdb_votes IS NULL OR imdb_id IS NULL OR origin_country IS NULL OR origin_country = ''").
+		Where("tmdb_refreshed_at IS NULL OR tmdb_refreshed_at < ?", before).
 		Scan(ctx, &out)
 	if err != nil {
 		return nil, err

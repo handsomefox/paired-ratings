@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/handsomefox/paired-ratings/backend/gen/pb"
@@ -404,7 +405,24 @@ func TestRefreshTMDBAndExportHandlers(t *testing.T) {
 
 	var refreshed pb.RefreshResponse
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&refreshed))
+	// UpsertShow stamped the row, so nothing is stale within the interval.
+	require.Equal(t, int32(0), refreshed.Updated)
+	require.Equal(t, int32(0), refreshed.Failed)
+
+	// A negative interval puts the cutoff in the future, making every row stale.
+	stale := newTestHandlerWithTMDB(t, st, mock)
+	stale.refreshInterval = -time.Hour
+	staleRouter := chi.NewRouter()
+	stale.RegisterRoutes(staleRouter)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/refresh-tmdb", http.NoBody)
+	req.AddCookie(authCookie)
+	staleRouter.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&refreshed))
 	require.Equal(t, int32(1), refreshed.Updated)
+	require.Equal(t, int32(0), refreshed.Failed)
 
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/export", http.NoBody)
@@ -416,4 +434,66 @@ func TestRefreshTMDBAndExportHandlers(t *testing.T) {
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&exported))
 	require.Len(t, exported.Shows, 1)
 	require.Equal(t, "Refresh Me", exported.Shows[0].Title)
+}
+
+func TestRefreshTMDBSurvivesFailures(t *testing.T) {
+	st, err := store.Open(t.TempDir() + "/ratings.db")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, st.Close())
+	})
+
+	ctx := context.Background()
+	for _, id := range []int64{1, 2, 3, 4} {
+		_, err = st.UpsertShow(ctx, &store.Show{
+			TMDBID:    id,
+			MediaType: "movie",
+			Title:     "Movie " + strconv.FormatInt(id, 10),
+			Status:    "planned",
+		})
+		require.NoError(t, err)
+	}
+
+	// TMDB rejects one title out of the four.
+	mock := &tmdb.Mock{
+		FetchDetailsFunc: func(_ context.Context, id int64, mediaType string) (*tmdb.Detail, error) {
+			if id == 3 {
+				return nil, errors.New("TMDB says no")
+			}
+			return &tmdb.Detail{
+				TMDBID:    id,
+				MediaType: mediaType,
+				Title:     "Refreshed " + strconv.FormatInt(id, 10),
+			}, nil
+		},
+	}
+
+	h := newTestHandlerWithTMDB(t, st, mock)
+	h.refreshInterval = -time.Hour
+	r := chi.NewRouter()
+	h.RegisterRoutes(r)
+	authCookie := login(t, r, "secret")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/refresh-tmdb", http.NoBody)
+	req.AddCookie(authCookie)
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
+
+	var refreshed pb.RefreshResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&refreshed))
+	require.Equal(t, int32(3), refreshed.Updated)
+	require.Equal(t, int32(1), refreshed.Failed)
+
+	// The three that worked were written; the failure left its row alone.
+	shows, _, err := st.ListShows(ctx, &store.ListFilters{})
+	require.NoError(t, err)
+	titles := map[int64]string{}
+	for i := range shows {
+		titles[shows[i].TMDBID] = shows[i].Title
+	}
+	require.Equal(t, "Refreshed 1", titles[1])
+	require.Equal(t, "Refreshed 2", titles[2])
+	require.Equal(t, "Movie 3", titles[3])
+	require.Equal(t, "Refreshed 4", titles[4])
 }

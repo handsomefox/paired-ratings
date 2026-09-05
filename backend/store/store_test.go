@@ -101,9 +101,22 @@ func TestStoreEdgeCases(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, refs[TMDBRef{ID: 2, MediaType: "tv"}])
 
-	missing, err := st.ListTMDBMissing(ctx)
+	// The upsert stamped tmdb_refreshed_at, so the row is not stale yet.
+	fresh, err := st.ListTMDBStale(ctx, "2000-01-01T00:00:00Z")
 	require.NoError(t, err)
-	require.NotEmpty(t, missing)
+	require.Empty(t, fresh)
+
+	stale, err := st.ListTMDBStale(ctx, "2999-01-01T00:00:00Z")
+	require.NoError(t, err)
+	require.NotEmpty(t, stale)
+
+	// A rating edit must not count as a TMDB refresh.
+	require.NoError(t, st.UpdateRatings(ctx, id, RatingsUpdate{
+		BfRating: &sql.Null[int64]{V: 8, Valid: true},
+	}))
+	fresh, err = st.ListTMDBStale(ctx, "2000-01-01T00:00:00Z")
+	require.NoError(t, err)
+	require.Empty(t, fresh)
 
 	require.NoError(t, st.DeleteShow(ctx, id))
 	_, err = st.GetShow(ctx, id)
