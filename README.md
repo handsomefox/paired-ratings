@@ -1,56 +1,63 @@
-# Website Rating
+# Paired Ratings
 
-A tiny, password‑gated web app for tracking movies and TV shows. Pull titles from TMDB, mark them planned or watched, and keep two sets of ratings/comments (BF/GF) in one shared library.
+A shared movie and TV library for two people behind one password. Every title
+carries two ratings and two comments, labeled with `BF_NAME` and `GF_NAME`, so
+you can disagree about a film without overwriting each other. TMDB supplies
+search, posters, and metadata. The library lives in a SQLite file.
 
-## Features
+- Search TMDB, or discover titles by type, year, rating, and vote count.
+- Save a title as planned or watched, rate it 1 to 10, and leave a comment.
+- Filter by status, genre, year range, and missing ratings. Sort by rating,
+  year, or title.
+- Refresh a title's TMDB metadata, or delete the entry.
+- Export the library as JSON.
 
-- TMDB search + discover (filters by type, year, rating, vote count; sort options).
-- Add shows as planned or watched; watched entries can be rated 1–10 with comments.
-- Library filters: status, genre, year range, unrated only; sort by ratings/year/title.
-- Detail page with poster, metadata, TMDB score/votes, ratings, comments, and delete.
-- Export library as JSON and refresh TMDB metadata.
-- Simple single‑password login gate.
+## Run it locally
 
-## Configuration (.env)
+You need Go 1.26.1 or newer, Node.js 24, npm 11, Make, and a TMDB API key.
 
-`.env` is loaded automatically via `godotenv`. Required variables:
+Write `.env` in the repository root:
 
-```
-APP_PASSWORD=your_shared_password
-TMDB_API_KEY=your_tmdb_key
-```
-
-Optional:
-
-```
-TMDB_API_READ_TOKEN=optional_read_token
-DB_PATH=/path/to/website-rating.db
-PORT=8080
-TMDB_IMAGE_BASE=https://image.tmdb.org/t/p/w342
-BF_NAME=Boyfriend
-GF_NAME=Girlfriend
-ENV=local
+```dotenv
+APP_PASSWORD=replace_with_your_shared_password
+TMDB_API_KEY=replace_with_your_tmdb_key
 ```
 
-## Common Commands
+Then start everything with one command:
 
-Install Node.js 24 or newer and npm 11 or newer for frontend commands.
-Run `npm ci` inside `frontend/` to install the locked dependencies.
-
-- `make dev`: build the frontend and run the server locally.
-- `make watch-frontend`: run the Vite dev server.
-- `make watch-backend`: run the Go API in watch mode (no embedded static).
-- `make build`: build the frontend (outputs `backend/web/dist`) and the Go server.
-- `make fmt`: format Go code with `gofumpt` and the frontend with Prettier.
-- `make lint`: check Go and frontend code, returning a failure for lint issues.
-- `make lint-fix`: apply automatic Go and frontend lint fixes.
-- `make test`: run all Go tests with the race detector.
-- `make proto`: generate Go + TS types from `proto/paired_ratings.proto`.
-
-## Deployment Notes
-
-The app is designed for a single shared login and a persistent SQLite file:
-
+```sh
+make dev
 ```
-DB_PATH=/app/data/website-rating.db
+
+That installs the frontend dependencies, builds the frontend, and serves the app
+on <http://localhost:8080>. Sign in with `APP_PASSWORD`.
+
+`make dev` rebuilds the frontend on every run and nothing watches for changes, so
+an edit needs Ctrl+C and another `make dev`. For a reload loop instead, see
+[Run and maintain the app](docs/development.md).
+
+Every other setting has a default, including `DB_PATH`, `PORT`, and the two
+display names. [Configuration](docs/configuration.md) lists all of them.
+
+## Check a change
+
+```sh
+make fmt
+make lint
+make test
 ```
+
+`make fmt` needs `gofumpt`, and `make lint` needs `golangci-lint`. Both run over
+the Go code and then the frontend. Run the frontend build once before the Go
+commands, because `backend/web/web.go` embeds `backend/web/dist` and the Go build
+fails while that directory is empty.
+
+## Further reading
+
+- [Run and maintain the app](docs/development.md): the reload loop, regenerating
+  the API types, and deploying.
+- [Configuration](docs/configuration.md): every environment variable.
+- [Frontend](frontend/README.md): where the build output goes and how the dev
+  server reaches the API.
+- [Repository guidelines](AGENTS.md): the conventions to follow when changing
+  the code.

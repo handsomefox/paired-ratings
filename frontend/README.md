@@ -1,31 +1,18 @@
-# Paired Ratings Web
+# Frontend
 
-The frontend lives in `frontend/` and is built with Vite + React + TypeScript + Tailwind. Production builds are output to `backend/web/dist` and embedded into the Go binary.
+React, TypeScript, Tailwind CSS, and Vite. [`.nvmrc`](.nvmrc) selects Node.js 24,
+and `package.json` requires npm 11. For setup and the reload loop, see
+[Run and maintain the app](../docs/development.md).
 
-## Scripts
+`npm run build` type-checks, bundles, and then compresses the text assets with
+gzip and Zstandard through Node's built-in support. It writes to
+`backend/web/dist`, which [`backend/web/web.go`](../backend/web/web.go) embeds
+into the server binary. Nothing serves this directory directly.
 
-Use Node.js 24 or newer and npm 11 or newer. `nvm use` selects Node 24.
-The build runs asset compression with Node's native gzip and Zstandard support.
+`npm run dev` proxies `/api` to `http://localhost:8080`. The target is set in
+[`vite.config.ts`](vite.config.ts).
 
-```bash
-npm ci
-npm run dev
-```
-
-For a full-stack dev loop:
-
-```bash
-ENV=local make dev
-```
-
-The Vite dev server proxies `/api` to `http://localhost:8080`.
-
-## Protobuf Types
-
-API shapes come from `proto/paired_ratings.proto`. Regenerate types with:
-
-```bash
-make proto
-```
-
-The generated types live in `frontend/src/gen`.
+The API types in [`src/gen`](src/gen) are generated from
+[`proto/paired_ratings.proto`](../proto/paired_ratings.proto). Regenerate them
+with `make proto` from the repository root, which updates the Go types in the
+same pass. Do not edit them by hand.
