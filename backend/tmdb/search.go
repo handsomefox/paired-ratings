@@ -35,7 +35,7 @@ func (c *Client) SearchPage(ctx context.Context, query, mediaType string, page i
 	return c.fetchSearch(ctx, endpoint, mediaType)
 }
 
-func (c *Client) DiscoverPage(ctx context.Context, mediaType string, filters DiscoverFilters, page int) (SearchPage, error) {
+func (c *Client) DiscoverPage(ctx context.Context, mediaType string, filters *DiscoverFilters, page int) (SearchPage, error) {
 	if mediaType != "movie" && mediaType != "tv" {
 		return SearchPage{}, errors.New("invalid media type")
 	}
@@ -115,7 +115,7 @@ func (c *Client) FetchCountries(ctx context.Context) ([]Country, error) {
 
 	out := make([]Country, 0, len(payload))
 	for _, item := range payload {
-		code := strings.TrimSpace(item.ISO3166_1)
+		code := strings.TrimSpace(item.ISO3166)
 		name := strings.TrimSpace(item.EnglishName)
 		if code == "" {
 			continue
@@ -137,7 +137,7 @@ func (c *Client) FetchLanguages(ctx context.Context) ([]Language, error) {
 
 	out := make([]Language, 0, len(payload))
 	for _, item := range payload {
-		code := strings.TrimSpace(item.ISO639_1)
+		code := strings.TrimSpace(item.ISO639)
 		name := strings.TrimSpace(item.EnglishName)
 		if name == "" {
 			name = strings.TrimSpace(item.Name)

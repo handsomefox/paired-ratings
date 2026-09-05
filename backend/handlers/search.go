@@ -179,18 +179,18 @@ func (h *Handler) getSearch(w http.ResponseWriter, r *http.Request) error {
 			PosterPath:       item.PosterPath,
 			Overview:         item.Overview,
 			VoteAverage:      item.VoteAverage,
-			VoteCount:        int32(item.VoteCount),
+			VoteCount:        clampInt32(item.VoteCount),
 			InLibrary:        inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
-			Genres:           genreNamesFor(*item, movieGenres, tvGenres),
+			Genres:           genreNamesFor(item, movieGenres, tvGenres),
 			OriginalLanguage: item.OriginalLanguage,
 		})
 	}
 
 	writeJSON(w, http.StatusOK, &pb.SearchResponse{
 		Results:      results,
-		Page:         int32(pageData.Page),
-		TotalPages:   int32(pageData.TotalPages),
-		TotalResults: int32(pageData.TotalResults),
+		Page:         clampInt32(pageData.Page),
+		TotalPages:   clampInt32(pageData.TotalPages),
+		TotalResults: clampInt32(pageData.TotalResults),
 	})
 	return nil
 }
@@ -230,7 +230,7 @@ func (h *Handler) searchTMDB(ctx context.Context, query string, filters *searchF
 	switch filters.MediaType {
 	case "movie", "tv":
 		discoverFilters.Sort = tmdbSort(filters.Sort, filters.MediaType)
-		pageData, err := h.tmdb.DiscoverPage(ctx, filters.MediaType, discoverFilters, filters.Page)
+		pageData, err := h.tmdb.DiscoverPage(ctx, filters.MediaType, &discoverFilters, filters.Page)
 		if err != nil {
 			return searchPage{}, err
 		}
@@ -242,12 +242,12 @@ func (h *Handler) searchTMDB(ctx context.Context, query string, filters *searchF
 		}, nil
 	default:
 		discoverFilters.Sort = tmdbSort(filters.Sort, "movie")
-		movies, err := h.tmdb.DiscoverPage(ctx, "movie", discoverFilters, filters.Page)
+		movies, err := h.tmdb.DiscoverPage(ctx, "movie", &discoverFilters, filters.Page)
 		if err != nil {
 			return searchPage{}, err
 		}
 		discoverFilters.Sort = tmdbSort(filters.Sort, "tv")
-		tv, err := h.tmdb.DiscoverPage(ctx, "tv", discoverFilters, filters.Page)
+		tv, err := h.tmdb.DiscoverPage(ctx, "tv", &discoverFilters, filters.Page)
 		if err != nil {
 			return searchPage{}, err
 		}
@@ -355,7 +355,7 @@ func parseSearchRequest(r *http.Request) *pb.SearchRequest {
 	}
 
 	if val := strings.TrimSpace(query.Get("page")); val != "" {
-		if parsed, err := strconv.Atoi(val); err == nil && parsed > 0 {
+		if parsed, err := strconv.ParseInt(val, 10, 32); err == nil && parsed > 0 {
 			req.Page = int32(parsed)
 		}
 	}
@@ -508,7 +508,7 @@ func applySearchFilters(items []tmdb.SearchResult, filters *searchFilters) []tmd
 	return out
 }
 
-func parseGenreFilter(raw string) ([]int, string, string) {
+func parseGenreFilter(raw string) (genreIDs []int, matchMode, normalized string) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil, "and", ""
@@ -685,15 +685,15 @@ func (h *Handler) lookupInLibrary(ctx context.Context, items []tmdb.SearchResult
 	return h.store.InLibraryByTMDB(ctx, refs)
 }
 
-func (h *Handler) fetchGenreLists(ctx context.Context) ([]tmdb.Genre, []tmdb.Genre, error) {
+func (h *Handler) fetchGenreLists(ctx context.Context) (movies, tv []tmdb.Genre, err error) {
 	const cacheTTL = 24 * time.Hour
 
 	h.genres.mu.RLock()
 	if h.genres.movieList != nil && h.genres.tvList != nil && time.Since(h.genres.fetchedAt) < cacheTTL {
-		movie := append([]tmdb.Genre(nil), h.genres.movieList...)
-		tv := append([]tmdb.Genre(nil), h.genres.tvList...)
+		movies = append([]tmdb.Genre(nil), h.genres.movieList...)
+		tv = append([]tmdb.Genre(nil), h.genres.tvList...)
 		h.genres.mu.RUnlock()
-		return movie, tv, nil
+		return movies, tv, nil
 	}
 	h.genres.mu.RUnlock()
 
@@ -732,31 +732,28 @@ func (h *Handler) fetchGenreLists(ctx context.Context) ([]tmdb.Genre, []tmdb.Gen
 	return movieGenres, tvGenres, nil
 }
 
-func (h *Handler) genreMaps(ctx context.Context) (map[int]string, map[int]string) {
+func (h *Handler) genreMaps(ctx context.Context) (movies, tv map[int]string) {
 	const cacheTTL = 24 * time.Hour
 
 	h.genres.mu.RLock()
 	if h.genres.movie != nil && h.genres.tv != nil && time.Since(h.genres.fetchedAt) < cacheTTL {
-		movie := h.genres.movie
-		tv := h.genres.tv
+		movies, tv = h.genres.movie, h.genres.tv
 		h.genres.mu.RUnlock()
-		return movie, tv
+		return movies, tv
 	}
 	h.genres.mu.RUnlock()
 
-	_, _, err := h.fetchGenreLists(ctx)
-	if err != nil {
+	if _, _, err := h.fetchGenreLists(ctx); err != nil {
 		return nil, nil
 	}
 
 	h.genres.mu.RLock()
-	movie := h.genres.movie
-	tv := h.genres.tv
+	movies, tv = h.genres.movie, h.genres.tv
 	h.genres.mu.RUnlock()
-	return movie, tv
+	return movies, tv
 }
 
-func genreNamesFor(item tmdb.SearchResult, movieGenres, tvGenres map[int]string) []string {
+func genreNamesFor(item *tmdb.SearchResult, movieGenres, tvGenres map[int]string) []string {
 	var lookup map[int]string
 	if item.MediaType == "tv" {
 		lookup = tvGenres
@@ -781,7 +778,7 @@ func toPBGenres(items []tmdb.Genre) []*pb.Genre {
 	out := make([]*pb.Genre, 0, len(items))
 	for _, item := range items {
 		out = append(out, &pb.Genre{
-			Id:   int32(item.ID),
+			Id:   clampInt32(item.ID),
 			Name: item.Name,
 		})
 	}

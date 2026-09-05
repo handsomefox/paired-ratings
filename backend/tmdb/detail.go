@@ -65,7 +65,7 @@ func (c *Client) FetchDetails(ctx context.Context, id int64, mediaType string) (
 		}
 	} else if len(payload.ProductionCountries) > 0 {
 		for _, country := range payload.ProductionCountries {
-			code := strings.TrimSpace(country.ISO3166_1)
+			code := strings.TrimSpace(country.ISO3166)
 			if code == "" {
 				continue
 			}

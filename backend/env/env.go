@@ -1,3 +1,4 @@
+// Package env reads the application mode once during initialization.
 package env
 
 import "os"

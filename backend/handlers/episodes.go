@@ -62,7 +62,7 @@ func (h *Handler) getShowEpisodes(w http.ResponseWriter, r *http.Request) error 
 
 	writeJSON(w, http.StatusOK, &pb.EpisodesResponse{
 		Episodes:     toPBEpisodes(episodes),
-		TotalSeasons: int32(totalSeasons),
+		TotalSeasons: clampInt32(totalSeasons),
 	})
 	return nil
 }
@@ -109,7 +109,7 @@ func (h *Handler) postShowEpisodesSync(w http.ResponseWriter, r *http.Request) e
 
 	writeJSON(w, http.StatusOK, &pb.EpisodesResponse{
 		Episodes:     toPBEpisodes(episodes),
-		TotalSeasons: int32(totalSeasons),
+		TotalSeasons: clampInt32(totalSeasons),
 	})
 	return nil
 }
@@ -209,8 +209,8 @@ func toPBEpisodes(episodes []store.Episode) []*pb.Episode {
 	for _, ep := range episodes {
 		pbEp := &pb.Episode{
 			Id:            ep.ID,
-			SeasonNumber:  int32(ep.SeasonNumber),
-			EpisodeNumber: int32(ep.EpisodeNumber),
+			SeasonNumber:  clampInt32(ep.SeasonNumber),
+			EpisodeNumber: clampInt32(ep.EpisodeNumber),
 			Watched:       ep.Watched,
 		}
 		if ep.Title != "" {
@@ -220,7 +220,7 @@ func toPBEpisodes(episodes []store.Episode) []*pb.Episode {
 			pbEp.AirDate = &ep.AirDate
 		}
 		if ep.Runtime > 0 {
-			runtime := int32(ep.Runtime)
+			runtime := clampInt32(ep.Runtime)
 			pbEp.Runtime = &runtime
 		}
 		out = append(out, pbEp)

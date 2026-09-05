@@ -26,6 +26,7 @@ func (h *Handler) isAuthenticated(r *http.Request) bool {
 
 func setAuthCookie(w http.ResponseWriter, r *http.Request, value string) {
 	expiration := time.Now().Add(time.Hour * 24 * authCookieDays)
+	//nolint:gosec // G124: secure() and sameSite() set the flags; gosec only reads literals.
 	http.SetCookie(w, &http.Cookie{
 		Name:     authCookieName,
 		Value:    value,
@@ -39,6 +40,7 @@ func setAuthCookie(w http.ResponseWriter, r *http.Request, value string) {
 }
 
 func clearAuthCookie(w http.ResponseWriter, r *http.Request) {
+	//nolint:gosec // G124: secure() and sameSite() set the flags; gosec only reads literals.
 	http.SetCookie(w, &http.Cookie{
 		Name:     authCookieName,
 		Value:    "",

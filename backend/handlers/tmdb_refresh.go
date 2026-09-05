@@ -26,6 +26,6 @@ func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) err
 		}
 	}
 
-	writeJSON(w, http.StatusOK, &pb.RefreshResponse{Updated: int32(len(items))})
+	writeJSON(w, http.StatusOK, &pb.RefreshResponse{Updated: clampInt32(len(items))})
 	return nil
 }

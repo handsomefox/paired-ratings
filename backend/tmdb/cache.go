@@ -142,7 +142,7 @@ func (c *CachedClient) SearchPage(ctx context.Context, query, mediaType string, 
 	return v, nil
 }
 
-func (c *CachedClient) DiscoverPage(ctx context.Context, mediaType string, filters DiscoverFilters, page int) (SearchPage, error) {
+func (c *CachedClient) DiscoverPage(ctx context.Context, mediaType string, filters *DiscoverFilters, page int) (SearchPage, error) {
 	key := fmt.Sprintf("%s:%v:%d", mediaType, filters, page)
 	if v, ok := c.discover.get(key); ok {
 		return v, nil

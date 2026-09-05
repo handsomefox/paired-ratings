@@ -99,7 +99,7 @@ type detailResponse struct {
 	Overview            string   `json:"overview"`
 	OriginCountry       []string `json:"origin_country"`
 	ProductionCountries []struct {
-		ISO3166_1 string `json:"iso_3166_1"`
+		ISO3166 string `json:"iso_3166_1"`
 	} `json:"production_countries"`
 	ExternalIDs struct {
 		IMDbID string `json:"imdb_id"`
@@ -154,12 +154,12 @@ type genreResponse struct {
 }
 
 type countryResponse []struct {
-	ISO3166_1   string `json:"iso_3166_1"`
+	ISO3166     string `json:"iso_3166_1"`
 	EnglishName string `json:"english_name"`
 }
 
 type languageResponse []struct {
-	ISO639_1    string `json:"iso_639_1"`
+	ISO639      string `json:"iso_639_1"`
 	EnglishName string `json:"english_name"`
 	Name        string `json:"name"`
 }

@@ -104,7 +104,7 @@ type EpisodeCounts struct {
 // GetEpisodeCounts returns watched and total episode counts for the given show IDs.
 func (s *Store) GetEpisodeCounts(ctx context.Context, showIDs []int64) (map[int64]EpisodeCounts, error) {
 	if len(showIDs) == 0 {
-		return nil, nil
+		return map[int64]EpisodeCounts{}, nil
 	}
 	var rows []EpisodeCounts
 	err := s.db.NewSelect().

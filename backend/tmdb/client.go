@@ -5,10 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/handsomefox/paired-ratings/backend/logger"
 )
 
 const (
@@ -60,7 +63,7 @@ func (c *Client) doJSON(ctx context.Context, method, endpoint string, dst any) e
 	}
 	defer func() {
 		if cerr := resp.Body.Close(); cerr != nil {
-			// best-effort close; request already completed
+			slog.Warn("tmdb: close response failed", logger.Error(cerr))
 		}
 	}()
 

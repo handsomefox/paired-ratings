@@ -65,7 +65,7 @@ func (h *Handler) getShows(w http.ResponseWriter, r *http.Request) error {
 		Shows:      pbShows,
 		Genres:     genres,
 		Countries:  countries,
-		TotalCount: int32(totalCount),
+		TotalCount: clampInt32(totalCount),
 	})
 	return nil
 }
@@ -444,22 +444,21 @@ func (h *Handler) getShowRelated(w http.ResponseWriter, r *http.Request) error {
 
 	var related []tmdb.SearchResult
 	var collectionName string
+	source := "similar"
 
 	if show.MediaType == "movie" && show.CollectionID.Valid && show.CollectionID.V != 0 {
 		collectionName = show.CollectionName.V
-		items, err := h.tmdb.FetchCollection(ctx, show.CollectionID.V)
-		if err != nil {
-			slog.Warn("related: fetch collection failed", logger.Error(err))
-		} else {
-			related = items
-		}
+		source = "collection"
+		related, err = h.tmdb.FetchCollection(ctx, show.CollectionID.V)
 	} else {
-		items, err := h.tmdb.FetchSimilar(ctx, show.TMDBID, show.MediaType)
-		if err != nil {
-			slog.Warn("related: fetch similar failed", logger.Error(err))
-		} else {
-			related = items
-		}
+		related, err = h.tmdb.FetchSimilar(ctx, show.TMDBID, show.MediaType)
+	}
+	// A missing related list is not worth failing the request over.
+	if err != nil {
+		slog.Warn("related: fetch failed",
+			slog.String("source", source),
+			logger.Error(err))
+		related = nil
 	}
 
 	inLibrary, err := h.lookupInLibrary(ctx, related)
@@ -483,9 +482,9 @@ func (h *Handler) getShowRelated(w http.ResponseWriter, r *http.Request) error {
 			PosterPath:       item.PosterPath,
 			Overview:         item.Overview,
 			VoteAverage:      item.VoteAverage,
-			VoteCount:        int32(item.VoteCount),
+			VoteCount:        clampInt32(item.VoteCount),
 			InLibrary:        inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
-			Genres:           genreNamesFor(*item, movieGenres, tvGenres),
+			Genres:           genreNamesFor(item, movieGenres, tvGenres),
 			OriginalLanguage: item.OriginalLanguage,
 		})
 	}
