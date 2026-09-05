@@ -33,6 +33,7 @@ go.work.sum
 
 # Agents
 plan.md
+.claude/
 
 # env
 .env
