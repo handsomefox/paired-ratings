@@ -14,7 +14,7 @@ search, posters, and metadata. The library lives in a SQLite file.
 
 ## Run it locally
 
-You need Go 1.26.1 or newer, Node.js 24, npm 11, Make, and a TMDB API key.
+You need Go 1.27.1 or newer, Node.js 24, npm 11, Make, and a TMDB API key.
 
 Write `.env` in the repository root:
 
