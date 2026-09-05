@@ -1,5 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import babel from "@rolldown/plugin-babel";
 import path from "path";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -7,11 +8,8 @@ import { VitePWA } from "vite-plugin-pwa";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    react({
-      babel: {
-        plugins: [["babel-plugin-react-compiler"]],
-      },
-    }),
+    react(),
+    babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
@@ -78,23 +76,21 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "../backend/web/dist"),
     emptyOutDir: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-          if (id.includes("react") || id.includes("react-dom")) return "react";
-          if (id.includes("@tanstack")) return "tanstack";
-          if (id.includes("@radix-ui")) return "radix";
-          if (id.includes("lucide-react")) return "icons";
-          if (id.includes("sonner")) return "sonner";
-          if (
-            id.includes("class-variance-authority") ||
-            id.includes("clsx") ||
-            id.includes("tailwind-merge")
-          ) {
-            return "ui-utils";
-          }
-          return "vendor";
+        // Each pattern ends at a package boundary, so react-day-picker and
+        // react-dom no longer land in the react chunk. The first match wins,
+        // which is why vendor comes last.
+        advancedChunks: {
+          groups: [
+            {
+              name: "react",
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+            },
+            { name: "tanstack", test: /[\\/]node_modules[\\/]@tanstack[\\/]/ },
+            { name: "radix", test: /[\\/]node_modules[\\/]@radix-ui[\\/]/ },
+            { name: "vendor", test: /[\\/]node_modules[\\/]/ },
+          ],
         },
       },
     },

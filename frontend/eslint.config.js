@@ -20,4 +20,11 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // shadcn/ui primitives re-export Radix sub-components next to the wrapper
+    // component. That is the generated shape, so fast refresh gives up on these
+    // files by design.
+    files: ["src/components/ui/**/*.tsx"],
+    rules: { "react-refresh/only-export-components": "off" },
+  },
 ]);
