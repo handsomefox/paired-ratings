@@ -1,17 +1,17 @@
 #:schema https://json.schemastore.org/any.json
 
+# `make watch-backend` runs this from the repository root.
 root = ".."
-testdata_dir = "testdata"
+tmp_dir = "tmp"
 
 [build]
 cmd = "go run ./backend"
 delay = 1000
 include_dir = ["backend"]
-include_ext = ["go", "html", "css", "env", "tpl", "tmpl"]
-exclude_dir = [
-    "backend/web/dist",
-]
-exclude_regex = ["_test.go", ".pb.go"]
+# .sql covers the embedded migrations and the sqlc queries.
+include_ext = ["go", "sql"]
+exclude_dir = ["backend/web/dist"]
+exclude_regex = ["_test\\.go$"]
 log = "build-errors.log"
 rerun_delay = 500
 
