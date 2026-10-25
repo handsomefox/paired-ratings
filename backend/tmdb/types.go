@@ -14,6 +14,7 @@ type SearchResult struct {
 	ID               int64    `json:"id"`
 	VoteAverage      float64  `json:"vote_average"`
 	VoteCount        int      `json:"vote_count"`
+	Popularity       float64  `json:"popularity"`
 	GenreIDs         []int    `json:"genre_ids"`
 	OriginCountry    []string `json:"origin_country"`
 	OriginalLanguage string   `json:"original_language"`
@@ -81,6 +82,7 @@ type searchResponse struct {
 		ID               int64    `json:"id"`
 		VoteAverage      float64  `json:"vote_average"`
 		VoteCount        int      `json:"vote_count"`
+		Popularity       float64  `json:"popularity"`
 		GenreIDs         []int    `json:"genre_ids"`
 		OriginCountry    []string `json:"origin_country"`
 		OriginalLanguage string   `json:"original_language"`
@@ -128,6 +130,7 @@ type collectionResponse struct {
 		Overview    string  `json:"overview"`
 		VoteAverage float64 `json:"vote_average"`
 		VoteCount   int     `json:"vote_count"`
+		Popularity  float64 `json:"popularity"`
 	} `json:"parts"`
 }
 
@@ -143,6 +146,7 @@ type recommendationsResponse struct {
 		Overview         string   `json:"overview"`
 		VoteAverage      float64  `json:"vote_average"`
 		VoteCount        int      `json:"vote_count"`
+		Popularity       float64  `json:"popularity"`
 		GenreIDs         []int    `json:"genre_ids"`
 		OriginalLanguage string   `json:"original_language"`
 		OriginCountry    []string `json:"origin_country"`

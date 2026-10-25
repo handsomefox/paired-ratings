@@ -36,12 +36,22 @@ describe("DetailRatingPanel", () => {
     expect(screen.getByRole("button", { name: "1 star" })).toBeInTheDocument();
   });
 
+  it("marks the current rating as pressed", () => {
+    renderPanel({ rating: 6 });
+    expect(screen.getByRole("group", { name: "Alex's rating" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "6 stars" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "7 stars" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
   it("switches to the editor when the reader clicks the pencil", async () => {
     const user = userEvent.setup();
     const { props } = renderPanel({ comment: "Watched it twice." });
 
     expect(screen.getByText("Watched it twice.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "✎" }));
+    await user.click(screen.getByRole("button", { name: "Edit Alex's comment" }));
 
     expect(props.onEditingChange).toHaveBeenCalledWith(true);
   });
@@ -50,7 +60,7 @@ describe("DetailRatingPanel", () => {
     const user = userEvent.setup();
     const { props } = renderPanel({ editing: true });
 
-    await user.type(screen.getByPlaceholderText("Leave a comment by Alex"), "ok");
+    await user.type(screen.getByRole("textbox", { name: "Alex's comment" }), "ok");
 
     expect(props.onCommentChange).toHaveBeenCalledTimes(2);
     expect(props.onCommentChange).toHaveBeenLastCalledWith("k");

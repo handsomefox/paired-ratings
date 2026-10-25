@@ -1,0 +1,20 @@
+# `make sqlc` generates backend/gen/db from the migrations and the queries.
+# Never edit the generated package; change the SQL and regenerate.
+version: "2"
+sql:
+  - engine: sqlite
+    schema: backend/store/migrations
+    queries: backend/store/queries
+    gen:
+      go:
+        package: db
+        out: backend/gen/db
+        emit_pointers_for_null_types: true
+        emit_empty_slices: true
+        rename:
+          tmdb_id: TMDBID
+          tmdb_ids: TMDBIDs
+          imdb_id: IMDbID
+          tmdb_rating: TMDBRating
+          tmdb_votes: TMDBVotes
+          tmdb_refreshed_at: TMDBRefreshedAt

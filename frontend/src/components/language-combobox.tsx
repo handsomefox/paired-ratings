@@ -1,31 +1,22 @@
-"use client";
-
-import { GenericCombobox, type ComboboxOption } from "@/components/generic-combobox";
+import {
+  GenericCombobox,
+  OptionLabel,
+  type ComboboxFieldProps,
+} from "@/components/generic-combobox";
+import type { ApiLanguage } from "@/lib/api";
 import { flagEmojiFromLanguageCode } from "@/lib/utils";
-import { OptionLabel } from "./combobox-util";
 
-export type LanguageOption = ComboboxOption;
-
-const ANY_LANGUAGE = "__any_language__";
-
-export type LanguageComboboxProps = {
-  value: string;
-  onValueChange: (value: string) => void;
-  options: LanguageOption[];
-  placeholder?: string;
-  anyLabel?: string;
-  className?: string;
-  disabled?: boolean;
-};
-
-export function LanguageCombobox(props: LanguageComboboxProps) {
+export function LanguageCombobox({
+  options,
+  ...props
+}: ComboboxFieldProps & { options: ApiLanguage[] }) {
   return (
     <GenericCombobox
       {...props}
-      anyValue={ANY_LANGUAGE}
+      options={options}
       searchPlaceholder="Search languages..."
-      normalizeOnSelect={(code: string) => code.toLowerCase()}
-      renderLabel={(l: ComboboxOption) => (
+      normalizeOnSelect={(code) => code.toLowerCase()}
+      renderLabel={(l) => (
         <OptionLabel
           emoji={flagEmojiFromLanguageCode(l.code)}
           primary={l.name || l.code}

@@ -1,133 +1,61 @@
 import FiltersPane from "@/components/filters-pane";
-import { Button } from "@/components/ui/button";
 import { FiltersPaneContent } from "@/components/filters-pane-content";
+import { Paginator } from "@/components/paginator";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { Button } from "@/components/ui/button";
 import { LibraryFilters } from "@/features/library/library-filters";
 import { LibraryResults } from "@/features/library/library-results";
-import { baseStatusOptions } from "@/features/library/library-utils";
 import { api } from "@/lib/api";
+import { listState, queryKeys, useCountries, useSession } from "@/lib/queries";
+import { statusFilterOptions } from "@/lib/status";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { scrollToTop, usableYear } from "@/lib/utils";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 
-function Pagination({
-  page,
-  totalPages,
-  onPageChange,
-}: {
-  page: number;
-  totalPages: number;
-  onPageChange: (p: number) => void;
-}) {
-  const pages: (number | "…")[] = [];
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i);
-  } else if (page <= 4) {
-    pages.push(1, 2, 3, 4, 5, "…", totalPages);
-  } else if (page >= totalPages - 3) {
-    pages.push(1, "…", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
-  } else {
-    pages.push(1, "…", page - 1, page, page + 1, "…", totalPages);
-  }
-
-  const btn = (label: string | number, target: number, active = false, disabled = false) => (
-    <button
-      key={`${label}-${target}`}
-      onClick={() => !disabled && onPageChange(target)}
-      disabled={disabled}
-      className={`min-w-[2rem] rounded-md px-2 py-1 text-xs transition-colors ${
-        active
-          ? "bg-primary text-primary-foreground"
-          : disabled
-            ? "cursor-default text-muted-foreground/40"
-            : "cursor-pointer text-muted-foreground hover:bg-muted hover:text-foreground"
-      }`}
-    >
-      {label}
-    </button>
-  );
-
-  return (
-    <div className="flex items-center justify-center gap-1 pt-2">
-      {btn("←", page - 1, false, page === 1)}
-      {pages.map((p, i) =>
-        p === "…" ? (
-          <span key={`ellipsis-${i}`} className="px-1 text-xs text-muted-foreground/40">
-            …
-          </span>
-        ) : (
-          btn(p, p, p === page)
-        ),
-      )}
-      {btn("→", page + 1, false, page === totalPages)}
-    </div>
-  );
-}
-
-// A half-typed year like "20" is not a filter anyone means. Hold it back until
-// it is a plausible four-digit year, so the list does not empty out mid-keystroke.
-function usableYear(raw: string): string {
-  const year = Number.parseInt(raw, 10);
-  if (!/^\d{4}$/.test(raw.trim()) || Number.isNaN(year)) return "";
-  if (year < 1900 || year > 2100) return "";
-  return String(year);
-}
-
-function parsePageSize(val: string | null): PageSize {
+function parsePageSize(val: string | undefined): PageSize {
   if (val === "50") return 50;
   if (val === "100") return 100;
   return 20;
 }
 
+function parsePage(val: string | undefined): number {
+  const page = Number.parseInt(val ?? "1", 10);
+  return Number.isFinite(page) && page >= 1 ? page : 1;
+}
+
 export function LibraryPage() {
-  const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
-  const [status, setStatus] = useState(() => initialParams.get("status") ?? "all");
-  const [genre, setGenre] = useState(() => initialParams.get("genre") ?? "");
+  const search = useSearch({ from: "/" });
+  const navigate = useNavigate({ from: "/" });
+  const [status, setStatus] = useState(() => search.status ?? "all");
+  const [genre, setGenre] = useState(() => search.genre ?? "");
   const [originCountry, setOriginCountry] = useState(() =>
-    (initialParams.get("origin_country") ?? "").toUpperCase(),
+    (search.origin_country ?? "").toUpperCase(),
   );
-  const [yearFrom, setYearFrom] = useState(() => initialParams.get("year_from") ?? "");
-  const [yearTo, setYearTo] = useState(() => initialParams.get("year_to") ?? "");
-  const [unrated, setUnrated] = useState(() => initialParams.get("unrated") === "1");
-  const [sort, setSort] = useState(() => initialParams.get("sort") ?? "created");
-  const [page, setPage] = useState(() => {
-    const v = parseInt(initialParams.get("page") ?? "1", 10);
-    return Number.isFinite(v) && v >= 1 ? v : 1;
-  });
-  const [pageSize, setPageSize] = useState<PageSize>(() =>
-    parsePageSize(initialParams.get("page_size")),
-  );
+  const [yearFrom, setYearFrom] = useState(() => search.year_from ?? "");
+  const [yearTo, setYearTo] = useState(() => search.year_to ?? "");
+  const [unrated, setUnrated] = useState(() => search.unrated === "1");
+  const [sort, setSort] = useState(() => search.sort ?? "created");
+  const [page, setPage] = useState(() => parsePage(search.page));
+  const [pageSize, setPageSize] = useState<PageSize>(() => parsePageSize(search.page_size));
   const [filtersOpen, setFiltersOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const sessionQuery = useQuery({
-    queryKey: ["session"],
-    queryFn: api.session,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
-  });
+  const { imageBase, bfName, gfName } = useSession();
+  const countryNames = useCountries().data?.countries ?? [];
 
-  const countriesQuery = useQuery({
-    queryKey: ["search-countries"],
-    queryFn: api.searchCountries,
-    staleTime: 1000 * 60 * 60 * 24,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
-  });
-
-  const debouncedFilters = useDebouncedValue(
-    { status, genre, originCountry, yearFrom, yearTo, unrated, sort },
-    250,
+  // useDebouncedValue compares by identity, so the object must stay the same
+  // until one of the filters changes.
+  const filters = useMemo(
+    () => ({ status, genre, originCountry, yearFrom, yearTo, unrated, sort }),
+    [status, genre, originCountry, yearFrom, yearTo, unrated, sort],
   );
+  const debouncedFilters = useDebouncedValue(filters, 250);
 
   const appliedYearFrom = usableYear(debouncedFilters.yearFrom);
   const appliedYearTo = usableYear(debouncedFilters.yearTo);
@@ -173,24 +101,20 @@ export function LibraryPage() {
     page,
     pageSize,
   ]);
+  const paramsString = params.toString();
 
   const showsQuery = useQuery({
-    queryKey: ["shows", params.toString()],
-    queryFn: () => api.listShows(params),
+    queryKey: queryKeys.showList(paramsString),
+    queryFn: ({ signal }) => api.listShows(params, { signal }),
     placeholderData: keepPreviousData,
   });
 
-  const fromLocation = useMemo(() => {
-    const query = params.toString();
-    return query ? `/?${query}` : "/";
-  }, [params]);
+  const fromLocation = paramsString ? `/?${paramsString}` : "/";
 
   const refreshMutation = useMutation({
     mutationFn: api.refreshTMDB,
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["shows"] });
-      const updated = result?.updated ?? 0;
-      const failed = result?.failed ?? 0;
+    onSuccess: ({ updated, failed }) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shows });
       if (updated === 0 && failed === 0) {
         toast.success("Everything is up to date.");
         return;
@@ -207,36 +131,28 @@ export function LibraryPage() {
     },
   });
 
+  // Mirror the applied filters into the URL, so a reload or the back button
+  // from a detail page restores them.
   useEffect(() => {
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setFiltersOpen(false);
-      }
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, []);
-
-  useEffect(() => {
-    const next = params;
-    const query = next.toString();
-    const url = query ? `/?${query}` : "/";
-    window.history.replaceState(null, "", url);
-  }, [params]);
+    void navigate({
+      search: Object.fromEntries(new URLSearchParams(paramsString)),
+      replace: true,
+      resetScroll: false,
+      viewTransition: false,
+    });
+  }, [paramsString, navigate]);
 
   const shows = showsQuery.data?.shows ?? [];
   const genres = showsQuery.data?.genres ?? [];
   const countries = showsQuery.data?.countries ?? [];
   const totalCount = showsQuery.data?.total_count ?? 0;
-  const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 1;
-  const countryNames = countriesQuery.data?.countries ?? [];
+  const totalPages = Math.ceil(totalCount / pageSize);
+  // Deleting the last show on the last page leaves the page number past the end.
+  if (showsQuery.isSuccess && totalPages > 0 && page > totalPages) {
+    setPage(totalPages);
+  }
   const countryLabel = (code: string) =>
     countryNames.find((country) => country.code === code)?.name ?? code;
-  const imageBase = sessionQuery.data?.image_base ?? "";
-  const bfName = sessionQuery.data?.bf_name ?? "BF";
-  const gfName = sessionQuery.data?.gf_name ?? "GF";
 
   const sortOptions = [
     { value: "created", label: "Date added" },
@@ -250,8 +166,8 @@ export function LibraryPage() {
 
   const countryOptions = countries.map((code) => ({ code, name: countryLabel(code) }));
 
-  // Sort and page size are view preferences, not filters, so they do not count
-  // towards Reset being available.
+  // Sort and page size are view preferences, not filters, so they neither count
+  // towards Reset being available nor get reset by it.
   const activeFilterCount =
     (status !== "all" ? 1 : 0) +
     (genre ? 1 : 0) +
@@ -267,7 +183,6 @@ export function LibraryPage() {
     setYearFrom("");
     setYearTo("");
     setUnrated(false);
-    setSort("created");
     setPage(1);
   };
 
@@ -287,7 +202,7 @@ export function LibraryPage() {
       onSortChange={setSort}
       unrated={unrated}
       onUnratedChange={setUnrated}
-      statusOptions={baseStatusOptions}
+      statusOptions={statusFilterOptions}
       sortOptions={sortOptions}
       genres={genres}
       countries={countryOptions}
@@ -309,13 +224,7 @@ export function LibraryPage() {
     </Button>
   );
 
-  const isInitialLoading = showsQuery.isLoading || (showsQuery.isFetching && shows.length === 0);
-  const isEmpty = !showsQuery.isLoading && !showsQuery.isFetching && shows.length === 0;
-
-  const renderCount = () => {
-    if (isInitialLoading) return "";
-    return `Shows (${totalCount})`;
-  };
+  const { isInitialLoading, isEmpty, isError } = listState(showsQuery, shows.length);
 
   const handlePageSizeChange = (size: PageSize) => {
     setPageSize(size);
@@ -323,7 +232,7 @@ export function LibraryPage() {
   };
 
   return (
-    <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: ["shows"] })}>
+    <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: queryKeys.shows })}>
       <FiltersPane
         filtersOpen={filtersOpen}
         onOpenChange={setFiltersOpen}
@@ -333,12 +242,16 @@ export function LibraryPage() {
       >
         <FiltersPaneContent>
           <div className="flex items-center justify-between gap-2">
-            <div className="text-xs text-muted-foreground sm:text-sm">{renderCount()}</div>
+            <div className="text-xs text-muted-foreground sm:text-sm">
+              {isInitialLoading ? "" : `Shows (${totalCount})`}
+            </div>
             {!isInitialLoading && totalCount > 0 && (
-              <div className="flex items-center gap-1">
+              <div role="group" aria-label="Shows per page" className="flex items-center gap-1">
                 {PAGE_SIZE_OPTIONS.map((size) => (
                   <button
                     key={size}
+                    type="button"
+                    aria-pressed={pageSize === size}
                     onClick={() => handlePageSizeChange(size)}
                     className={`cursor-pointer rounded-md px-2 py-0.5 text-xs transition-colors ${
                       pageSize === size
@@ -358,22 +271,20 @@ export function LibraryPage() {
             imageBase={imageBase}
             isInitialLoading={isInitialLoading}
             isEmpty={isEmpty}
+            isError={isError}
+            hasFilters={activeFilterCount > 0}
             fromLocation={fromLocation}
           />
 
-          {totalPages > 1 && (
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              onPageChange={(p) => {
-                setPage(p);
-                const prefersReducedMotion = window.matchMedia?.(
-                  "(prefers-reduced-motion: reduce)",
-                ).matches;
-                window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "auto" : "smooth" });
-              }}
-            />
-          )}
+          <Paginator
+            className="pt-2"
+            totalPages={totalPages}
+            activePage={page}
+            onGoToPage={(p) => {
+              setPage(p);
+              scrollToTop();
+            }}
+          />
         </FiltersPaneContent>
       </FiltersPane>
     </PullToRefresh>

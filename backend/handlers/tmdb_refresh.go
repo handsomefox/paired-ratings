@@ -19,46 +19,45 @@ const (
 	defaultRefreshInterval = 24 * time.Hour
 
 	// refreshConcurrency bounds the parallel TMDB requests. The fetches run in
-	// parallel and the writes run on this goroutine, because SQLite takes one
-	// writer at a time.
+	// parallel and the writes run on the request goroutine, because SQLite
+	// takes one writer at a time.
 	refreshConcurrency = 4
 )
 
 type refreshResult struct {
-	item   store.TMDBRefresh
 	detail *tmdb.Detail
 	err    error
+	show   store.StaleShow
 }
 
+// postRefreshTMDBAll refreshes every stale show, and the episodes of each TV
+// show whose episodes are tracked.
 func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
+	// Cancelling on return stops the fetch workers whichever way this ends.
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
 
 	cutoff := time.Now().UTC().Add(-h.refreshInterval).Format(time.RFC3339)
-	items, err := h.store.ListTMDBStale(ctx, cutoff)
+	stale, err := h.store.ListStaleShows(ctx, cutoff)
 	if err != nil {
-		return internal(err)
+		return err
 	}
 
 	var updated, failed int
-	for result := range h.fetchDetails(ctx, items) {
-		if result.err != nil {
+	for result := range h.fetchDetails(ctx, stale) {
+		err := result.err
+		if err == nil {
+			err = h.saveRefresh(ctx, &result)
+		}
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			// One bad title must not abandon the rest of the library.
 			failed++
-			slog.Warn("refresh: fetch failed",
-				slog.Int64("tmdb_id", result.item.TMDBID),
-				slog.String("media_type", result.item.MediaType),
-				logger.Error(result.err))
-			continue
-		}
-
-		show := showFromDetail(result.detail, result.item.Status)
-		if _, err := h.store.UpsertShow(ctx, &show); err != nil {
-			if ctx.Err() != nil {
-				return internal(err)
-			}
-			failed++
-			slog.Warn("refresh: upsert failed",
-				slog.Int64("tmdb_id", result.item.TMDBID),
+			slog.Warn("refresh: show failed",
+				slog.Int64("tmdb_id", result.show.Ref.ID),
+				slog.String("media_type", string(result.show.Ref.MediaType)),
 				logger.Error(err))
 			continue
 		}
@@ -68,7 +67,7 @@ func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) err
 	slog.Info("refresh: finished",
 		slog.Int("updated", updated),
 		slog.Int("failed", failed),
-		slog.Int("stale", len(items)))
+		slog.Int("stale", len(stale)))
 
 	writeJSON(w, http.StatusOK, &pb.RefreshResponse{
 		Updated: clampInt32(updated),
@@ -77,9 +76,20 @@ func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) err
 	return nil
 }
 
+func (h *Handler) saveRefresh(ctx context.Context, result *refreshResult) error {
+	if err := h.store.RefreshShow(ctx, metadataFromDetail(result.detail)); err != nil {
+		return err
+	}
+	if result.show.HasEpisodes && result.detail.NumberOfSeasons > 0 {
+		return h.syncAllSeasons(ctx, result.show.ShowID, result.show.Ref.ID, result.detail.NumberOfSeasons, true)
+	}
+	return nil
+}
+
 // fetchDetails runs the TMDB requests with bounded parallelism and yields each
-// result as it lands. Writes stay on the caller's goroutine.
-func (h *Handler) fetchDetails(ctx context.Context, items []store.TMDBRefresh) <-chan refreshResult {
+// result as it lands. Once ctx ends, the workers stop, so a caller that stops
+// reading early leaves no goroutine behind.
+func (h *Handler) fetchDetails(ctx context.Context, shows []store.StaleShow) <-chan refreshResult {
 	out := make(chan refreshResult)
 
 	go func() {
@@ -87,20 +97,23 @@ func (h *Handler) fetchDetails(ctx context.Context, items []store.TMDBRefresh) <
 
 		var wg sync.WaitGroup
 		slots := make(chan struct{}, refreshConcurrency)
+		defer wg.Wait()
 
-		for _, item := range items {
-			if ctx.Err() != nil {
-				break
+		for _, show := range shows {
+			select {
+			case slots <- struct{}{}:
+			case <-ctx.Done():
+				return
 			}
-			slots <- struct{}{}
 			wg.Go(func() {
 				defer func() { <-slots }()
-				detail, err := h.tmdb.RefreshDetails(ctx, item.TMDBID, item.MediaType)
-				out <- refreshResult{item: item, detail: detail, err: err}
+				detail, err := h.tmdb.RefreshDetails(ctx, show.Ref.ID, string(show.Ref.MediaType))
+				select {
+				case out <- refreshResult{show: show, detail: detail, err: err}:
+				case <-ctx.Done():
+				}
 			})
 		}
-
-		wg.Wait()
 	}()
 
 	return out

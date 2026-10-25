@@ -1,6 +1,5 @@
 import { LoadingGrid } from "@/components/loading-grid";
 import { PullToRefresh } from "@/components/pull-to-refresh";
-import { ViewTransitionLink } from "@/components/view-transition-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/empty";
 import type { ApiShow } from "@/lib/api";
 import { api } from "@/lib/api";
+import { listState, queryKeys, useSession } from "@/lib/queries";
 import { shortGenres } from "@/lib/utils";
 import {
   DndContext,
@@ -38,9 +38,15 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Film, GripVertical } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { CircleAlert, Film, GripVertical } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
+
+// The whole watch order on one page. The default page size of 20 would hide
+// the rest of the list and leave it out of a reorder.
+const WATCH_ORDER_PARAMS = new URLSearchParams({ sort: "priority", page_size: "all" });
 
 function SortableRow({
   show,
@@ -63,6 +69,8 @@ function SortableRow({
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  // Escape hides the input, which blurs it. The blur must not commit the move.
+  const cancelledRef = useRef(false);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -71,19 +79,29 @@ function SortableRow({
   };
 
   const posterUrl = show.poster_path ? `${imageBase}${show.poster_path}` : "";
-  const genres = show.genres ? shortGenres(show.genres) : "";
+  const genres = shortGenres(show.genres);
 
   const startEditing = () => {
-    setInputValue(String(index + 1));
-    setEditing(true);
+    cancelledRef.current = false;
     // Focus must be called synchronously from the user gesture so mobile
-    // browsers open the keyboard. The input is always in the DOM (just
-    // visually hidden) so this works without a setTimeout.
+    // browsers open the keyboard. The input is always in the DOM, but it is
+    // `invisible` until `editing` is committed, and a hidden element cannot
+    // take focus. flushSync commits the render before focus() runs.
+    flushSync(() => {
+      setInputValue(String(index + 1));
+      setEditing(true);
+    });
     inputRef.current?.focus();
     inputRef.current?.select();
   };
 
+  const cancelEdit = () => {
+    cancelledRef.current = true;
+    setEditing(false);
+  };
+
   const commitEdit = () => {
+    if (!editing || cancelledRef.current) return;
     setEditing(false);
     const parsed = parseInt(inputValue, 10);
     if (!isNaN(parsed)) {
@@ -99,11 +117,12 @@ function SortableRow({
       className="flex items-center gap-3 border-b border-border/60 bg-card/70 px-4 py-3 last:border-0"
     >
       <button
+        type="button"
         {...attributes}
         {...listeners}
         onContextMenu={(e) => e.preventDefault()}
         className="cursor-grab touch-none text-muted-foreground/60 hover:text-muted-foreground active:cursor-grabbing"
-        aria-label="Drag to reorder"
+        aria-label={`Drag ${show.title} to reorder`}
       >
         <GripVertical className="h-5 w-5" />
       </button>
@@ -112,14 +131,17 @@ function SortableRow({
           from the click handler, which is required for mobile keyboards. */}
       <div className="relative w-6 shrink-0">
         <button
+          type="button"
           onClick={startEditing}
-          aria-label="Click to enter position"
+          aria-label={`Position ${index + 1}. Change position of ${show.title}`}
           className={`w-full cursor-pointer text-center text-xs font-semibold tabular-nums text-muted-foreground hover:text-primary ${editing ? "invisible" : ""}`}
         >
           {index + 1}
         </button>
         <input
           ref={inputRef}
+          aria-label={`New position for ${show.title}`}
+          tabIndex={editing ? 0 : -1}
           type="number"
           inputMode="numeric"
           min={1}
@@ -129,17 +151,20 @@ function SortableRow({
           onBlur={commitEdit}
           onKeyDown={(e) => {
             if (e.key === "Enter") commitEdit();
-            else if (e.key === "Escape") setEditing(false);
+            else if (e.key === "Escape") cancelEdit();
           }}
-          className={`absolute inset-0 w-full rounded border border-primary bg-background text-center text-xs font-semibold tabular-nums text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${editing ? "" : "invisible"}`}
+          className={`absolute inset-0 w-full rounded border border-primary bg-background text-center text-xs font-semibold tabular-nums text-foreground outline-none ${editing ? "" : "invisible"}`}
         />
       </div>
 
-      <ViewTransitionLink
+      {/* The title link below is the one in the tab order. */}
+      <Link
         to="/show/$showId"
         params={{ showId: String(show.id) }}
         search={{ from: "/watch-order" }}
         className="overflow-hidden rounded-lg border border-border/60"
+        tabIndex={-1}
+        aria-hidden="true"
       >
         {posterUrl ? (
           <img
@@ -153,17 +178,17 @@ function SortableRow({
             —
           </div>
         )}
-      </ViewTransitionLink>
+      </Link>
 
       <div className="min-w-0 flex-1 space-y-0.5">
-        <ViewTransitionLink
+        <Link
           to="/show/$showId"
           params={{ showId: String(show.id) }}
           search={{ from: "/watch-order" }}
           className="block truncate font-medium text-foreground hover:text-primary"
         >
           {show.title}
-        </ViewTransitionLink>
+        </Link>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {show.year ? <span>{show.year}</span> : null}
           {genres ? <span className="truncate">{genres}</span> : null}
@@ -187,32 +212,20 @@ export function WatchOrderPage() {
   const [pendingDelete, setPendingDelete] = useState<ApiShow | null>(null);
   const [localOrder, setLocalOrder] = useState<number[] | null>(null);
 
-  const sessionQuery = useQuery({
-    queryKey: ["session"],
-    queryFn: api.session,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
-  });
-
-  const params = useMemo(() => {
-    const p = new URLSearchParams();
-    p.set("sort", "priority");
-    return p;
-  }, []);
+  const { imageBase } = useSession();
 
   const showsQuery = useQuery({
-    queryKey: ["shows", params.toString()],
-    queryFn: () => api.listShows(params),
+    queryKey: queryKeys.showList(WATCH_ORDER_PARAMS.toString()),
+    queryFn: ({ signal }) => api.listShows(WATCH_ORDER_PARAMS, { signal }),
     placeholderData: keepPreviousData,
   });
 
   const reorderMutation = useMutation({
     mutationFn: (orderedIds: number[]) => api.reorderShows(orderedIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shows"] });
+    onSuccess: async () => {
+      // Keep showing the local order until the server order has arrived, or
+      // the list would snap back to the old order for a moment.
+      await queryClient.invalidateQueries({ queryKey: queryKeys.shows });
       setLocalOrder(null);
       toast.success("Order saved.");
     },
@@ -223,10 +236,12 @@ export function WatchOrderPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.removeFromWatchOrder(id),
-    onSuccess: () => {
+    onSuccess: (data, id) => {
       setPendingDelete(null);
-      setLocalOrder(null);
-      queryClient.invalidateQueries({ queryKey: ["shows"] });
+      // Keep any unsaved reorder of the remaining shows.
+      setLocalOrder((prev) => prev?.filter((localId) => localId !== id) ?? null);
+      queryClient.setQueryData(queryKeys.show(id), data);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shows });
       toast.success("Removed from watch order.");
     },
     onError: () => {
@@ -235,7 +250,6 @@ export function WatchOrderPage() {
   });
 
   const serverShows = useMemo(() => showsQuery.data?.shows ?? [], [showsQuery.data?.shows]);
-  const imageBase = sessionQuery.data?.image_base ?? "";
 
   // Display order: use local drag state if present, otherwise server order
   const displayShows = useMemo(() => {
@@ -251,9 +265,7 @@ export function WatchOrderPage() {
   const isDirty =
     localOrder !== null &&
     (localOrder.length !== serverIds.length || localOrder.some((id, i) => serverIds[i] !== id));
-  const isInitialLoading =
-    showsQuery.isLoading || (showsQuery.isFetching && serverShows.length === 0);
-  const isEmpty = !showsQuery.isLoading && !showsQuery.isFetching && serverShows.length === 0;
+  const { isInitialLoading, isEmpty, isError } = listState(showsQuery, serverShows.length);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -280,7 +292,7 @@ export function WatchOrderPage() {
   };
 
   return (
-    <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: ["shows"] })}>
+    <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: queryKeys.shows })}>
       <section className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -291,7 +303,11 @@ export function WatchOrderPage() {
           </div>
           {isDirty ? (
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setLocalOrder(null)}>
+              <Button
+                variant="outline"
+                onClick={() => setLocalOrder(null)}
+                disabled={reorderMutation.isPending}
+              >
                 Cancel
               </Button>
               <Button onClick={handleSave} disabled={reorderMutation.isPending}>
@@ -302,6 +318,18 @@ export function WatchOrderPage() {
         </div>
 
         {isInitialLoading ? <LoadingGrid /> : null}
+
+        {isError ? (
+          <Empty className="border-border/60 bg-card/30">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <CircleAlert />
+              </EmptyMedia>
+              <EmptyTitle>Could not load the watch order</EmptyTitle>
+              <EmptyDescription>Pull down or reload the page to try again.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : null}
 
         {isEmpty ? (
           <Empty className="border-border/60 bg-card/30">

@@ -24,10 +24,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
-    // SHADCN
     "paths": {
-      "@/*": ["./src/*"],
-      "*": ["./*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]

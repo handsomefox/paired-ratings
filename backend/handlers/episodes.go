@@ -9,225 +9,149 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+
 	"github.com/handsomefox/paired-ratings/backend/gen/pb"
 	"github.com/handsomefox/paired-ratings/backend/logger"
 	"github.com/handsomefox/paired-ratings/backend/store"
 )
 
+// tvShow loads the TV show in the URL.
+func (h *Handler) tvShow(r *http.Request) (store.Show, error) {
+	id, err := idParam(r, "id")
+	if err != nil {
+		return store.Show{}, err
+	}
+	show, err := h.store.GetShow(r.Context(), id)
+	if err != nil {
+		return store.Show{}, storeError(err)
+	}
+	if show.MediaType != store.MediaTV {
+		return store.Show{}, badRequest("episodes are only available for TV shows")
+	}
+	return show, nil
+}
+
+// getShowEpisodes lists the stored episodes. Only a show with none stored yet
+// asks TMDB, so the list keeps working while TMDB is down.
 func (h *Handler) getShowEpisodes(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	id, err := idParam(r, "id")
+	show, err := h.tvShow(r)
 	if err != nil {
-		return notFound("not found")
+		return err
 	}
-
-	show, err := h.store.GetShow(ctx, id)
+	count, err := h.store.CountEpisodes(ctx, show.ID)
 	if err != nil {
-		if isNoRows(err) {
-			return notFound("not found")
+		return err
+	}
+	if count == 0 {
+		detail, err := h.tmdb.FetchDetails(ctx, show.TMDBID, string(store.MediaTV))
+		if err != nil {
+			return badGateway(err)
 		}
-		return internal(err)
-	}
-
-	if show.MediaType != "tv" {
-		return badRequest("episodes are only available for TV shows")
-	}
-
-	// Check if we have episodes already; if not, fetch from TMDB.
-	count, err := h.store.EpisodeCountForShow(ctx, id)
-	if err != nil {
-		return internal(err)
-	}
-
-	detail, err := h.tmdb.FetchDetails(ctx, show.TMDBID, "tv")
-	if err != nil {
-		slog.Warn("episodes: fetch details failed", logger.Error(err))
-		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
-	}
-
-	totalSeasons := detail.NumberOfSeasons
-
-	if count == 0 && totalSeasons > 0 {
-		if err := h.syncAllSeasons(ctx, id, show.TMDBID, totalSeasons, false); err != nil {
-			slog.Warn("episodes: initial sync failed", logger.Error(err))
-			return internal(err)
+		if err := h.syncAllSeasons(ctx, show.ID, show.TMDBID, detail.NumberOfSeasons, false); err != nil {
+			return err
 		}
 	}
-
-	episodes, err := h.store.GetEpisodes(ctx, id)
-	if err != nil {
-		return internal(err)
-	}
-
-	writeJSON(w, http.StatusOK, &pb.EpisodesResponse{
-		Episodes:     toPBEpisodes(episodes),
-		TotalSeasons: clampInt32(totalSeasons),
-	})
-	return nil
+	return h.writeEpisodes(ctx, w, show.ID)
 }
 
 func (h *Handler) postShowEpisodesSync(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	id, err := idParam(r, "id")
+	show, err := h.tvShow(r)
 	if err != nil {
-		return notFound("not found")
+		return err
 	}
-
-	show, err := h.store.GetShow(ctx, id)
+	detail, err := h.tmdb.RefreshDetails(ctx, show.TMDBID, string(store.MediaTV))
 	if err != nil {
-		if isNoRows(err) {
-			return notFound("not found")
-		}
-		return internal(err)
+		return badGateway(err)
 	}
-
-	if show.MediaType != "tv" {
-		return badRequest("episodes are only available for TV shows")
+	if err := h.syncAllSeasons(ctx, show.ID, show.TMDBID, detail.NumberOfSeasons, true); err != nil {
+		return err
 	}
+	return h.writeEpisodes(ctx, w, show.ID)
+}
 
-	detail, err := h.tmdb.RefreshDetails(ctx, show.TMDBID, "tv")
+func (h *Handler) writeEpisodes(ctx context.Context, w http.ResponseWriter, showID int64) error {
+	episodes, err := h.store.ListEpisodes(ctx, showID)
 	if err != nil {
-		slog.Warn("episodes: fetch details failed", logger.Error(err))
-		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
+		return err
 	}
-
-	totalSeasons := detail.NumberOfSeasons
-
-	if totalSeasons > 0 {
-		if err := h.syncAllSeasons(ctx, id, show.TMDBID, totalSeasons, true); err != nil {
-			slog.Warn("episodes: sync failed", logger.Error(err))
-			return internal(err)
-		}
-	}
-
-	episodes, err := h.store.GetEpisodes(ctx, id)
+	seasons, err := h.store.CountSeasons(ctx, showID)
 	if err != nil {
-		return internal(err)
+		return err
 	}
-
 	writeJSON(w, http.StatusOK, &pb.EpisodesResponse{
 		Episodes:     toPBEpisodes(episodes),
-		TotalSeasons: clampInt32(totalSeasons),
+		TotalSeasons: clampInt32(seasons),
 	})
 	return nil
 }
 
 func (h *Handler) postEpisodeToggle(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-
 	id, err := idParam(r, "id")
 	if err != nil {
-		return notFound("not found")
+		return err
 	}
-
 	var req pb.ToggleEpisodeRequest
 	if err := decodeJSON(r, &req); err != nil {
 		return badRequest("bad request")
 	}
-
-	if err := h.store.ToggleEpisode(ctx, id, req.Watched); err != nil {
-		if isNoRows(err) {
-			return notFound("not found")
-		}
-		return internal(err)
+	if err := h.store.SetEpisodeWatched(r.Context(), id, req.Watched); err != nil {
+		return storeError(err)
 	}
-
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
 func (h *Handler) postSeasonToggle(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-
 	id, err := idParam(r, "id")
 	if err != nil {
-		return notFound("not found")
+		return err
 	}
-
-	seasonStr := chi.URLParam(r, "season")
-	season, err := strconv.Atoi(seasonStr)
+	season, err := strconv.ParseInt(chi.URLParam(r, "season"), 10, 64)
 	if err != nil || season < 1 {
 		return badRequest("invalid season number")
 	}
-
 	var req pb.ToggleEpisodeRequest
 	if err := decodeJSON(r, &req); err != nil {
 		return badRequest("bad request")
 	}
-
-	if err := h.store.ToggleSeason(ctx, id, season, req.Watched); err != nil {
-		if isNoRows(err) {
-			return notFound("not found")
-		}
-		return internal(err)
+	if err := h.store.SetSeasonWatched(r.Context(), id, season, req.Watched); err != nil {
+		return storeError(err)
 	}
-
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
+// syncAllSeasons stores every season's episodes. A failed season does not stop
+// the others; the error reports each one that failed.
 func (h *Handler) syncAllSeasons(ctx context.Context, showID, tmdbID int64, totalSeasons int, refresh bool) error {
 	fetchSeason := h.tmdb.FetchSeason
 	if refresh {
 		fetchSeason = h.tmdb.RefreshSeason
 	}
-	var syncErr error
+
+	var fetchErr error
 	for s := 1; s <= totalSeasons; s++ {
 		season, err := fetchSeason(ctx, tmdbID, s)
 		if err != nil {
 			slog.Warn("episodes: fetch season failed",
 				slog.Int("season", s),
-				logger.Error(err),
-			)
-			syncErr = errors.Join(syncErr, fmt.Errorf("fetch season %d: %w", s, err))
+				logger.Error(err))
+			fetchErr = errors.Join(fetchErr, fmt.Errorf("season %d: %w", s, err))
 			if ctx.Err() != nil {
-				return syncErr
+				break
 			}
 			continue
 		}
-
-		episodes := make([]store.Episode, 0, len(season.Episodes))
-		for _, ep := range season.Episodes {
-			episodes = append(episodes, store.Episode{
-				ShowID:        showID,
-				SeasonNumber:  ep.SeasonNumber,
-				EpisodeNumber: ep.EpisodeNumber,
-				Title:         ep.Title,
-				Overview:      ep.Overview,
-				AirDate:       ep.AirDate,
-				Runtime:       ep.Runtime,
-			})
-		}
-
-		if err := h.store.SyncEpisodes(ctx, showID, episodes); err != nil {
-			return errors.Join(syncErr, err)
+		if err := h.store.SyncEpisodes(ctx, showID, episodesFromSeason(&season)); err != nil {
+			return errors.Join(fetchErr, err)
 		}
 	}
-	return syncErr
-}
-
-func toPBEpisodes(episodes []store.Episode) []*pb.Episode {
-	out := make([]*pb.Episode, 0, len(episodes))
-	for _, ep := range episodes {
-		pbEp := &pb.Episode{
-			Id:            ep.ID,
-			SeasonNumber:  clampInt32(ep.SeasonNumber),
-			EpisodeNumber: clampInt32(ep.EpisodeNumber),
-			Watched:       ep.Watched,
-		}
-		if ep.Title != "" {
-			pbEp.Title = &ep.Title
-		}
-		if ep.AirDate != "" {
-			pbEp.AirDate = &ep.AirDate
-		}
-		if ep.Runtime > 0 {
-			runtime := clampInt32(ep.Runtime)
-			pbEp.Runtime = &runtime
-		}
-		out = append(out, pbEp)
+	if fetchErr != nil {
+		return badGateway(fetchErr)
 	}
-	return out
+	return nil
 }

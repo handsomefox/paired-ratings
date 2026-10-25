@@ -1,11 +1,10 @@
-import type * as pb from "../gen/paired_ratings";
+import * as pb from "../gen/paired_ratings";
 
 export type SessionResponse = pb.SessionResponse;
 export type ApiShow = pb.Show;
 export type ApiShowDetail = pb.ShowDetail;
 export type ListResponse = pb.ListResponse;
 export type SearchResult = pb.SearchResult;
-export type SearchRequest = pb.SearchRequest;
 export type SearchResponse = pb.SearchResponse;
 export type SearchGenresResponse = pb.SearchGenresResponse;
 export type SearchCountriesResponse = pb.SearchCountriesResponse;
@@ -15,132 +14,152 @@ export type LoginRequest = pb.LoginRequest;
 export type AddShowRequest = pb.AddShowRequest;
 export type RatingsRequest = pb.RatingsRequest;
 export type RefreshResponse = pb.RefreshResponse;
-export type ExportPayload = pb.ExportPayload;
 export type ReorderRequest = pb.ReorderRequest;
 export type SetStatusRequest = pb.SetStatusRequest;
 export type GetRelatedResponse = pb.GetRelatedResponse;
 export type EpisodesResponse = pb.EpisodesResponse;
 export type ApiEpisode = pb.Episode;
+export type ApiGenre = pb.Genre;
+export type ApiCountry = pb.Country;
+export type ApiLanguage = pb.Language;
 export type ToggleEpisodeRequest = pb.ToggleEpisodeRequest;
+
+/** A non-2xx response. `message` is the backend's ErrorResponse text. */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
 
 let _onUnauthorized: (() => void) | undefined;
 export const registerUnauthorizedHandler = (fn: () => void) => {
   _onUnauthorized = fn;
 };
 
-async function jsonRequest<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-    ...init,
-  });
-  if (!res.ok) {
-    if (res.status === 401) {
-      _onUnauthorized?.();
-    }
-    const text = await res.text();
-    throw new Error(text || res.statusText);
+type RequestOptions = {
+  method?: "GET" | "POST" | "DELETE";
+  body?: unknown;
+  signal?: AbortSignal;
+  // A 401 from the login endpoint means a wrong password, not an expired
+  // session, so it must not trigger the sign-out handler.
+  notifyUnauthorized?: boolean;
+};
+
+async function errorMessage(res: Response): Promise<string> {
+  const text = await res.text().catch(() => "");
+  try {
+    const message = pb.ErrorResponse.fromJSON(JSON.parse(text)).error;
+    if (message) return message;
+  } catch {
+    // Not JSON, for example a proxy error page. Fall through.
   }
-  if (res.status === 204) {
-    return undefined as T;
-  }
-  return (await res.json()) as T;
+  return text.trim() || res.statusText || `HTTP ${res.status}`;
 }
 
+async function request(input: string, options: RequestOptions = {}): Promise<Response> {
+  const { method = "GET", body, signal, notifyUnauthorized = true } = options;
+  const res = await fetch(input, {
+    method,
+    signal,
+    credentials: "include",
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) {
+    if (res.status === 401 && notifyUnauthorized) {
+      _onUnauthorized?.();
+    }
+    throw new ApiError(res.status, await errorMessage(res));
+  }
+  return res;
+}
+
+async function jsonRequest<T>(
+  decoder: pb.MessageFns<T>,
+  input: string,
+  options?: RequestOptions,
+): Promise<T> {
+  const res = await request(input, options);
+  return decoder.fromJSON(await res.json());
+}
+
+async function emptyRequest(input: string, options?: RequestOptions): Promise<void> {
+  await request(input, options);
+}
+
+type Signal = { signal?: AbortSignal };
+
 export const api = {
-  session: ({ signal }: { signal?: AbortSignal } = {}) =>
-    jsonRequest<SessionResponse>("/api/session", { signal }),
+  session: ({ signal }: Signal = {}) => jsonRequest(pb.SessionResponse, "/api/session", { signal }),
   login: (payload: LoginRequest) =>
-    jsonRequest<SessionResponse>("/api/login", {
+    jsonRequest(pb.SessionResponse, "/api/login", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: payload,
+      notifyUnauthorized: false,
     }),
-  logout: () =>
-    jsonRequest<SessionResponse>("/api/logout", {
-      method: "POST",
-    }),
-  listShows: (params: URLSearchParams) =>
-    jsonRequest<ListResponse>(`/api/shows?${params.toString()}`),
-  getShow: (id: number) => jsonRequest<ApiShowDetail>(`/api/shows/${id}`),
+  logout: () => jsonRequest(pb.SessionResponse, "/api/logout", { method: "POST" }),
+  listShows: (params: URLSearchParams, { signal }: Signal = {}) =>
+    jsonRequest(pb.ListResponse, `/api/shows?${params.toString()}`, { signal }),
+  getShow: (id: number, { signal }: Signal = {}) =>
+    jsonRequest(pb.ShowDetail, `/api/shows/${id}`, { signal }),
   addShow: (payload: AddShowRequest) =>
-    jsonRequest<ApiShowDetail>("/api/shows", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-  deleteShow: (id: number) =>
-    jsonRequest<void>(`/api/shows/${id}`, {
-      method: "DELETE",
-    }),
+    jsonRequest(pb.ShowDetail, "/api/shows", { method: "POST", body: payload }),
+  deleteShow: (id: number) => emptyRequest(`/api/shows/${id}`, { method: "DELETE" }),
   updateRatings: (id: number, payload: RatingsRequest) =>
-    jsonRequest<ApiShowDetail>(`/api/shows/${id}/ratings`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
+    jsonRequest(pb.ShowDetail, `/api/shows/${id}/ratings`, { method: "POST", body: payload }),
   reorderShows: (orderedIds: number[]) =>
-    jsonRequest<void>("/api/shows/reorder", {
+    emptyRequest("/api/shows/reorder", {
       method: "POST",
-      body: JSON.stringify({ ordered_ids: orderedIds } satisfies ReorderRequest),
+      body: { ordered_ids: orderedIds } satisfies ReorderRequest,
     }),
   setStatus: (id: number, status: string) =>
-    jsonRequest<ApiShowDetail>(`/api/shows/${id}/set-status`, {
+    jsonRequest(pb.ShowDetail, `/api/shows/${id}/set-status`, {
       method: "POST",
-      body: JSON.stringify({ status } satisfies SetStatusRequest),
+      body: { status } satisfies SetStatusRequest,
     }),
   clearRatings: (id: number) =>
-    jsonRequest<ApiShowDetail>(`/api/shows/${id}/clear-ratings`, {
-      method: "POST",
-    }),
+    jsonRequest(pb.ShowDetail, `/api/shows/${id}/clear-ratings`, { method: "POST" }),
   refreshShow: (id: number) =>
-    jsonRequest<ApiShowDetail>(`/api/shows/${id}/refresh-tmdb`, {
-      method: "POST",
-    }),
-  getRelated: (id: number) => jsonRequest<GetRelatedResponse>(`/api/shows/${id}/related`),
-  getEpisodes: (id: number) => jsonRequest<EpisodesResponse>(`/api/shows/${id}/episodes`),
+    jsonRequest(pb.ShowDetail, `/api/shows/${id}/refresh-tmdb`, { method: "POST" }),
+  getRelated: (id: number, { signal }: Signal = {}) =>
+    jsonRequest(pb.GetRelatedResponse, `/api/shows/${id}/related`, { signal }),
+  getEpisodes: (id: number, { signal }: Signal = {}) =>
+    jsonRequest(pb.EpisodesResponse, `/api/shows/${id}/episodes`, { signal }),
   syncEpisodes: (id: number) =>
-    jsonRequest<EpisodesResponse>(`/api/shows/${id}/episodes/sync`, {
-      method: "POST",
-    }),
+    jsonRequest(pb.EpisodesResponse, `/api/shows/${id}/episodes/sync`, { method: "POST" }),
   toggleEpisode: (episodeId: number, watched: boolean) =>
-    jsonRequest<void>(`/api/shows/episodes/${episodeId}/toggle`, {
+    emptyRequest(`/api/shows/episodes/${episodeId}/toggle`, {
       method: "POST",
-      body: JSON.stringify({ watched } satisfies ToggleEpisodeRequest),
+      body: { watched } satisfies ToggleEpisodeRequest,
     }),
   toggleSeason: (showId: number, seasonNumber: number, watched: boolean) =>
-    jsonRequest<void>(`/api/shows/${showId}/episodes/season/${seasonNumber}/toggle`, {
+    emptyRequest(`/api/shows/${showId}/episodes/season/${seasonNumber}/toggle`, {
       method: "POST",
-      body: JSON.stringify({ watched } satisfies ToggleEpisodeRequest),
+      body: { watched } satisfies ToggleEpisodeRequest,
     }),
   addToWatchOrder: (id: number) =>
-    jsonRequest<ApiShowDetail>(`/api/shows/${id}/watch-order`, {
-      method: "POST",
-    }),
+    jsonRequest(pb.ShowDetail, `/api/shows/${id}/watch-order`, { method: "POST" }),
   removeFromWatchOrder: (id: number) =>
-    jsonRequest<ApiShowDetail>(`/api/shows/${id}/watch-order`, {
-      method: "DELETE",
-    }),
-  search: (params: URLSearchParams) =>
-    jsonRequest<SearchResponse>(`/api/search?${params.toString()}`),
-  searchGenres: () => jsonRequest<SearchGenresResponse>("/api/search/genres"),
-  searchCountries: () => jsonRequest<SearchCountriesResponse>("/api/search/countries"),
-  searchLanguages: () => jsonRequest<SearchLanguagesResponse>("/api/search/languages"),
+    jsonRequest(pb.ShowDetail, `/api/shows/${id}/watch-order`, { method: "DELETE" }),
+  search: (params: URLSearchParams, { signal }: Signal = {}) =>
+    jsonRequest(pb.SearchResponse, `/api/search?${params.toString()}`, { signal }),
+  searchGenres: ({ signal }: Signal = {}) =>
+    jsonRequest(pb.SearchGenresResponse, "/api/search/genres", { signal }),
+  searchCountries: ({ signal }: Signal = {}) =>
+    jsonRequest(pb.SearchCountriesResponse, "/api/search/countries", { signal }),
+  searchLanguages: ({ signal }: Signal = {}) =>
+    jsonRequest(pb.SearchLanguagesResponse, "/api/search/languages", { signal }),
   searchResolve: (tmdbId: number, mediaType: string) =>
-    jsonRequest<SearchResolveResponse>(
-      `/api/search/resolve?tmdb_id=${tmdbId}&media_type=${mediaType}`,
+    jsonRequest(
+      pb.SearchResolveResponse,
+      `/api/search/resolve?${new URLSearchParams({ tmdb_id: String(tmdbId), media_type: mediaType })}`,
     ),
-  refreshTMDB: () =>
-    jsonRequest<RefreshResponse>("/api/refresh-tmdb", {
-      method: "POST",
-    }),
-  exportData: () =>
-    fetch("/api/export", {
-      method: "POST",
-      credentials: "include",
-    }),
-  exportDB: () =>
-    fetch("/api/export/db", {
-      credentials: "include",
-    }),
+  refreshTMDB: () => jsonRequest(pb.RefreshResponse, "/api/refresh-tmdb", { method: "POST" }),
+  // The exports are file downloads, so the caller reads the body as a blob.
+  exportData: () => request("/api/export", { method: "POST" }),
+  exportDB: () => request("/api/export/db"),
 };

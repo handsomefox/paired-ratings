@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,22 +18,21 @@ import (
 func (h *Handler) getExportDB(w http.ResponseWriter, r *http.Request) error {
 	dir, err := os.MkdirTemp("", "paired-ratings-export-")
 	if err != nil {
-		return internal(err)
+		return err
 	}
 	defer func() {
 		if err := os.RemoveAll(dir); err != nil {
 			slog.Warn("export db: cleanup failed", logger.Error(err))
 		}
 	}()
+
 	dbPath := filepath.Join(dir, "ratings.db")
 	if err := h.store.Backup(r.Context(), dbPath); err != nil {
-		return internal(err)
+		return err
 	}
-
 	f, err := os.Open(dbPath) //nolint:gosec // Path is inside a private, server-created temporary directory.
 	if err != nil {
-		slog.Warn("export db: open failed", logger.Error(err))
-		return internal(err)
+		return err
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
@@ -42,43 +40,31 @@ func (h *Handler) getExportDB(w http.ResponseWriter, r *http.Request) error {
 		}
 	}()
 
-	date := time.Now().UTC().Format("2006-01-02")
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="paired-ratings-%s.db"`, date))
+	w.Header().Set("Content-Disposition", attachment("paired-ratings-%s.db"))
 	w.Header().Set("Cache-Control", "no-store")
-	if _, err := io.Copy(w, f); err != nil {
-		slog.Warn("export db: write failed", logger.Error(err))
-	}
-	return nil
+	_, err = io.Copy(w, f)
+	return err
 }
 
 func (h *Handler) postExport(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-
-	shows, _, err := h.store.ListShows(ctx, &store.ListFilters{Status: "all"})
+	shows, _, err := h.store.ListShows(r.Context(), &store.ListFilters{})
 	if err != nil {
-		return internal(err)
-	}
-
-	payload := &pb.ExportPayload{
-		ExportedAt: time.Now().UTC().Format(time.RFC3339),
-		Shows:      make([]*pb.Show, 0, len(shows)),
-	}
-	for i := range shows {
-		payload.Shows = append(payload.Shows, toPBShow(&shows[i]))
-	}
-
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(payload); err != nil {
-		return internal(err)
+		return err
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Disposition", "attachment; filename=show-ratings.json")
-	if _, err := w.Write(buf.Bytes()); err != nil {
-		slog.Warn("export write failed", logger.Error(err))
-	}
-	return nil
+	w.Header().Set("Content-Disposition", attachment("paired-ratings-%s.json"))
+	w.Header().Set("Cache-Control", "no-store")
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(&pb.ExportPayload{
+		ExportedAt: time.Now().UTC().Format(time.RFC3339),
+		Shows:      toPBShows(shows),
+	})
+}
+
+// attachment names a download after today's date.
+func attachment(nameFormat string) string {
+	return fmt.Sprintf(`attachment; filename="`+nameFormat+`"`, time.Now().UTC().Format(time.DateOnly))
 }

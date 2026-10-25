@@ -1,0 +1,24 @@
+# `make proto` runs buf with this file. Every plugin is pinned: protoc-gen-go in
+# tools/go.mod and protoc-gen-ts_proto in frontend/package-lock.json.
+version: v2
+clean: true
+inputs:
+  - directory: proto
+plugins:
+  - local: ["go", "tool", "-modfile=tools/go.mod", "protoc-gen-go"]
+    out: backend/gen/pb
+    opt: paths=source_relative
+  # The frontend parses every response with the generated fromJSON, which fills
+  # in the zero values that encoding/json omits.
+  - local: frontend/node_modules/.bin/protoc-gen-ts_proto
+    out: frontend/src/gen
+    opt:
+      - esModuleInterop=true
+      - forceLong=number
+      - useOptionals=none
+      - snakeToCamel=false
+      - outputServices=none
+      - outputEncodeMethods=false
+      - outputJsonMethods=from-only
+      - outputPartialMethods=false
+      - outputTypeRegistry=false

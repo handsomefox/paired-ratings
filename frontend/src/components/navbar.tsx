@@ -1,4 +1,4 @@
-import { useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Download, Home, ListOrdered, LogOut, Menu, MoreHorizontal, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { NavLink } from "./nav-link";
@@ -18,8 +18,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "./ui/sheet";
-import { cn } from "@/lib/utils";
-import { ViewTransitionLink } from "./view-transition-link";
+import { cn, scrollToTop } from "@/lib/utils";
+
+// Exact matching, so "/" is not marked as the current page everywhere.
+const navActiveOptions = { exact: true, includeSearch: false } as const;
 
 type NavbarProps = {
   onExport: () => Promise<void>;
@@ -28,8 +30,7 @@ type NavbarProps = {
 };
 
 export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
-  const { location } = useRouterState();
-  const currentPath = location.pathname;
+  const currentPath = useRouterState({ select: (state) => state.location.pathname });
   const isLibrary = currentPath === "/";
   const isWatchOrder = currentPath === "/watch-order";
   const isSearch = currentPath === "/search";
@@ -53,7 +54,11 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
   };
 
   const handleLogout = async () => {
-    await onLogout();
+    try {
+      await onLogout();
+    } catch {
+      toast.error("Log out failed.");
+    }
   };
 
   const mobileItemClass = (active?: boolean) =>
@@ -68,13 +73,14 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/75 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-[1720px] items-center justify-between gap-4 px-4 sm:h-16 sm:px-6 lg:px-8 xl:px-10">
         <div className="flex items-center gap-3">
-          <ViewTransitionLink
+          <Link
             to="/"
+            activeOptions={navActiveOptions}
             className="flex items-center gap-3"
             onClick={(e) => {
-              if (location.pathname === "/") {
+              if (currentPath === "/") {
                 e.preventDefault();
-                window.scrollTo({ top: 0, behavior: "smooth" });
+                scrollToTop();
               }
             }}
           >
@@ -92,7 +98,7 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
                 Shared watchlist + ratings
               </div>
             </div>
-          </ViewTransitionLink>
+          </Link>
         </div>
 
         <nav className="hidden items-center gap-2 md:flex">
@@ -121,22 +127,34 @@ export function Navbar({ onExport, onExportDB, onLogout }: NavbarProps) {
               </SheetHeader>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <SheetClose asChild>
-                  <ViewTransitionLink to="/" className={mobileItemClass(isLibrary)}>
+                  <Link
+                    to="/"
+                    activeOptions={navActiveOptions}
+                    className={mobileItemClass(isLibrary)}
+                  >
                     <Home className="h-4 w-4" />
                     <span>Library</span>
-                  </ViewTransitionLink>
+                  </Link>
                 </SheetClose>
                 <SheetClose asChild>
-                  <ViewTransitionLink to="/watch-order" className={mobileItemClass(isWatchOrder)}>
+                  <Link
+                    to="/watch-order"
+                    activeOptions={navActiveOptions}
+                    className={mobileItemClass(isWatchOrder)}
+                  >
                     <ListOrdered className="h-4 w-4" />
                     <span>Watch order</span>
-                  </ViewTransitionLink>
+                  </Link>
                 </SheetClose>
                 <SheetClose asChild>
-                  <ViewTransitionLink to="/search" className={mobileItemClass(isSearch)}>
+                  <Link
+                    to="/search"
+                    activeOptions={navActiveOptions}
+                    className={mobileItemClass(isSearch)}
+                  >
                     <Plus className="h-4 w-4" />
                     <span>Add</span>
-                  </ViewTransitionLink>
+                  </Link>
                 </SheetClose>
                 <SheetClose asChild>
                   <button type="button" className={mobileItemClass()} onClick={handleLogout}>

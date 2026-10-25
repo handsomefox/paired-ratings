@@ -41,11 +41,11 @@ func withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, defaultRequestTimeout)
 }
 
-func (c *Client) doJSON(ctx context.Context, method, endpoint string, dst any) error {
+func (c *Client) doJSON(ctx context.Context, endpoint string, dst any) error {
 	ctx, cancel := withTimeout(ctx)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, method, endpoint, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (c *Client) doJSON(ctx context.Context, method, endpoint string, dst any) e
 	}()
 
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("tmdb request failed: %s", resp.Status)
+		return fmt.Errorf("tmdb %s: %s", req.URL.Path, resp.Status)
 	}
 
 	return json.NewDecoder(resp.Body).Decode(dst)

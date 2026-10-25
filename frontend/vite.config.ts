@@ -12,7 +12,9 @@ export default defineConfig({
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
+      // Prompt instead of reloading on its own, so an update never discards
+      // unsaved edits. main.tsx shows the prompt.
+      registerType: "prompt",
       includeAssets: ["favicon.ico", "assets/apple-touch-icon.png", "assets/logo.png"],
       manifest: {
         name: "Paired Ratings",
@@ -78,9 +80,9 @@ export default defineConfig({
     emptyOutDir: true,
     rolldownOptions: {
       output: {
-        // Each pattern ends at a package boundary, so react-day-picker and
-        // react-dom no longer land in the react chunk. The first match wins,
-        // which is why vendor comes last.
+        // Each pattern ends at a package boundary, so a package whose name
+        // merely starts with "react" does not land in the react chunk. The
+        // first match wins, which is why vendor comes last.
         advancedChunks: {
           groups: [
             {

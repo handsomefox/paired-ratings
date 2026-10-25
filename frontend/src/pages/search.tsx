@@ -1,165 +1,94 @@
 import FiltersPane from "@/components/filters-pane";
 import { FiltersPaneContent } from "@/components/filters-pane-content";
+import { Paginator } from "@/components/paginator";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { Input } from "@/components/ui/input";
 import { SearchFilters } from "@/features/search/search-filters";
-import { SearchPagination } from "@/features/search/search-pagination";
 import { SearchResults } from "@/features/search/search-results";
 import { mediaTypeOptions, type MediaType, type Sort } from "@/features/search/search-constants";
 import {
-  buildBaseParams,
-  getPageItems,
+  buildSearchParams,
   parseGenres,
+  resultKey,
   sanitizeMediaType,
   sanitizeSort,
 } from "@/features/search/search-utils";
-import type { SearchResponse, SearchResult } from "@/lib/api";
+import type { SearchResult } from "@/lib/api";
 import { api } from "@/lib/api";
+import {
+  onShowAdded,
+  queryKeys,
+  useCountries,
+  useGenres,
+  useLanguages,
+  useSession,
+} from "@/lib/queries";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useKeyboardInset } from "@/lib/use-keyboard-inset";
-import { useMediaQuery } from "@/lib/use-media-query";
+import { scrollToTop, usableYear } from "@/lib/utils";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-export function SearchPage() {
-  const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
+function parsePage(val: string | undefined): number {
+  const page = Number.parseInt(val ?? "1", 10);
+  return Number.isFinite(page) && page >= 1 ? page : 1;
+}
 
-  const [queryInput, setQueryInput] = useState(initialParams.get("q") ?? "");
-  const [mediaType, setMediaType] = useState<MediaType>(() =>
-    sanitizeMediaType(initialParams.get("media_type")),
+export function SearchPage() {
+  const search = useSearch({ from: "/search" });
+  const navigate = useNavigate({ from: "/search" });
+
+  const [queryInput, setQueryInput] = useState(() => search.q ?? "");
+  const [mediaType, setMediaType] = useState<MediaType>(() => sanitizeMediaType(search.media_type));
+  const [yearFrom, setYearFrom] = useState(() => search.year_from ?? "");
+  const [yearTo, setYearTo] = useState(() => search.year_to ?? "");
+  const [minRating, setMinRating] = useState(() => search.min_rating ?? "");
+  const [minVotes, setMinVotes] = useState(() => search.min_votes ?? "");
+  const [page, setPage] = useState(() => parsePage(search.page));
+  const [originCountry, setOriginCountry] = useState(() =>
+    (search.origin_country ?? "").toUpperCase(),
   );
-  const [yearFrom, setYearFrom] = useState(initialParams.get("year_from") ?? "");
-  const [yearTo, setYearTo] = useState(initialParams.get("year_to") ?? "");
-  const [minRating, setMinRating] = useState(initialParams.get("min_rating") ?? "");
-  const [minVotes, setMinVotes] = useState(initialParams.get("min_votes") ?? "");
-  const [page, setPage] = useState(() => {
-    const raw = Number(initialParams.get("page") ?? "1");
-    return Number.isFinite(raw) && raw > 0 ? raw : 1;
-  });
-  const [originCountry, setOriginCountry] = useState(
-    (initialParams.get("origin_country") ?? "").toUpperCase(),
+  const [originalLanguage, setOriginalLanguage] = useState(() =>
+    (search.original_language ?? "").toLowerCase(),
   );
-  const [originalLanguage, setOriginalLanguage] = useState(
-    (initialParams.get("original_language") ?? "").toLowerCase(),
-  );
-  const [sort, setSort] = useState<Sort>(() => sanitizeSort(initialParams.get("sort")));
+  const [sort, setSort] = useState<Sort>(() => sanitizeSort(search.sort));
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [expandedOverviews, setExpandedOverviews] = useState<Set<string>>(() => new Set());
 
   useKeyboardInset();
 
-  const initialGenres = useMemo(
-    () => parseGenres(initialParams.get("genres") ?? ""),
-    [initialParams],
+  const [genreMode, setGenreMode] = useState<"all" | "any">(() => parseGenres(search.genres).mode);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>(
+    () => parseGenres(search.genres).selected,
   );
-  const [genreMode, setGenreMode] = useState<"all" | "any">(initialGenres.mode);
-  const [selectedGenres, setSelectedGenres] = useState<string[]>(initialGenres.selected);
 
-  // Support "genre_names" URL param (set by Find Similar) — resolved to IDs once genres load.
-  const initialGenreNames = useMemo(
+  // "genre_names" comes from Find similar on a detail page. It holds names,
+  // which are resolved to TMDB genre ids once the genre list loads.
+  const [initialGenreNames] = useState(
     () =>
-      initialParams
-        .get("genre_names")
+      search.genre_names
         ?.split(",")
         .map((s) => s.trim())
         .filter(Boolean) ?? [],
-    [initialParams],
   );
   // Track whether we've already applied the resolved names (derived state pattern).
   const [resolvedNamesKey, setResolvedNamesKey] = useState("");
 
-  const resetPageAndOverviews = () => {
-    setPage(1);
-    setExpandedOverviews(new Set());
-  };
-
   const handleMediaTypeChange = (value: MediaType) => {
     setMediaType(value);
+    // Movie and TV genre ids differ, so a selection does not carry over.
     setGenreMode("all");
     setSelectedGenres([]);
-    resetPageAndOverviews();
-  };
-
-  const handleQueryChange = (value: string) => {
-    setQueryInput(value);
-    resetPageAndOverviews();
-  };
-
-  const handleYearFromChange = (value: string) => {
-    setYearFrom(value);
-    resetPageAndOverviews();
-  };
-
-  const handleYearToChange = (value: string) => {
-    setYearTo(value);
-    resetPageAndOverviews();
-  };
-
-  const handleMinRatingChange = (value: string) => {
-    setMinRating(value);
-    resetPageAndOverviews();
-  };
-
-  const handleMinVotesChange = (value: string) => {
-    setMinVotes(value);
-    resetPageAndOverviews();
-  };
-
-  const handleGenreModeChange = (value: "all" | "any") => {
-    setGenreMode(value);
-    resetPageAndOverviews();
-  };
-
-  const handleSelectedGenresChange = (next: string[]) => {
-    setSelectedGenres(next);
-    resetPageAndOverviews();
-  };
-
-  const handleOriginCountryChange = (value: string) => {
-    setOriginCountry(value);
-    resetPageAndOverviews();
-  };
-
-  const handleOriginalLanguageChange = (value: string) => {
-    setOriginalLanguage(value);
-    resetPageAndOverviews();
-  };
-
-  const handleSortChange = (value: Sort) => {
-    setSort(value);
-    resetPageAndOverviews();
   };
 
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setFiltersOpen(false);
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, []);
-
-  const sessionQuery = useQuery({
-    queryKey: ["session"],
-    queryFn: api.session,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
-  });
-
-  const searchGenresQuery = useQuery({
-    queryKey: ["search-genres"],
-    queryFn: api.searchGenres,
-    staleTime: 1000 * 60 * 60 * 24,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
-  });
+  const { imageBase } = useSession();
+  const searchGenresQuery = useGenres();
+  const availableCountries = useCountries().data?.countries ?? [];
+  const availableLanguages = useLanguages().data?.languages ?? [];
 
   // Derived state: once genres load, resolve "genre_names" URL param to IDs (one-shot).
   const pendingNamesKey =
@@ -168,8 +97,8 @@ export function SearchPage() {
     setResolvedNamesKey(pendingNamesKey);
     const list =
       mediaType === "movie"
-        ? (searchGenresQuery.data!.movie_genres ?? [])
-        : (searchGenresQuery.data!.tv_genres ?? []);
+        ? searchGenresQuery.data!.movie_genres
+        : searchGenresQuery.data!.tv_genres;
     const ids = initialGenreNames
       .map((name) => list.find((g) => g.name.toLowerCase() === name.toLowerCase())?.id)
       .filter((id): id is number => id !== undefined)
@@ -177,136 +106,83 @@ export function SearchPage() {
     if (ids.length) setSelectedGenres(ids);
   }
 
-  const searchCountriesQuery = useQuery({
-    queryKey: ["search-countries"],
-    queryFn: api.searchCountries,
-    staleTime: 1000 * 60 * 60 * 24,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
-  });
+  // Typed filters wait until the reader pauses, so typing "2015" sends one TMDB
+  // request rather than four. The object stays the same until an input changes,
+  // which useDebouncedValue relies on.
+  const typed = useMemo(
+    () => ({ queryInput, yearFrom, yearTo, minRating, minVotes }),
+    [queryInput, yearFrom, yearTo, minRating, minVotes],
+  );
+  const debouncedTyped = useDebouncedValue(typed, 600);
+  const trimmedQuery = debouncedTyped.queryInput.trim();
 
-  const searchLanguagesQuery = useQuery({
-    queryKey: ["search-languages"],
-    queryFn: api.searchLanguages,
-    staleTime: 1000 * 60 * 60 * 24,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
-  });
+  const genreQuery = selectedGenres.join(genreMode === "any" ? "|" : ",");
 
-  const imageBase = sessionQuery.data?.image_base ?? "";
-
-  const debouncedQuery = useDebouncedValue(queryInput, 600);
-  const trimmedQuery = debouncedQuery.trim();
-
-  const genreQuery = useMemo(() => {
-    if (!selectedGenres.length) return "";
-    return selectedGenres.join(genreMode === "any" ? "|" : ",");
-  }, [selectedGenres, genreMode]);
-
-  const fullParamsString = useMemo(() => {
-    const p = buildBaseParams({
-      mediaType,
-      trimmedQuery,
-      yearFrom,
-      yearTo,
-      minRating,
-      minVotes,
-      sort,
-      genres: genreQuery,
-      originCountry,
-      originalLanguage,
-    });
-    if (page > 1) p.set("page", String(page));
-    return p.toString();
-  }, [
+  const baseParams = {
     mediaType,
     trimmedQuery,
-    yearFrom,
-    yearTo,
-    minRating,
-    minVotes,
+    yearFrom: usableYear(debouncedTyped.yearFrom),
+    yearTo: usableYear(debouncedTyped.yearTo),
+    minRating: debouncedTyped.minRating,
+    minVotes: debouncedTyped.minVotes,
     sort,
-    genreQuery,
+    genres: genreQuery,
     originCountry,
     originalLanguage,
-    page,
-  ]);
+  };
 
-  const searchQuery = useQuery<SearchResponse, Error>({
-    queryKey: ["search", fullParamsString],
-    queryFn: () => api.search(new URLSearchParams(fullParamsString)),
+  // Any filter change starts again at page 1 with every overview collapsed
+  // (derived state pattern avoids an effect).
+  const filterKey = buildSearchParams({ ...baseParams, page: 1 }).toString();
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setPage(1);
+    setExpandedOverviews(new Set());
+  }
+
+  const paramsString = buildSearchParams({ ...baseParams, page }).toString();
+
+  const searchQuery = useQuery({
+    queryKey: queryKeys.search(paramsString),
+    queryFn: ({ signal }) => api.search(new URLSearchParams(paramsString), { signal }),
     staleTime: 30_000,
-    refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
     placeholderData: keepPreviousData,
   });
 
   const isInitialLoading = searchQuery.isLoading && !searchQuery.data;
-  const isFetching = searchQuery.isFetching;
-  const activePage = searchQuery.data?.page ?? page;
+  const activePage = searchQuery.data?.page || page;
 
-  const urlParamsString = useMemo(() => {
-    const params = buildBaseParams({
-      mediaType,
-      trimmedQuery,
-      yearFrom,
-      yearTo,
-      minRating,
-      minVotes,
-      sort,
-      genres: genreQuery,
-      originCountry,
-      originalLanguage,
-    });
-    if (activePage > 1) params.set("page", String(activePage));
-    return params.toString();
-  }, [
-    mediaType,
-    trimmedQuery,
-    yearFrom,
-    yearTo,
-    minRating,
-    minVotes,
-    sort,
-    genreQuery,
-    originCountry,
-    originalLanguage,
-    activePage,
-  ]);
-
+  // The URL shows the page the backend actually returned, which can differ
+  // from the requested one when it is past the end.
+  const urlParamsString = buildSearchParams({ ...baseParams, page: activePage }).toString();
   const fromLocation = urlParamsString ? `/search?${urlParamsString}` : "/search";
 
   useEffect(() => {
-    window.history.replaceState(null, "", fromLocation);
-  }, [fromLocation]);
+    void navigate({
+      search: Object.fromEntries(new URLSearchParams(urlParamsString)),
+      replace: true,
+      resetScroll: false,
+      viewTransition: false,
+    });
+  }, [urlParamsString, navigate]);
 
   useEffect(() => {
     if (searchQuery.isError) toast.error("Failed to load search results.");
   }, [searchQuery.isError]);
 
   const addMutation = useMutation({
-    mutationFn: api.addShow,
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["shows"] });
-
-      queryClient.setQueryData<SearchResponse>(["search", fullParamsString], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          results: old.results.map((item) =>
-            item.id === variables.tmdb_id && item.media_type === variables.media_type
-              ? { ...item, in_library: true }
-              : item,
-          ),
-        };
-      });
-
+    mutationFn: ({ item, status }: { item: SearchResult; status: string }) =>
+      api.addShow({ tmdb_id: item.id, media_type: item.media_type, status }),
+    onSuccess: (data, { item }) => {
+      if (data.show) {
+        onShowAdded(queryClient, {
+          tmdbId: item.id,
+          mediaType: item.media_type,
+          libraryId: data.show.id,
+        });
+      }
       toast.success("Added to library.");
     },
     onError: () => {
@@ -314,49 +190,15 @@ export function SearchPage() {
     },
   });
 
-  const results = useMemo(
-    () => searchQuery.data?.results?.filter((item): item is SearchResult => Boolean(item)) ?? [],
-    [searchQuery.data?.results],
-  );
-
+  const results = searchQuery.data?.results ?? [];
   const totalResults = searchQuery.data?.total_results ?? 0;
   const totalPages = searchQuery.data?.total_pages ?? 0;
-  const isCompactPagination = useMediaQuery("(max-width: 640px)");
-
-  const needsLibraryMap = useMemo(() => results.some((item) => item.in_library), [results]);
-  const libraryMapQuery = useQuery({
-    queryKey: ["library-map"],
-    queryFn: () => api.listShows(new URLSearchParams()),
-    enabled: needsLibraryMap,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
-  });
-  const libraryMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const show of libraryMapQuery.data?.shows ?? []) {
-      map.set(`${show.media_type}:${show.tmdb_id}`, show.id);
-    }
-    return map;
-  }, [libraryMapQuery.data]);
-
-  const pageItems = useMemo(() => {
-    if (!totalPages || totalPages <= 1) return [];
-    const siblingCount = isCompactPagination ? 1 : 2;
-    return getPageItems(totalPages, activePage, siblingCount, 1);
-  }, [totalPages, activePage, isCompactPagination]);
 
   const goToPage = (next: number) => {
-    const clamped = totalPages ? Math.max(1, Math.min(totalPages, next)) : Math.max(1, next);
-    if (clamped === activePage && clamped === page) return;
-    setPage(clamped);
+    if (next === activePage && next === page) return;
+    setPage(next);
     setExpandedOverviews(new Set());
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "auto" : "smooth" });
+    scrollToTop();
   };
 
   const availableGenres =
@@ -364,28 +206,24 @@ export function SearchPage() {
       ? (searchGenresQuery.data?.movie_genres ?? [])
       : (searchGenresQuery.data?.tv_genres ?? []);
 
-  const availableCountries = searchCountriesQuery.data?.countries ?? [];
-  const availableLanguages = searchLanguagesQuery.data?.languages ?? [];
-
-  const handleAdd = (item: SearchResult, status: string) => {
-    addMutation.mutate({
-      tmdb_id: item.id,
-      media_type: item.media_type,
-      status,
-    });
-  };
-
   const handleOpenImdb = async (item: SearchResult) => {
+    // Open the tab now, inside the click. A window.open after the await is no
+    // longer tied to the gesture, and Safari blocks it as a popup.
+    const tab = window.open("", "_blank");
+    if (tab) tab.opener = null;
     try {
       const resolved = await api.searchResolve(item.id, item.media_type);
       const target = resolved.imdb_url || resolved.tmdb_url;
       if (!target) {
+        tab?.close();
         toast.error("No external link found.");
         return;
       }
-      window.open(target, "_blank", "noopener,noreferrer");
+      if (tab) tab.location.href = target;
+      else window.open(target, "_blank", "noopener,noreferrer");
     } catch {
-      toast.error("Failed to open IMDb.");
+      tab?.close();
+      toast.error("Failed to open the external page.");
     }
   };
 
@@ -401,8 +239,9 @@ export function SearchPage() {
   const renderResultsCount = () => {
     if (searchQuery.isLoading) return "";
     const loaded = results.length;
-    const total = totalResults;
-    if (total && total !== loaded) return `Total results ${total}, showing ${loaded}`;
+    if (totalResults && totalResults !== loaded) {
+      return `Total results ${totalResults}, showing ${loaded}`;
+    }
     return `Total results ${loaded}`;
   };
 
@@ -425,33 +264,37 @@ export function SearchPage() {
   const FiltersForm = (
     <SearchFilters
       genreMode={genreMode}
-      onGenreModeChange={handleGenreModeChange}
+      onGenreModeChange={setGenreMode}
       selectedGenres={selectedGenres}
-      onSelectedGenresChange={handleSelectedGenresChange}
+      onSelectedGenresChange={setSelectedGenres}
       availableGenres={availableGenres}
       genresLoading={searchGenresQuery.isLoading}
       originCountry={originCountry}
-      onOriginCountryChange={handleOriginCountryChange}
+      onOriginCountryChange={setOriginCountry}
       originalLanguage={originalLanguage}
-      onOriginalLanguageChange={handleOriginalLanguageChange}
+      onOriginalLanguageChange={setOriginalLanguage}
       availableCountries={availableCountries}
       availableLanguages={availableLanguages}
       yearFrom={yearFrom}
-      onYearFromChange={handleYearFromChange}
+      onYearFromChange={setYearFrom}
       yearTo={yearTo}
-      onYearToChange={handleYearToChange}
+      onYearToChange={setYearTo}
       minRating={minRating}
-      onMinRatingChange={handleMinRatingChange}
+      onMinRatingChange={setMinRating}
       minVotes={minVotes}
-      onMinVotesChange={handleMinVotesChange}
+      onMinVotesChange={setMinVotes}
       sort={sort}
-      onSortChange={handleSortChange}
+      onSortChange={setSort}
       onReset={handleResetFilters}
     />
   );
 
+  const pendingItem = addMutation.isPending ? addMutation.variables?.item : undefined;
+
   return (
-    <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: ["search"] })}>
+    <PullToRefresh
+      onRefresh={() => queryClient.invalidateQueries({ queryKey: queryKeys.searchAll })}
+    >
       <FiltersPane
         filtersOpen={filtersOpen}
         onOpenChange={setFiltersOpen}
@@ -459,32 +302,41 @@ export function SearchPage() {
         headerClassName="flex-wrap items-end gap-4"
       >
         <FiltersPaneContent>
-          <form className="flex w-full justify-center" onSubmit={(event) => event.preventDefault()}>
+          <form
+            role="search"
+            className="flex w-full justify-center"
+            onSubmit={(event) => event.preventDefault()}
+          >
             <Input
-              type="text"
+              type="search"
               name="q"
+              aria-label="Search TMDB"
               placeholder="Search TMDB"
               value={queryInput}
-              onChange={(event) => handleQueryChange(event.target.value)}
-              autoFocus
+              onChange={(event) => setQueryInput(event.target.value)}
               className="w-full max-w-md md:max-w-lg lg:max-w-xl"
             />
           </form>
 
           <div className="flex items-center justify-between gap-4">
-            <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-1">
+            <div
+              role="group"
+              aria-label="Media type"
+              className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-1"
+            >
               {mediaTypeOptions.map((option) => (
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => handleMediaTypeChange(option.value as MediaType)}
+                  aria-pressed={mediaType === option.value}
+                  onClick={() => handleMediaTypeChange(option.value)}
                   className={`cursor-pointer rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
                     mediaType === option.value
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {option.label === "TV" ? "TV Shows" : option.label}
+                  {option.label}
                 </button>
               ))}
             </div>
@@ -493,29 +345,22 @@ export function SearchPage() {
 
           <SearchResults
             isInitialLoading={isInitialLoading}
-            isFetching={isFetching}
+            isFetching={searchQuery.isFetching}
             results={results}
             availableLanguages={availableLanguages}
             imageBase={imageBase}
-            libraryMap={libraryMap}
             expandedOverviews={expandedOverviews}
             onToggleOverview={toggleOverview}
             onOpenImdb={(item) => void handleOpenImdb(item)}
-            onAdd={handleAdd}
-            addPending={addMutation.isPending}
+            onAdd={(item, status) => addMutation.mutate({ item, status })}
+            pendingKey={pendingItem ? resultKey(pendingItem) : undefined}
             fromLocation={fromLocation}
             query={trimmedQuery}
             mediaType={mediaType}
             onSwitchMediaType={handleMediaTypeChange}
           />
 
-          <SearchPagination
-            totalPages={totalPages}
-            activePage={activePage}
-            isCompact={isCompactPagination}
-            pageItems={pageItems}
-            onGoToPage={goToPage}
-          />
+          <Paginator totalPages={totalPages} activePage={activePage} onGoToPage={goToPage} />
         </FiltersPaneContent>
       </FiltersPane>
     </PullToRefresh>

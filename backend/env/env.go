@@ -1,7 +1,10 @@
 // Package env reads the application mode once during initialization.
 package env
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 type Environment string
 
@@ -13,21 +16,29 @@ const (
 )
 
 func (e Environment) Valid() bool {
-	switch e {
-	case Local, Production:
-		return true
-	}
-	return false
+	return e == Local || e == Production
 }
 
-var Current Environment = Local
+var (
+	raw = os.Getenv(Key)
+
+	// Current is the mode. An unset ENV means Local; Check rejects any other
+	// unknown value, so a typo cannot quietly run production in local mode.
+	Current = Local
+)
 
 func init() {
-	v := os.Getenv(Key)
-	Current = Environment(v)
-	if !Current.Valid() {
-		Current = Local
+	if e := Environment(raw); e.Valid() {
+		Current = e
 	}
+}
+
+// Check reports an ENV value that is set but not recognized.
+func Check() error {
+	if raw != "" && !Environment(raw).Valid() {
+		return fmt.Errorf("%s=%q is not %q or %q", Key, raw, Local, Production)
+	}
+	return nil
 }
 
 func IsLocal() bool {

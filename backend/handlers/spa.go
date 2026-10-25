@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/handsomefox/paired-ratings/backend/logger"
 )
 
 func SPA(distFS fs.FS) (http.Handler, error) {
@@ -29,21 +31,15 @@ func SPA(distFS fs.FS) (http.Handler, error) {
 			serveIndex(w, r, distFS, indexBytes)
 			return
 		}
+		// A path that names a file, or looks like one, goes to the file server,
+		// which answers 404 for a missing file. Everything else is a client-side
+		// route and gets index.html.
 		trimmed := strings.TrimPrefix(cleanPath, "/")
-		if info, err := fs.Stat(distFS, trimmed); err == nil && !info.IsDir() {
+		if exists(distFS, trimmed) || strings.Contains(path.Base(cleanPath), ".") {
 			setStaticCacheHeaders(w, trimmed)
-			if servePrecompressed(w, r, distFS, trimmed) {
-				return
+			if !servePrecompressed(w, r, distFS, trimmed) {
+				fileServer.ServeHTTP(w, r)
 			}
-			fileServer.ServeHTTP(w, r)
-			return
-		}
-		if strings.Contains(path.Base(cleanPath), ".") {
-			setStaticCacheHeaders(w, trimmed)
-			if servePrecompressed(w, r, distFS, trimmed) {
-				return
-			}
-			fileServer.ServeHTTP(w, r)
 			return
 		}
 		serveIndex(w, r, distFS, indexBytes)
@@ -70,30 +66,25 @@ func servePrecompressed(w http.ResponseWriter, r *http.Request, distFS fs.FS, or
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			slog.Warn("close static asset failed", slog.Any("error", err))
+			slog.Warn("close static asset failed", logger.Error(err))
 		}
 	}()
 
-	info, err := fs.Stat(distFS, compressedPath)
+	info, err := file.Stat()
 	if err != nil {
+		return false
+	}
+	// embed.FS files are seekable; another fs.FS may not be.
+	reader, ok := file.(io.ReadSeeker)
+	if !ok {
 		return false
 	}
 
 	if contentType := mime.TypeByExtension(path.Ext(originalPath)); contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}
-	if reader, ok := file.(io.ReadSeeker); ok {
-		w.Header().Set("Content-Encoding", encoding)
-		http.ServeContent(w, r, path.Base(originalPath), info.ModTime(), reader)
-		return true
-	}
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return false
-	}
 	w.Header().Set("Content-Encoding", encoding)
-	http.ServeContent(w, r, path.Base(originalPath), info.ModTime(), bytes.NewReader(data))
+	http.ServeContent(w, r, path.Base(originalPath), info.ModTime(), reader)
 	return true
 }
 

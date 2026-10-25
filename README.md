@@ -5,12 +5,17 @@ carries two ratings and two comments, labeled with `BF_NAME` and `GF_NAME`, so
 you can disagree about a film without overwriting each other. TMDB supplies
 search, posters, and metadata. The library lives in a SQLite file.
 
-- Search TMDB, or discover titles by type, year, rating, and vote count.
-- Save a title as planned or watched, rate it 1 to 10, and leave a comment.
-- Filter by status, genre, year range, and missing ratings. Sort by rating,
-  year, or title.
-- Refresh a title's TMDB metadata, or delete the entry.
-- Export the library as JSON.
+- Search TMDB, or discover titles by type, genre, year, rating, vote count,
+  country, and language.
+- Save a title as planned, watching, or watched. Each person rates it 1 to 10
+  and leaves a comment.
+- Track watched episodes of a TV show, one at a time or a season at once.
+- Keep a shared watch order and reorder it by dragging.
+- See the rest of a movie's collection, or TMDB's recommendations, on its page.
+- Filter the library by status, genre, country, year range, and missing
+  ratings. Sort by either rating, the average, year, title, or recent changes.
+- Refresh TMDB metadata for one title or the whole library.
+- Export the library as JSON, or download the whole database.
 
 ## Run it locally
 
@@ -50,9 +55,9 @@ make lint
 make test
 ```
 
-`make fmt` needs `gofumpt`, and `make lint` needs `golangci-lint`. Each target
-runs over the Go code and then the frontend, so `make test` covers the Go tests
-and the Vitest suite. To report formatting without rewriting files, run
+The Go tools run through `go tool` at the versions pinned in `tools/go.mod`, so
+there is nothing to install. Each target runs over the Go code and then the
+frontend, so `make test` covers the Go tests and the Vitest suite. To report formatting without rewriting files, run
 `make fmt-check`. That is the check CI runs.
 
 Run the frontend build once before the Go commands, because

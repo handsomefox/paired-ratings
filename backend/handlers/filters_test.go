@@ -3,154 +3,131 @@ package handlers
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
-	"github.com/handsomefox/paired-ratings/backend/gen/pb"
-	"github.com/handsomefox/paired-ratings/backend/tmdb"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/handsomefox/paired-ratings/backend/store"
+	"github.com/handsomefox/paired-ratings/backend/tmdb"
 )
 
 func TestParseGenreFilter(t *testing.T) {
-	ids, mode, raw := parseGenreFilter("")
-	require.Empty(t, ids)
-	require.Equal(t, "and", mode)
-	require.Empty(t, raw)
+	ids, matchAny, raw := parseGenreFilter("")
+	assert.Empty(t, ids)
+	assert.False(t, matchAny)
+	assert.Empty(t, raw)
 
-	ids, mode, raw = parseGenreFilter("12, 34, nope")
-	require.Equal(t, []int{12, 34}, ids)
-	require.Equal(t, "and", mode)
-	require.Equal(t, "12,34", raw)
+	ids, matchAny, raw = parseGenreFilter("12, 34, nope")
+	assert.Equal(t, []int{12, 34}, ids)
+	assert.False(t, matchAny)
+	assert.Equal(t, "12,34", raw)
 
-	ids, mode, raw = parseGenreFilter("5|7|0")
-	require.Equal(t, []int{5, 7}, ids)
-	require.Equal(t, "or", mode)
-	require.Equal(t, "5|7", raw)
+	ids, matchAny, raw = parseGenreFilter("5|7|0")
+	assert.Equal(t, []int{5, 7}, ids)
+	assert.True(t, matchAny)
+	assert.Equal(t, "5|7", raw)
 }
 
 func TestMatchesGenres(t *testing.T) {
 	itemIDs := []int{1, 2, 3}
-	require.True(t, matchesGenres(itemIDs, []int{2, 4}, "or"))
-	require.False(t, matchesGenres(itemIDs, []int{2, 4}, "and"))
+	assert.True(t, matchesGenres(itemIDs, []int{2, 4}, true))
+	assert.False(t, matchesGenres(itemIDs, []int{2, 4}, false))
+	assert.True(t, matchesGenres(itemIDs, []int{1, 3}, false))
 }
 
-func TestSearchFiltersFromRequest(t *testing.T) {
-	req := &pb.SearchRequest{
-		MediaType:        " tv ",
-		YearFrom:         "2020",
-		YearTo:           "2021",
-		MinRating:        "7.2",
-		MinVotes:         "100",
-		Sort:             "year",
-		Genres:           "12|16",
-		OriginCountry:    "us",
-		OriginalLanguage: "EN",
-		Page:             2,
-	}
+func TestParseSearchFilters(t *testing.T) {
+	f := parseSearchFilters(url.Values{
+		"media_type":        {" tv "},
+		"year_from":         {"2020"},
+		"year_to":           {"2021"},
+		"min_rating":        {"7.2"},
+		"min_votes":         {"100"},
+		"sort":              {"year"},
+		"genres":            {"12|16"},
+		"origin_country":    {"us"},
+		"original_language": {"EN"},
+		"page":              {"2"},
+	})
+	assert.Equal(t, "tv", f.MediaType)
+	assert.Equal(t, new(2020), f.YearFrom)
+	assert.Equal(t, new(2021), f.YearTo)
+	require.NotNil(t, f.MinRating)
+	assert.InDelta(t, 7.2, *f.MinRating, 0.001)
+	assert.Equal(t, new(100), f.MinVotes)
+	assert.Equal(t, sortYear, f.Sort)
+	assert.Equal(t, []int{12, 16}, f.GenreIDs)
+	assert.True(t, f.GenreMatchAny)
+	assert.Equal(t, "US", f.OriginCountry)
+	assert.Equal(t, "en", f.OriginalLanguage)
+	assert.Equal(t, 2, f.Page)
+	assert.True(t, f.narrows())
 
-	filters := searchFiltersFromRequest(req)
-	require.Equal(t, "tv", filters.MediaType)
-	require.NotNil(t, filters.YearFrom)
-	require.Equal(t, 2020, *filters.YearFrom)
-	require.NotNil(t, filters.YearTo)
-	require.Equal(t, 2021, *filters.YearTo)
-	require.NotNil(t, filters.MinRating)
-	require.InDelta(t, 7.2, *filters.MinRating, 0.001)
-	require.NotNil(t, filters.MinVotes)
-	require.Equal(t, 100, *filters.MinVotes)
-	require.Equal(t, "year", filters.Sort)
-	require.Equal(t, 2, filters.Page)
-	require.Equal(t, []int{12, 16}, filters.GenreIDs)
-	require.Equal(t, "or", filters.GenreMode)
-	require.Equal(t, "12|16", filters.GenreRaw)
-	require.Equal(t, "US", filters.OriginCountry)
-	require.Equal(t, "en", filters.OriginalLanguage)
+	f = parseSearchFilters(url.Values{"media_type": {"book"}, "sort": {"chaos"}, "page": {"9999"}, "min_votes": {"-3"}})
+	assert.Empty(t, f.MediaType)
+	assert.Equal(t, sortRelevance, f.Sort)
+	assert.Equal(t, maxPage, f.Page)
+	assert.Nil(t, f.MinVotes)
+	assert.False(t, f.narrows())
 }
 
-func TestApplySearchSortRating(t *testing.T) {
+func TestSortResults(t *testing.T) {
 	items := []tmdb.SearchResult{
-		{Title: "B", VoteAverage: 8.0, VoteCount: 10},
-		{Title: "A", VoteAverage: 8.0, VoteCount: 20},
-		{Title: "C", VoteAverage: 9.0, VoteCount: 1},
+		{Title: "b", VoteAverage: 7, VoteCount: 10, Year: "2001", Popularity: 3},
+		{Title: "A", VoteAverage: 9, VoteCount: 5, Year: "1999", Popularity: 1},
+		{Title: "c", VoteAverage: 7, VoteCount: 20, Year: "", Popularity: 2},
 	}
+	titles := func(sort searchSort) []string {
+		sorted := append([]tmdb.SearchResult(nil), items...)
+		sortResults(sorted, sort)
+		out := make([]string, 0, len(sorted))
+		for _, item := range sorted {
+			out = append(out, item.Title)
+		}
+		return out
+	}
+	assert.Equal(t, []string{"A", "c", "b"}, titles(sortRating))
+	assert.Equal(t, []string{"c", "b", "A"}, titles(sortVotes))
+	assert.Equal(t, []string{"b", "A", "c"}, titles(sortYear))
+	assert.Equal(t, []string{"A", "b", "c"}, titles(sortTitle))
+	assert.Equal(t, []string{"b", "c", "A"}, titles(sortPopularity))
+	assert.Equal(t, []string{"b", "A", "c"}, titles(sortRelevance))
+}
 
-	sorted := applySearchSort(items, "rating", false)
-	require.Equal(t, "C", sorted[0].Title)
-	require.Equal(t, "A", sorted[1].Title)
-	require.Equal(t, "B", sorted[2].Title)
+func TestPaginate(t *testing.T) {
+	items := make([]tmdb.SearchResult, 45)
+	assert.Len(t, paginate(items, 1).Results, 20)
+	last := paginate(items, 3)
+	assert.Len(t, last.Results, 5)
+	assert.Equal(t, 3, last.TotalPages)
+	assert.Equal(t, 45, last.TotalResults)
+	assert.Empty(t, paginate(items, 9).Results)
 }
 
 func TestParseListFilters(t *testing.T) {
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/shows?status=planned&genre=Drama&origin_country=us&sort=year&unrated=1&year_from=2020&year_to=2021", http.NoBody)
+	parse := func(query string) *store.ListFilters {
+		t.Helper()
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/shows?"+query, http.NoBody)
+		f, err := parseListFilters(r)
+		require.NoError(t, err)
+		return f
+	}
 
-	filters := parseListFilters(req)
-	require.Equal(t, "planned", filters.Status)
-	require.Equal(t, "Drama", filters.Genre)
-	require.Equal(t, "US", filters.Country)
-	require.Equal(t, "year", filters.Sort)
-	require.True(t, filters.Unrated)
-	require.NotNil(t, filters.YearFrom)
-	require.Equal(t, 2020, *filters.YearFrom)
-	require.NotNil(t, filters.YearTo)
-	require.Equal(t, 2021, *filters.YearTo)
-}
+	f := parse("status=planned&origin_country=us&unrated=1&page=3&page_size=50&sort=avg&year_from=2000")
+	assert.Equal(t, store.StatusPlanned, f.Status)
+	assert.Equal(t, "US", f.Country)
+	assert.True(t, f.Unrated)
+	assert.Equal(t, 3, f.Page)
+	assert.Equal(t, 50, f.PageSize)
+	assert.Equal(t, store.SortAverage, f.Sort)
+	assert.Equal(t, new(int64(2000)), f.YearFrom)
 
-func TestParseSearchRequest(t *testing.T) {
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/search?q=foo&media_type=tv&year_from=2020&year_to=2021&min_rating=7.2&min_votes=50&sort=rating&genres=12|16&origin_country=US&original_language=EN&page=3", http.NoBody)
+	f = parse("status=all&page_size=all&sort=chaos&page=-1")
+	assert.Empty(t, f.Status)
+	assert.Zero(t, f.PageSize)
+	assert.Equal(t, store.SortCreated, f.Sort)
+	assert.Equal(t, 1, f.Page)
 
-	parsed := parseSearchRequest(req)
-	require.Equal(t, "foo", parsed.Q)
-	require.Equal(t, "tv", parsed.MediaType)
-	require.Equal(t, "2020", parsed.YearFrom)
-	require.Equal(t, "2021", parsed.YearTo)
-	require.Equal(t, "7.2", parsed.MinRating)
-	require.Equal(t, "50", parsed.MinVotes)
-	require.Equal(t, "rating", parsed.Sort)
-	require.Equal(t, "12|16", parsed.Genres)
-	require.Equal(t, "US", parsed.OriginCountry)
-	require.Equal(t, "EN", parsed.OriginalLanguage)
-	require.Equal(t, int32(3), parsed.Page)
-}
-
-func TestSearchFiltersIsEmpty(t *testing.T) {
-	require.True(t, (&searchFilters{MediaType: "all"}).isEmpty())
-	require.False(t, (&searchFilters{MediaType: "movie"}).isEmpty())
-	year := 2024
-	require.False(t, (&searchFilters{MediaType: "all", YearFrom: &year}).isEmpty())
-}
-
-func TestPaginateSearchResults(t *testing.T) {
-	items := []tmdb.SearchResult{{ID: 1}, {ID: 2}, {ID: 3}}
-
-	paged := paginateSearchResults(items, 1, 2)
-	require.Len(t, paged, 2)
-	require.Equal(t, int64(2), paged[0].ID)
-	require.Equal(t, int64(3), paged[1].ID)
-
-	require.Empty(t, paginateSearchResults(items, 10, 2))
-}
-
-func TestGenreNamesFor(t *testing.T) {
-	movieGenres := map[int]string{1: "Action", 2: "Drama"}
-	tvGenres := map[int]string{3: "Crime"}
-
-	movieItem := tmdb.SearchResult{MediaType: "movie", GenreIDs: []int{2, 1}}
-	movieNames := genreNamesFor(&movieItem, movieGenres, tvGenres)
-	require.ElementsMatch(t, []string{"Action", "Drama"}, movieNames)
-
-	tvItem := tmdb.SearchResult{MediaType: "tv", GenreIDs: []int{3}}
-	tvNames := genreNamesFor(&tvItem, movieGenres, tvGenres)
-	require.Equal(t, []string{"Crime"}, tvNames)
-}
-
-func TestParseOptionalRating(t *testing.T) {
-	require.False(t, parseOptionalRating(nil).Valid)
-
-	val := int32(0)
-	rating := parseOptionalRating(&val)
-	require.True(t, rating.Valid)
-	require.Equal(t, int64(1), rating.V)
-
-	val = 12
-	rating = parseOptionalRating(&val)
-	require.Equal(t, int64(10), rating.V)
+	assert.Equal(t, 20, parse("page_size=7").PageSize)
 }

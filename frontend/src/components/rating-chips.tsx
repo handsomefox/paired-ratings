@@ -12,11 +12,13 @@ const chipBase =
 const RatingChips = ({ bfRating, gfRating }: RatingChipsProps) => (
   <div className="grid w-full grid-cols-3 gap-2 text-xs">
     <Badge variant="bf" className={chipBase}>
-      <span>★</span>
+      <span aria-hidden="true">★</span>
+      <span className="sr-only">BF rating</span>
       <strong>{ratingText(bfRating)}</strong>
     </Badge>
     <Badge variant="gf" className={chipBase}>
-      <span>★</span>
+      <span aria-hidden="true">★</span>
+      <span className="sr-only">GF rating</span>
       <strong>{ratingText(gfRating)}</strong>
     </Badge>
     <Badge variant="outline" className={`${chipBase} border-border/60 bg-muted/40 text-foreground`}>

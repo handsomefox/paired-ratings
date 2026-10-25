@@ -16,6 +16,7 @@ type Row = {
 const gzip = promisify(zlib.gzip);
 const zstdCompress = promisify(zlib.zstdCompress);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+// Must match build.outDir in vite.config.ts.
 const distDir = path.resolve(scriptDir, "../../backend/web/dist");
 const compressExts = new Set([".js", ".css", ".html", ".svg", ".json", ".webmanifest", ".txt"]);
 
@@ -39,15 +40,6 @@ function shouldCompress(filePath: string): boolean {
     return false;
   }
   return compressExts.has(ext);
-}
-
-async function isFresh(targetPath: string, sourceStat: { mtimeMs: number }): Promise<boolean> {
-  try {
-    const targetStat = await fs.stat(targetPath);
-    return targetStat.mtimeMs >= sourceStat.mtimeMs;
-  } catch {
-    return false;
-  }
 }
 
 function formatKB(bytes: number): string {
@@ -119,33 +111,15 @@ function printTable(rows: Row[]): void {
   }
 }
 
-async function ensureGzip(
-  filePath: string,
-  data: Buffer,
-  sourceStat: { mtimeMs: number },
-): Promise<number> {
-  const targetPath = filePath + ".gz";
-  if (await isFresh(targetPath, sourceStat)) {
-    const targetStat = await fs.stat(targetPath);
-    return targetStat.size;
-  }
+async function writeGzip(filePath: string, data: Buffer): Promise<number> {
   const compressed = await gzip(data, { level: 9 });
-  await fs.writeFile(targetPath, compressed);
+  await fs.writeFile(filePath + ".gz", compressed);
   return compressed.length;
 }
 
-async function ensureZstd(
-  filePath: string,
-  data: Buffer,
-  sourceStat: { mtimeMs: number },
-): Promise<number> {
-  const targetPath = filePath + ".zst";
-  if (await isFresh(targetPath, sourceStat)) {
-    const targetStat = await fs.stat(targetPath);
-    return targetStat.size;
-  }
+async function writeZstd(filePath: string, data: Buffer): Promise<number> {
   const compressed = await zstdCompress(data);
-  await fs.writeFile(targetPath, compressed);
+  await fs.writeFile(filePath + ".zst", compressed);
   return compressed.length;
 }
 
@@ -162,18 +136,19 @@ async function main(): Promise<void> {
     if (!shouldCompress(filePath)) {
       continue;
     }
+    // vite build empties the output directory first, so every file is new and
+    // there is no stale .gz or .zst to compare against.
     const data = await fs.readFile(filePath);
-    const sourceStat = await fs.stat(filePath);
-    const gzipSize = await ensureGzip(filePath, data, sourceStat);
-    const zstdSize = await ensureZstd(filePath, data, sourceStat);
+    const gzipSize = await writeGzip(filePath, data);
+    const zstdSize = await writeZstd(filePath, data);
     const relative = path.relative(distDir, filePath).split(path.sep).join("/");
     rows.push({
       file: relative,
-      size: formatKB(sourceStat.size),
+      size: formatKB(data.length),
       gzip: formatKB(gzipSize),
-      gzipPct: formatReduction(sourceStat.size, gzipSize),
+      gzipPct: formatReduction(data.length, gzipSize),
       zstd: formatKB(zstdSize),
-      zstdPct: formatReduction(sourceStat.size, zstdSize),
+      zstdPct: formatReduction(data.length, zstdSize),
     });
   }
 

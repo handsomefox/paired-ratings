@@ -1,29 +1,40 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { api, type SessionResponse } from "@/lib/api";
-import { withViewTransition } from "@/lib/view-transitions";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, ApiError } from "@/lib/api";
+import { queryKeys } from "@/lib/queries";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
+
+function loginErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 401) return "Invalid password";
+    // Too many failed attempts. The backend says when to try again.
+    if (error.status === 429) return error.message;
+  }
+  return "Could not sign in. Try again.";
+}
 
 export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const passwordId = useId();
+  const errorId = useId();
 
   const loginMutation = useMutation({
     mutationFn: api.login,
-    onSuccess: () => {
+    onSuccess: (session) => {
       setError("");
-      queryClient.invalidateQueries({ queryKey: ["session"] });
-      withViewTransition(() => {
-        return navigate({ to: "/" });
-      });
+      // The login response is the new session. Caching it before navigating
+      // lets the route guard on "/" see it, instead of the stale signed-out one.
+      queryClient.setQueryData(queryKeys.session, session);
+      void navigate({ to: "/" });
     },
-    onError: () => setError("Invalid password"),
+    onError: (err) => setError(loginErrorMessage(err)),
   });
 
   const handleSubmit = (event: FormEvent) => {
@@ -31,23 +42,6 @@ export function LoginPage() {
     setError("");
     loginMutation.mutate({ password });
   };
-
-  const sessionQuery = useQuery({
-    queryKey: ["session"],
-    queryFn: api.session,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
-  });
-
-  if (isAuthenticated(sessionQuery.data)) {
-    // navigate returns a promise. Returning it here would hand React a promise
-    // where it expects an element.
-    void navigate({ to: "/" });
-    return null;
-  }
 
   return (
     <section className="flex min-h-[70vh] items-center justify-center">
@@ -60,35 +54,32 @@ export function LoginPage() {
             </p>
           </div>
           <form className="space-y-4" onSubmit={handleSubmit}>
+            <label htmlFor={passwordId} className="sr-only">
+              Password
+            </label>
             <Input
+              id={passwordId}
               type="password"
               name="password"
+              autoComplete="current-password"
               placeholder="Password"
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
             />
             <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
               Enter
             </Button>
-            {error ? <div className="text-sm text-destructive">{error}</div> : null}
+            {error ? (
+              <div id={errorId} role="alert" className="text-sm text-destructive">
+                {error}
+              </div>
+            ) : null}
           </form>
         </CardContent>
       </Card>
     </section>
   );
-}
-
-function isAuthenticated(session: unknown): boolean {
-  if (!session) return false;
-
-  if (
-    typeof session === "object" &&
-    session !== null &&
-    (session as SessionResponse).authenticated === true
-  ) {
-    return true;
-  }
-
-  return false;
 }

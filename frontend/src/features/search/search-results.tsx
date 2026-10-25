@@ -1,10 +1,9 @@
 import CardGrid from "@/components/card-grid";
 import { LanguageBadge } from "@/components/language-badge";
 import { LoadingGrid } from "@/components/loading-grid";
+import { InLibraryLink, MediaTypeBadge } from "@/components/result-badges";
 import { ShowCard } from "@/components/show-card";
 import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
-import { ViewTransitionLink } from "@/components/view-transition-link";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -13,26 +12,28 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import type { SearchResult } from "@/lib/api";
-import { cn, shortGenreList } from "@/lib/utils";
+import type { MediaType } from "@/features/search/search-constants";
+import { resultKey } from "@/features/search/search-utils";
+import type { ApiLanguage, SearchResult } from "@/lib/api";
+import { shortGenres } from "@/lib/utils";
 import { Search as SearchIcon } from "lucide-react";
 
 export type SearchResultsProps = {
   isInitialLoading: boolean;
   isFetching: boolean;
   results: SearchResult[];
-  availableLanguages: Array<{ code: string; name: string }>;
+  availableLanguages: ApiLanguage[];
   imageBase: string;
-  libraryMap: Map<string, number>;
   expandedOverviews: Set<string>;
   onToggleOverview: (key: string) => void;
   onOpenImdb: (item: SearchResult) => void;
   onAdd: (item: SearchResult, status: string) => void;
-  addPending: boolean;
+  /** The result being added, if any. Only its buttons are disabled. */
+  pendingKey?: string;
   fromLocation: string;
   query?: string;
-  mediaType?: string;
-  onSwitchMediaType?: (type: "movie" | "tv") => void;
+  mediaType: MediaType;
+  onSwitchMediaType: (type: MediaType) => void;
 };
 
 export function SearchResults({
@@ -41,12 +42,11 @@ export function SearchResults({
   results,
   availableLanguages,
   imageBase,
-  libraryMap,
   expandedOverviews,
   onToggleOverview,
   onOpenImdb,
   onAdd,
-  addPending,
+  pendingKey,
   fromLocation,
   query,
   mediaType,
@@ -64,7 +64,7 @@ export function SearchResults({
             </EmptyMedia>
             <EmptyTitle>{query ? "No results found" : "No results yet"}</EmptyTitle>
             <EmptyDescription>
-              {query && mediaType && onSwitchMediaType ? (
+              {query ? (
                 <>
                   No {mediaType === "movie" ? "movie" : "TV show"} results for &ldquo;{query}
                   &rdquo;.{" "}
@@ -85,14 +85,14 @@ export function SearchResults({
       ) : null}
       <CardGrid className={`transition-opacity ${isFetching ? "opacity-60" : "opacity-100"}`}>
         {results.map((item) => {
-          const libraryKey = `${item.media_type}:${item.id}`;
-          const libraryId = libraryMap.get(libraryKey);
+          const key = resultKey(item);
           const languageLabel =
             availableLanguages.find((lang) => lang.code === item.original_language)?.name ??
-            item.original_language?.toUpperCase();
+            item.original_language.toUpperCase();
+          const adding = pendingKey === key;
           return (
             <ShowCard
-              key={`${item.media_type}-${item.id}`}
+              key={key}
               title={item.title}
               year={item.year}
               posterAlt={item.title}
@@ -103,7 +103,7 @@ export function SearchResults({
                   type="button"
                   className="block w-full cursor-pointer text-left"
                   onClick={() => onOpenImdb(item)}
-                  aria-label={`Search IMDb for ${item.title}`}
+                  aria-label={`Open ${item.title} on IMDb`}
                 >
                   {node}
                 </button>
@@ -116,50 +116,17 @@ export function SearchResults({
                     className="col-span-2 flex w-full justify-center"
                   />
                   <LanguageBadge code={item.original_language} label={languageLabel} />
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "flex justify-center",
-                      item.original_language ? "w-full" : "col-span-2 w-1/2 justify-self-center",
-                    )}
-                  >
-                    {item.media_type === "movie"
-                      ? "Movie"
-                      : item.media_type === "tv"
-                        ? "TV"
-                        : item.media_type}
-                  </Badge>
+                  <MediaTypeBadge mediaType={item.media_type} fullWidth={!item.original_language} />
                 </>
               }
               metaBadgesClassName="grid-cols-2"
-              genresText={item.genres?.length ? shortGenreList(item.genres) : ""}
+              genresText={shortGenres(item.genres)}
               overview={item.overview}
-              overviewExpanded={expandedOverviews.has(`${item.media_type}-${item.id}`)}
-              onToggleOverview={() => onToggleOverview(`${item.media_type}-${item.id}`)}
+              overviewExpanded={expandedOverviews.has(key)}
+              onToggleOverview={() => onToggleOverview(key)}
               footer={
-                item.in_library ? (
-                  libraryId ? (
-                    <ViewTransitionLink
-                      to="/show/$showId"
-                      params={{ showId: String(libraryId) }}
-                      search={{ from: fromLocation }}
-                      className="block w-full"
-                    >
-                      <Badge
-                        variant="outline"
-                        className="h-8 w-full justify-center gap-1 rounded-md border-primary/40 bg-primary/15 px-3 text-xs text-primary hover:bg-primary/20"
-                      >
-                        In Library
-                      </Badge>
-                    </ViewTransitionLink>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="h-8 w-full justify-center gap-1 rounded-md border-primary/40 bg-primary/15 px-3 text-xs text-primary"
-                    >
-                      In Library
-                    </Badge>
-                  )
+                item.library_id ? (
+                  <InLibraryLink libraryId={item.library_id} from={fromLocation} />
                 ) : (
                   <div className="grid w-full grid-cols-2 gap-2">
                     <Button
@@ -167,7 +134,7 @@ export function SearchResults({
                       size="sm"
                       className="w-full"
                       onClick={() => onAdd(item, "planned")}
-                      disabled={addPending}
+                      disabled={adding}
                     >
                       Plan
                     </Button>
@@ -176,7 +143,7 @@ export function SearchResults({
                       size="sm"
                       className="w-full"
                       onClick={() => onAdd(item, "watched")}
-                      disabled={addPending}
+                      disabled={adding}
                     >
                       Watched
                     </Button>

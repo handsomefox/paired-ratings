@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
   Outlet,
@@ -18,14 +18,16 @@ import { ScrollToTop } from "./components/scroll-to-top";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { api, registerUnauthorizedHandler } from "./lib/api";
-import { withViewTransition } from "./lib/view-transitions";
+import { downloadResponse } from "./lib/download";
+import { parseSearch, parseSearchString, pickSearch, stringifySearch } from "./lib/search-params";
+import { queryKeys, sessionQueryOptions, shouldRetry, useSession } from "./lib/queries";
 import { DetailPage } from "./pages/detail";
 import { LibraryPage } from "./pages/library";
 import { LoginPage } from "./pages/login";
 import { SearchPage } from "./pages/search";
 import { WatchOrderPage } from "./pages/watch-order";
 
-export type AppContext = {
+type AppContext = {
   queryClient: QueryClient;
 };
 
@@ -34,79 +36,45 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 1000 * 30,
       refetchOnWindowFocus: false,
-      retry: 1,
+      retry: shouldRetry,
     },
   },
 });
 
+// Any 401 means the cookie is gone. Refetching the session flips `authed` and
+// RootLayout sends the reader to the login page.
+registerUnauthorizedHandler(() => {
+  void queryClient.invalidateQueries({ queryKey: queryKeys.session });
+});
+
 const RootLayout = () => {
   const navigate = useNavigate();
-  const state = useRouterState();
-
-  useEffect(() => {
-    registerUnauthorizedHandler(() => {
-      queryClient.invalidateQueries({ queryKey: ["session"] });
-    });
-  }, []);
-
-  const sessionQuery = useQuery({
-    queryKey: ["session"],
-    queryFn: api.session,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
-  });
-
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const sessionQuery = useSession();
   const authed = sessionQuery.data?.authenticated ?? false;
 
   useEffect(() => {
     if (sessionQuery.isLoading) return;
-    if (!authed && !state.location.pathname.startsWith("/login")) {
-      withViewTransition(() => {
-        void navigate({ to: "/login" });
-      });
+    if (!authed && !pathname.startsWith("/login")) {
+      void navigate({ to: "/login" });
     }
-  }, [authed, sessionQuery.isLoading, state.location.pathname, navigate]);
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [state.location.pathname]);
+  }, [authed, sessionQuery.isLoading, pathname, navigate]);
 
   const handleExport = async () => {
-    const res = await api.exportData();
-    if (!res.ok) throw new Error("export failed");
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "show-ratings.json";
-    a.click();
-    window.URL.revokeObjectURL(url);
+    await downloadResponse(await api.exportData(), "show-ratings.json");
   };
 
   const handleExportDB = async () => {
-    const res = await api.exportDB();
-    if (!res.ok) throw new Error("export failed");
-    const blob = await res.blob();
-    const cd = res.headers.get("Content-Disposition") ?? "";
-    const match = cd.match(/filename="([^"]+)"/);
-    const filename = match?.[1] ?? "paired-ratings.db";
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    await downloadResponse(await api.exportDB(), "paired-ratings.db");
   };
 
   const handleLogout = async () => {
-    await api.logout();
-    await queryClient.invalidateQueries({ queryKey: ["session"] });
-    withViewTransition(() => {
-      void navigate({ to: "/login" });
-    });
+    const session = await api.logout();
+    // Drop every cached library page, not just the session, so nothing private
+    // stays in memory after signing out.
+    queryClient.clear();
+    queryClient.setQueryData(queryKeys.session, session);
+    await navigate({ to: "/login" });
   };
 
   if (sessionQuery.isLoading) {
@@ -131,11 +99,7 @@ const RootLayout = () => {
 };
 
 const requireSession = async (queryClient: QueryClient) => {
-  const session = await queryClient.ensureQueryData({
-    queryKey: ["session"],
-    queryFn: ({ signal }) => api.session({ signal }),
-    staleTime: 60_000,
-  });
+  const session = await queryClient.ensureQueryData(sessionQueryOptions);
 
   if (!session.authenticated) {
     throw redirect({ to: "/login" });
@@ -148,66 +112,43 @@ const rootRoute = createRootRouteWithContext<AppContext>()({
   component: RootLayout,
 });
 
-type LibrarySearch = {
-  status?: string;
-  genre?: string;
-  origin_country?: string;
-  year_from?: string;
-  year_to?: string;
-  unrated?: string;
-  sort?: string;
-};
+const librarySearchKeys = [
+  "status",
+  "genre",
+  "origin_country",
+  "year_from",
+  "year_to",
+  "unrated",
+  "sort",
+  "page",
+  "page_size",
+] as const;
+type LibrarySearch = Partial<Record<(typeof librarySearchKeys)[number], string>>;
 
-type SearchSearch = {
-  q?: string;
-  media_type?: string;
-  year_from?: string;
-  year_to?: string;
-  min_rating?: string;
-  min_votes?: string;
-  sort?: string;
-  genres?: string;
-  origin_country?: string;
-  original_language?: string;
-  page?: string;
-};
-
-const parseSearchString = (value: unknown): string | undefined => {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed ? trimmed : undefined;
-  }
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  return undefined;
-};
+const searchPageKeys = [
+  "q",
+  "media_type",
+  "year_from",
+  "year_to",
+  "min_rating",
+  "min_votes",
+  "sort",
+  "genres",
+  // Genre names from "Find similar". The search page resolves them to TMDB
+  // genre ids once the genre list loads.
+  "genre_names",
+  "origin_country",
+  "original_language",
+  "page",
+] as const;
+type SearchPageSearch = Partial<Record<(typeof searchPageKeys)[number], string>>;
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: async ({ context }) => requireSession(context.queryClient),
-  validateSearch: (search): LibrarySearch => {
-    if (!search || typeof search !== "object") return {};
-    const params = search as Record<string, unknown>;
-    const next: LibrarySearch = {};
-
-    const status = parseSearchString(params.status);
-    const genre = parseSearchString(params.genre);
-    const origin_country = parseSearchString(params.origin_country);
-    const year_from = parseSearchString(params.year_from);
-    const year_to = parseSearchString(params.year_to);
-    const unrated = parseSearchString(params.unrated);
-    const sort = parseSearchString(params.sort);
-
-    if (status) next.status = status;
-    if (genre) next.genre = genre;
-    if (origin_country) next.origin_country = origin_country;
-    if (year_from) next.year_from = year_from;
-    if (year_to) next.year_to = year_to;
-    if (unrated) next.unrated = unrated;
-    if (sort) next.sort = sort;
-
-    return next;
-  },
+  validateSearch: (search: Record<string, unknown>): LibrarySearch =>
+    pickSearch(search, librarySearchKeys),
   component: LibraryPage,
 });
 
@@ -222,52 +163,19 @@ const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/search",
   beforeLoad: async ({ context }) => requireSession(context.queryClient),
-  validateSearch: (search): SearchSearch => {
-    if (!search || typeof search !== "object") return {};
-    const params = search as Record<string, unknown>;
-    const next: SearchSearch = {};
-
-    const q = parseSearchString(params.q);
-    const media_type = parseSearchString(params.media_type);
-    const year_from = parseSearchString(params.year_from);
-    const year_to = parseSearchString(params.year_to);
-    const min_rating = parseSearchString(params.min_rating);
-    const min_votes = parseSearchString(params.min_votes);
-    const sort = parseSearchString(params.sort);
-    const genres = parseSearchString(params.genres);
-    const origin_country = parseSearchString(params.origin_country);
-    const original_language = parseSearchString(params.original_language);
-    const page = parseSearchString(params.page);
-
-    if (q) next.q = q;
-    if (media_type) next.media_type = media_type;
-    if (year_from) next.year_from = year_from;
-    if (year_to) next.year_to = year_to;
-    if (min_rating) next.min_rating = min_rating;
-    if (min_votes) next.min_votes = min_votes;
-    if (sort) next.sort = sort;
-    if (genres) next.genres = genres;
-    if (origin_country) next.origin_country = origin_country;
-    if (original_language) next.original_language = original_language;
-    if (page) next.page = page;
-
-    return next;
-  },
+  validateSearch: (search: Record<string, unknown>): SearchPageSearch =>
+    pickSearch(search, searchPageKeys),
   component: SearchPage,
 });
-
-type DetailSearch = {
-  from?: string;
-};
 
 const detailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/show/$showId",
   beforeLoad: async ({ context }) => requireSession(context.queryClient),
-  validateSearch: (search): DetailSearch => {
-    if (!search || typeof search !== "object") return {};
-    const from = (search as { from?: unknown }).from;
-    if (typeof from === "string" && from.trim().length > 0) {
+  validateSearch: (search: Record<string, unknown>): { from?: string } => {
+    const from = parseSearchString(search.from);
+    // Only an in-app path is a valid way back. "//host" would leave the site.
+    if (from && from.startsWith("/") && !from.startsWith("//")) {
       return { from };
     }
     return {};
@@ -278,6 +186,12 @@ const detailRoute = createRoute({
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
+  beforeLoad: async ({ context }) => {
+    const session = await context.queryClient.ensureQueryData(sessionQueryOptions);
+    if (session.authenticated) {
+      throw redirect({ to: "/" });
+    }
+  },
   component: LoginPage,
 });
 
@@ -293,6 +207,10 @@ const router = createRouter({
   routeTree,
   context: { queryClient },
   defaultPreload: "intent",
+  defaultViewTransition: true,
+  scrollRestoration: true,
+  parseSearch,
+  stringifySearch,
 });
 
 declare module "@tanstack/react-router" {

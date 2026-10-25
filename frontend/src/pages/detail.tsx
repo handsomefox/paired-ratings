@@ -1,46 +1,28 @@
 import { Loading } from "@/components/loading";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { DetailContent } from "@/features/detail/detail-content";
-import { api } from "@/lib/api";
-import { withViewTransition } from "@/lib/view-transitions";
+import { api, ApiError } from "@/lib/api";
+import { queryKeys, useSession } from "@/lib/queries";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
-function backLabelForTarget(target: string | null): string {
+function backLabelForTarget(target: string | undefined): string {
   if (target?.startsWith("/search")) return "Back to search";
   if (target?.startsWith("/watch-order")) return "Back to watch order";
   return "Back to library";
 }
 
-type DetailSearch = {
-  from?: string;
-};
-
 export function DetailPage() {
-  const { showId } = useParams({ from: "/show/$showId" });
+  const { showId: showIdParam } = useParams({ from: "/show/$showId" });
+  const showId = Number(showIdParam);
   const navigate = useNavigate();
-  const search = useSearch({ from: "/show/$showId" }) as DetailSearch;
-
-  const sessionQuery = useQuery({
-    queryKey: ["session"],
-    queryFn: api.session,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    retry: 1,
-  });
+  const { from: backTarget } = useSearch({ from: "/show/$showId" });
+  const { imageBase, bfName, gfName } = useSession();
 
   const showQuery = useQuery({
-    queryKey: ["show", showId],
-    queryFn: () => api.getShow(Number(showId)),
+    queryKey: queryKeys.show(showId),
+    queryFn: ({ signal }) => api.getShow(showId, { signal }),
   });
-
-  const imageBase = sessionQuery.data?.image_base ?? "";
-  const bfName = sessionQuery.data?.bf_name ?? "BF";
-  const gfName = sessionQuery.data?.gf_name ?? "GF";
-  const backTarget = search.from ?? null;
-  const backLabel = backLabelForTarget(backTarget);
 
   if (showQuery.isLoading) {
     return <Loading label="Loading..." />;
@@ -48,36 +30,36 @@ export function DetailPage() {
 
   const show = showQuery.data?.show;
   if (!show) {
+    const notFound =
+      showQuery.isSuccess ||
+      (showQuery.error instanceof ApiError && showQuery.error.status === 404);
     return (
       <Empty className="border-border/60 bg-card/30">
         <EmptyHeader>
-          <EmptyTitle>Show not found</EmptyTitle>
-          <EmptyDescription>Try going back to the library.</EmptyDescription>
+          <EmptyTitle>{notFound ? "Show not found" : "Could not load this show"}</EmptyTitle>
+          <EmptyDescription>
+            {notFound ? "Try going back to the library." : "Reload the page to try again."}
+          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
   }
 
-  const handleBack = () => {
-    withViewTransition(() => {
-      if (backTarget) {
-        void navigate({ to: backTarget });
-      } else {
-        void navigate({ to: "/" });
-      }
-    });
-  };
+  // `from` is a full in-app href with its query string, validated by the
+  // route. When `href` is set the router builds the location from it and
+  // ignores `to`, which is only there to satisfy the types.
+  const handleBack = () => navigate({ to: "/", href: backTarget });
 
   return (
     <DetailContent
       key={show.id}
       show={show}
-      showId={Number(showId)}
+      showId={showId}
       imageBase={imageBase}
       imdbUrl={showQuery.data?.imdb_url}
       bfName={bfName}
       gfName={gfName}
-      backLabel={backLabel}
+      backLabel={backLabelForTarget(backTarget)}
       onBack={handleBack}
     />
   );

@@ -1,6 +1,7 @@
-import { CountryCombobox, type CountryOption } from "@/components/country-combobox";
+import { CountryCombobox } from "@/components/country-combobox";
 import FilterField from "@/components/filter-field";
-import { LanguageCombobox, type LanguageOption } from "@/components/language-combobox";
+import { LanguageCombobox } from "@/components/language-combobox";
+import { YearRangeFields } from "@/components/year-range-fields";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -14,25 +15,21 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { sortOptions, type Sort } from "@/features/search/search-constants";
-
-export type SearchGenreOption = {
-  id: number;
-  name: string;
-};
+import type { ApiCountry, ApiGenre, ApiLanguage } from "@/lib/api";
 
 type SearchFiltersProps = {
   genreMode: "all" | "any";
   onGenreModeChange: (value: "all" | "any") => void;
   selectedGenres: string[];
   onSelectedGenresChange: (next: string[]) => void;
-  availableGenres: SearchGenreOption[];
+  availableGenres: ApiGenre[];
   genresLoading: boolean;
   originCountry: string;
   onOriginCountryChange: (value: string) => void;
   originalLanguage: string;
   onOriginalLanguageChange: (value: string) => void;
-  availableCountries: CountryOption[];
-  availableLanguages: LanguageOption[];
+  availableCountries: ApiCountry[];
+  availableLanguages: ApiLanguage[];
   yearFrom: string;
   onYearFromChange: (value: string) => void;
   yearTo: string;
@@ -73,13 +70,13 @@ export function SearchFilters({
 }: SearchFiltersProps) {
   return (
     <div className="space-y-5">
-      <FilterField label="Genres">
+      <FilterField label="Genres" group>
         <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-3">
           <Select
             value={genreMode}
             onValueChange={(value) => onGenreModeChange(value as "all" | "any")}
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label="Genre match">
               <SelectValue placeholder="Match" />
             </SelectTrigger>
             <SelectContent>
@@ -104,7 +101,7 @@ export function SearchFilters({
                     <Checkbox
                       checked={checked}
                       onCheckedChange={(value) => {
-                        if (value) onSelectedGenresChange([...selectedGenres, id]);
+                        if (value === true) onSelectedGenresChange([...selectedGenres, id]);
                         else onSelectedGenresChange(selectedGenres.filter((val) => val !== id));
                       }}
                     />
@@ -118,85 +115,87 @@ export function SearchFilters({
       </FilterField>
 
       <FilterField label="Origin country">
-        <div className="w-full min-w-0">
-          <CountryCombobox
-            value={originCountry}
-            onValueChange={onOriginCountryChange}
-            options={availableCountries}
-            placeholder="Any"
-            anyLabel="Any"
-          />
-        </div>
+        {(id) => (
+          <div className="w-full min-w-0">
+            <CountryCombobox
+              id={id}
+              value={originCountry}
+              onValueChange={onOriginCountryChange}
+              options={availableCountries}
+              placeholder="Any"
+              anyLabel="Any"
+            />
+          </div>
+        )}
       </FilterField>
 
       <FilterField label="Original language">
-        <div className="w-full min-w-0">
-          <LanguageCombobox
-            value={originalLanguage}
-            onValueChange={onOriginalLanguageChange}
-            options={availableLanguages}
-            placeholder="Any"
-            anyLabel="Any"
-          />
-        </div>
+        {(id) => (
+          <div className="w-full min-w-0">
+            <LanguageCombobox
+              id={id}
+              value={originalLanguage}
+              onValueChange={onOriginalLanguageChange}
+              options={availableLanguages}
+              placeholder="Any"
+              anyLabel="Any"
+            />
+          </div>
+        )}
       </FilterField>
 
-      <div className="grid grid-cols-2 gap-3">
-        <FilterField label="Year from">
-          <Input
-            type="number"
-            min={1900}
-            max={2100}
-            value={yearFrom}
-            onChange={(event) => onYearFromChange(event.target.value)}
-          />
-        </FilterField>
-        <FilterField label="Year to">
-          <Input
-            type="number"
-            min={1900}
-            max={2100}
-            value={yearTo}
-            onChange={(event) => onYearToChange(event.target.value)}
-          />
-        </FilterField>
-      </div>
+      <YearRangeFields
+        yearFrom={yearFrom}
+        onYearFromChange={onYearFromChange}
+        yearTo={yearTo}
+        onYearToChange={onYearToChange}
+      />
 
       <FilterField label="Min TMDB rating">
-        <Input
-          type="number"
-          min={0}
-          max={10}
-          step={0.1}
-          value={minRating}
-          onChange={(event) => onMinRatingChange(event.target.value)}
-        />
+        {(id) => (
+          <Input
+            id={id}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={10}
+            step={0.1}
+            value={minRating}
+            onChange={(event) => onMinRatingChange(event.target.value)}
+          />
+        )}
       </FilterField>
 
       <FilterField label="Min reviews">
-        <Input
-          type="number"
-          min={0}
-          max={1000000}
-          step={1}
-          value={minVotes}
-          onChange={(event) => onMinVotesChange(event.target.value)}
-        />
+        {(id) => (
+          <Input
+            id={id}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={1000000}
+            step={1}
+            value={minVotes}
+            onChange={(event) => onMinVotesChange(event.target.value)}
+          />
+        )}
       </FilterField>
 
       <FilterField label="Sort">
-        <Select value={sort} onValueChange={(value) => onSortChange(value as Sort)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Sort" />
-          </SelectTrigger>
-          <SelectContent>
-            {sortOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {(id) => (
+          <Select value={sort} onValueChange={(value) => onSortChange(value as Sort)}>
+            <SelectTrigger id={id}>
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              {sortOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </FilterField>
 
       <Separator />

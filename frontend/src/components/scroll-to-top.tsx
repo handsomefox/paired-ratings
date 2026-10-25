@@ -1,7 +1,7 @@
 import { ArrowUp } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { cn } from "@/lib/utils";
+import { cn, scrollToTop } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 type ScrollToTopProps = {
@@ -34,19 +34,15 @@ export function ScrollToTop({ className, threshold = 320 }: ScrollToTopProps) {
     return () => window.removeEventListener("scroll", onScroll);
   }, [threshold]);
 
-  const handleClick = () => {
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "auto" : "smooth" });
-  };
-
   return (
     <Button
       type="button"
       variant="outline"
       size="icon"
-      onClick={handleClick}
+      onClick={scrollToTop}
+      // Hidden by opacity only, so take it out of the tab order and the
+      // accessibility tree while it is not shown.
+      inert={!visible}
       aria-label="Scroll to top"
       className={cn(
         "fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] right-4 z-40 h-12 w-12 rounded-full border-border/60 bg-card/80 shadow-lg backdrop-blur transition-all sm:right-6 sm:h-11 sm:w-11",

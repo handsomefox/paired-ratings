@@ -2,15 +2,15 @@ package tmdb
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"net/http"
 )
 
 func (c *Client) FetchCollection(ctx context.Context, collectionID int64) ([]SearchResult, error) {
 	endpoint := fmt.Sprintf("%s/collection/%d", baseURL, collectionID)
 
 	var payload collectionResponse
-	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
+	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
 		return nil, err
 	}
 
@@ -25,16 +25,20 @@ func (c *Client) FetchCollection(ctx context.Context, collectionID int64) ([]Sea
 			Overview:    p.Overview,
 			VoteAverage: p.VoteAverage,
 			VoteCount:   p.VoteCount,
+			Popularity:  p.Popularity,
 		})
 	}
 	return results, nil
 }
 
-func (c *Client) FetchSimilar(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
+func (c *Client) FetchRecommendations(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
+	if mediaType != "movie" && mediaType != "tv" {
+		return nil, errors.New("invalid media type")
+	}
 	endpoint := fmt.Sprintf("%s/%s/%d/recommendations", baseURL, mediaType, id)
 
 	var payload recommendationsResponse
-	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
+	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
 		return nil, err
 	}
 
@@ -63,6 +67,7 @@ func (c *Client) FetchSimilar(ctx context.Context, id int64, mediaType string) (
 			Overview:         r.Overview,
 			VoteAverage:      r.VoteAverage,
 			VoteCount:        r.VoteCount,
+			Popularity:       r.Popularity,
 			GenreIDs:         r.GenreIDs,
 			OriginalLanguage: r.OriginalLanguage,
 			OriginCountry:    r.OriginCountry,

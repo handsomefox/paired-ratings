@@ -1,3 +1,4 @@
+import * as pb from "@/gen/paired_ratings";
 import { renderWithQuery } from "@/test/render";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -8,7 +9,8 @@ const toggleEpisode = vi.fn();
 const toggleSeason = vi.fn();
 const syncEpisodes = vi.fn();
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api")>()),
   api: {
     getEpisodes: (id: number) => getEpisodes(id),
     toggleEpisode: (episodeId: number, watched: boolean) => toggleEpisode(episodeId, watched),
@@ -25,15 +27,20 @@ vi.mock("sonner", () => ({
 
 const { DetailEpisodes } = await import("@/features/detail/detail-episodes");
 
-const episodes = [
-  { id: 11, season_number: 1, episode_number: 1, title: "Pilot", watched: false },
-  { id: 12, season_number: 1, episode_number: 2, title: "Second", watched: true },
-  { id: 21, season_number: 2, episode_number: 1, title: "Return", watched: false },
-];
+// The wire shape: encoding/json leaves out `watched` when it is false. The api
+// layer decodes it, so the component always sees a boolean.
+const response = pb.EpisodesResponse.fromJSON({
+  episodes: [
+    { id: 11, season_number: 1, episode_number: 1, title: "Pilot" },
+    { id: 12, season_number: 1, episode_number: 2, title: "Second", watched: true },
+    { id: 21, season_number: 2, episode_number: 1, title: "Return" },
+  ],
+  total_seasons: 2,
+});
 
 describe("DetailEpisodes", () => {
   beforeEach(() => {
-    getEpisodes.mockResolvedValue({ episodes, total_seasons: 2 });
+    getEpisodes.mockResolvedValue(response);
     toggleEpisode.mockResolvedValue(undefined);
     toggleSeason.mockResolvedValue(undefined);
   });
@@ -68,6 +75,22 @@ describe("DetailEpisodes", () => {
 
     await waitFor(() => expect(toggleSeason).toHaveBeenCalledWith(5, 2, true));
     expect(await screen.findByText("1/1 watched")).toBeInTheDocument();
+  });
+
+  it("leaves an unwatched episode unchecked when marking it fails", async () => {
+    toggleEpisode.mockRejectedValue(new Error("offline"));
+    const user = userEvent.setup();
+    renderWithQuery(<DetailEpisodes showId={5} />);
+
+    await user.click(await screen.findByRole("button", { name: /Season 1/ }));
+    const checkbox = screen.getByRole("checkbox", { name: "Mark episode 1 as watched" });
+    expect(checkbox).not.toBeChecked();
+
+    await user.click(checkbox);
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("Failed to update episode."));
+    expect(checkbox).not.toBeChecked();
+    expect(screen.getByText("1/2 watched")).toBeInTheDocument();
   });
 
   it("warns and leaves the count alone when the toggle fails", async () => {

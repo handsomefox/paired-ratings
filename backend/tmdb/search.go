@@ -1,11 +1,12 @@
 package tmdb
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -93,7 +94,7 @@ func (c *Client) FetchGenres(ctx context.Context, mediaType string) ([]Genre, er
 	endpoint := baseURL + "/genre/" + mediaType + "/list"
 
 	var payload genreResponse
-	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
+	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
 		return nil, err
 	}
 	return payload.Genres, nil
@@ -103,7 +104,7 @@ func (c *Client) FetchCountries(ctx context.Context) ([]Country, error) {
 	endpoint := baseURL + "/configuration/countries"
 
 	var payload countryResponse
-	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
+	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
 		return nil, err
 	}
 
@@ -116,6 +117,7 @@ func (c *Client) FetchCountries(ctx context.Context) ([]Country, error) {
 		}
 		out = append(out, Country{Code: code, Name: name})
 	}
+	sortByName(out, func(c Country) (name, code string) { return c.Name, c.Code })
 	return out, nil
 }
 
@@ -123,7 +125,7 @@ func (c *Client) FetchLanguages(ctx context.Context) ([]Language, error) {
 	endpoint := baseURL + "/configuration/languages"
 
 	var payload languageResponse
-	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
+	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
 		return nil, err
 	}
 
@@ -139,12 +141,27 @@ func (c *Client) FetchLanguages(ctx context.Context) ([]Language, error) {
 		}
 		out = append(out, Language{Code: code, Name: name})
 	}
+	sortByName(out, func(l Language) (name, code string) { return l.Name, l.Code })
 	return out, nil
+}
+
+// sortByName orders by case-insensitive name, then code. The lists are sorted
+// here, before CachedClient shares them, because callers must not mutate a
+// cached slice.
+func sortByName[T any](items []T, key func(T) (name, code string)) {
+	slices.SortFunc(items, func(a, b T) int {
+		nameA, codeA := key(a)
+		nameB, codeB := key(b)
+		return cmp.Or(
+			strings.Compare(strings.ToLower(nameA), strings.ToLower(nameB)),
+			strings.Compare(strings.ToLower(codeA), strings.ToLower(codeB)),
+		)
+	})
 }
 
 func (c *Client) fetchSearch(ctx context.Context, endpoint, mediaTypeOverride string) (SearchPage, error) {
 	var payload searchResponse
-	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
+	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
 		return SearchPage{}, err
 	}
 
@@ -167,6 +184,7 @@ func (c *Client) fetchSearch(ctx context.Context, endpoint, mediaTypeOverride st
 			Overview:         r.Overview,
 			VoteAverage:      r.VoteAverage,
 			VoteCount:        r.VoteCount,
+			Popularity:       r.Popularity,
 			GenreIDs:         r.GenreIDs,
 			OriginCountry:    r.OriginCountry,
 			OriginalLanguage: r.OriginalLanguage,

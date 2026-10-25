@@ -7,9 +7,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { showStatusOptions } from "@/features/library/library-utils";
 import type { ApiShow } from "@/lib/api";
+import { showStatusOptions, statusStyle } from "@/lib/status";
 import { cn, formatScore, formatVotes } from "@/lib/utils";
+import { Link } from "@tanstack/react-router";
 import { ExternalLink, ListOrdered, Telescope, RotateCcw, Trash2 } from "lucide-react";
 
 export type DetailHeroProps = {
@@ -25,7 +26,7 @@ export type DetailHeroProps = {
   onAddToWatchOrder: () => void;
   onRemoveFromWatchOrder: () => void;
   watchOrderPending: boolean;
-  findSimilarUrl?: string;
+  findSimilarSearch: { media_type: string; genre_names?: string };
 };
 
 export function DetailHero({
@@ -41,10 +42,23 @@ export function DetailHero({
   onAddToWatchOrder,
   onRemoveFromWatchOrder,
   watchOrderPending,
-  findSimilarUrl,
+  findSimilarSearch,
 }: DetailHeroProps) {
   const inWatchOrder = show.watch_priority != null;
   const showWatchOrderButton = show.status !== "watched";
+  const status = show.status || "planned";
+  const tmdbScore = (
+    <span className="font-normal normal-case text-muted-foreground">
+      {show.tmdb_rating ? (
+        <>
+          {formatScore(show.tmdb_rating)}
+          {show.tmdb_votes ? ` (${formatVotes(show.tmdb_votes)})` : ""}
+        </>
+      ) : (
+        "—"
+      )}
+    </span>
+  );
   return (
     <div className="grid gap-6 rounded-2xl border border-border/60 bg-card/70 shadow-lg lg:grid-cols-[minmax(240px,320px)_minmax(0,1fr)] lg:gap-8">
       <div className="overflow-hidden bg-muted/40">
@@ -69,19 +83,12 @@ export function DetailHero({
             {show.year ? <span className="text-sm text-muted-foreground">{show.year}</span> : null}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <Select
-              value={show.status || "planned"}
-              onValueChange={onSetStatus}
-              disabled={statusPending}
-            >
+            <Select value={status} onValueChange={onSetStatus} disabled={statusPending}>
               <SelectTrigger
+                aria-label="Status"
                 className={cn(
                   "h-7 w-auto cursor-pointer rounded-md border px-2.5 text-xs font-semibold uppercase tracking-wide shadow-none focus:ring-0 [&>svg]:ml-1 [&>svg]:h-3 [&>svg]:w-3",
-                  show.status === "watched"
-                    ? "border-bf/40 bg-bf/10 text-bf hover:bg-bf/20"
-                    : show.status === "watching"
-                      ? "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                      : "border-gf/40 bg-gf/10 text-gf hover:bg-gf/20",
+                  statusStyle(status).chip,
                 )}
               >
                 <SelectValue />
@@ -99,7 +106,9 @@ export function DetailHero({
               </SelectContent>
             </Select>
             <OriginCountriesChip codes={show.origin_country} />
-            {show.genres ? <span className="text-muted-foreground">{show.genres}</span> : null}
+            {show.genres.length > 0 ? (
+              <span className="text-muted-foreground">{show.genres.join(", ")}</span>
+            ) : null}
           </div>
         </div>
 
@@ -127,16 +136,7 @@ export function DetailHero({
               <a href={tmdbUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-3 w-3" />
                 TMDB
-                <span className="font-normal normal-case text-muted-foreground">
-                  {show.tmdb_rating ? (
-                    <>
-                      {formatScore(show.tmdb_rating)}
-                      {show.tmdb_votes ? ` (${formatVotes(show.tmdb_votes)})` : ""}
-                    </>
-                  ) : (
-                    "—"
-                  )}
-                </span>
+                {tmdbScore}
               </a>
             </Button>
           ) : (
@@ -147,16 +147,7 @@ export function DetailHero({
               className="justify-start rounded-md px-3 text-xs font-semibold uppercase tracking-wide"
             >
               TMDB
-              <span className="font-normal normal-case text-muted-foreground">
-                {show.tmdb_rating ? (
-                  <>
-                    {formatScore(show.tmdb_rating)}
-                    {show.tmdb_votes ? ` (${formatVotes(show.tmdb_votes)})` : ""}
-                  </>
-                ) : (
-                  "—"
-                )}
-              </span>
+              {tmdbScore}
             </Button>
           )}
           {showWatchOrderButton ? (
@@ -186,19 +177,17 @@ export function DetailHero({
               </Button>
             )
           ) : null}
-          {findSimilarUrl ? (
-            <Button
-              asChild
-              variant="secondary"
-              size="sm"
-              className="justify-start rounded-md px-3 text-xs"
-            >
-              <a href={findSimilarUrl}>
-                <Telescope className="h-3.5 w-3.5" />
-                Find Similar
-              </a>
-            </Button>
-          ) : null}
+          <Button
+            asChild
+            variant="secondary"
+            size="sm"
+            className="justify-start rounded-md px-3 text-xs"
+          >
+            <Link to="/search" search={findSimilarSearch}>
+              <Telescope className="h-3.5 w-3.5" />
+              Find Similar
+            </Link>
+          </Button>
           <Button
             type="button"
             variant="secondary"

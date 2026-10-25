@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 )
@@ -26,7 +25,7 @@ func (c *Client) FetchDetails(ctx context.Context, id int64, mediaType string) (
 	endpoint := fmt.Sprintf("%s/%s/%d?%s", baseURL, mediaType, id, values.Encode())
 
 	var payload detailResponse
-	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
+	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
 		return nil, err
 	}
 
@@ -35,8 +34,6 @@ func (c *Client) FetchDetails(ctx context.Context, id int64, mediaType string) (
 		MediaType:      mediaType,
 		PosterPath:     payload.PosterPath,
 		Overview:       payload.Overview,
-		Genres:         nil,
-		OriginCountry:  nil,
 		VoteAverage:    payload.VoteAverage,
 		VoteCount:      payload.VoteCount,
 		IMDbID:         payload.ExternalIDs.IMDbID,

@@ -3,7 +3,6 @@ package tmdb
 import (
 	"context"
 	"fmt"
-	"net/http"
 )
 
 // RefreshSeason is the same request as FetchSeason. Client holds no cache, so
@@ -16,7 +15,7 @@ func (c *Client) FetchSeason(ctx context.Context, showID int64, seasonNumber int
 	endpoint := fmt.Sprintf("%s/tv/%d/season/%d", baseURL, showID, seasonNumber)
 
 	var payload seasonResponse
-	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
+	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
 		return Season{}, err
 	}
 

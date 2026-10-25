@@ -1,7 +1,8 @@
 # Run and maintain the app
 
 The [README](../README.md) covers the first run and the checks. This page covers
-the reload loop, the generated API types, and deployment.
+the reload loop, the generated code, deployment, and the one-off database
+conversion.
 
 ## Reload after code changes
 
@@ -33,20 +34,21 @@ Open the URL Vite prints, normally <http://localhost:5173>. Vite proxies `/api`
 to `http://localhost:8080`. If you change `PORT`, change the proxy target in
 `frontend/vite.config.ts` to match.
 
-## Regenerate the API types
+## Regenerate the generated code
 
-`proto/paired_ratings.proto` defines the request and response types for both
-sides. `make proto` writes the Go types to `backend/gen/pb` and the TypeScript
-types to `frontend/src/gen`. Both trees are committed, so commit them together
-with the `.proto` change.
-
-It needs `protoc` and `protoc-gen-go` on `PATH`, and the frontend dependencies,
-which supply `protoc-gen-ts_proto`:
+Run `make generate` after you change `proto/paired_ratings.proto`, a migration,
+or a query in `backend/store/queries`:
 
 ```sh
-npm --prefix frontend ci
-make proto
+make generate
 ```
+
+`make proto` runs buf, which writes the API types to `backend/gen/pb` and
+`frontend/src/gen`. `make sqlc` runs sqlc, which writes the database code to
+`backend/gen/db`. buf, protoc-gen-go, and sqlc run at the versions pinned under
+`tools/`. protoc-gen-ts_proto comes from the frontend dependencies, which
+`make proto` installs if they are missing. Commit the generated trees together
+with the change that caused them.
 
 ## Deploy
 
@@ -65,6 +67,10 @@ so the host needs nothing else.
    ENV=production ./bin/server
    ```
 
+The server refuses to start on a database in the schema from before the
+`001_schema` baseline. To move such a database to the new schema, see
+[Convert a pre-baseline database](#convert-a-pre-baseline-database).
+
 ### Build on a host that builds from source
 
 `go.mod` sits at the repository root, so Railpack, the builder Railway uses,
@@ -74,3 +80,26 @@ fixes that by naming both toolchains, and Railpack installs what it lists.
 
 Keep `mise.toml` in step with `go.mod` and `frontend/.nvmrc`. CI compares the
 three and fails when they disagree.
+
+## Convert a pre-baseline database
+
+`backend/cmd/convert-legacy` copies a database in the old schema into a new
+file, then compares every show and episode in the copy with the source. It skips
+episodes whose show was deleted, and it stores empty comments as no comment.
+
+1. Stop the server, so nothing writes to the old database.
+2. Copy the database file and its `-wal` file to your machine. SQLite cannot
+   share a WAL database across machines, so never point the tool at a network
+   mount.
+3. Convert the copy:
+
+   ```sh
+   go run ./backend/cmd/convert-legacy -src website-rating.db -dst paired-ratings.db
+   ```
+
+   The tool prints what it copied and the SHA-256 of the new file.
+
+4. Upload the new file next to the old one, under a temporary name, and check
+   its SHA-256. Then rename it to its final name.
+5. Set `DB_PATH` to the new file and start the new release. The old file stays
+   as a backup.

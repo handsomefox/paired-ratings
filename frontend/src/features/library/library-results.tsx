@@ -4,7 +4,6 @@ import { OriginCountriesChip } from "@/components/origin-countries-chip";
 import RatingChips from "@/components/rating-chips";
 import { ShowCard } from "@/components/show-card";
 import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
-import { ViewTransitionLink } from "@/components/view-transition-link";
 import {
   Empty,
   EmptyDescription,
@@ -13,14 +12,18 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { ApiShow } from "@/lib/api";
+import { statusStyle } from "@/lib/status";
 import { cn, shortGenres } from "@/lib/utils";
-import { Film } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { CircleAlert, Film } from "lucide-react";
 
 export type LibraryResultsProps = {
   shows: ApiShow[];
   imageBase: string;
   isInitialLoading: boolean;
   isEmpty: boolean;
+  isError: boolean;
+  hasFilters: boolean;
   fromLocation: string;
 };
 
@@ -29,11 +32,25 @@ export function LibraryResults({
   imageBase,
   isInitialLoading,
   isEmpty,
+  isError,
+  hasFilters,
   fromLocation,
 }: LibraryResultsProps) {
   return (
     <>
       {isInitialLoading ? <LoadingGrid /> : null}
+
+      {isError ? (
+        <Empty className="border-border/60 bg-card/30">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <CircleAlert />
+            </EmptyMedia>
+            <EmptyTitle>Could not load the library</EmptyTitle>
+            <EmptyDescription>Pull down or reload the page to try again.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : null}
 
       {isEmpty ? (
         <Empty className="border-border/60 bg-card/30">
@@ -41,51 +58,62 @@ export function LibraryResults({
             <EmptyMedia variant="icon">
               <Film />
             </EmptyMedia>
-            <EmptyTitle>No shows yet</EmptyTitle>
-            <EmptyDescription>Use “Add” to pull from TMDB.</EmptyDescription>
+            {hasFilters ? (
+              <>
+                <EmptyTitle>No shows match</EmptyTitle>
+                <EmptyDescription>Try loosening or resetting the filters.</EmptyDescription>
+              </>
+            ) : (
+              <>
+                <EmptyTitle>No shows yet</EmptyTitle>
+                <EmptyDescription>Use “Add” to pull from TMDB.</EmptyDescription>
+              </>
+            )}
           </EmptyHeader>
         </Empty>
       ) : null}
 
       <CardGrid>
         {shows.map((show) => {
-          const originCountries = show.origin_country ?? [];
+          const originCountries = show.origin_country;
+          const status = show.status || "planned";
           return (
             <ShowCard
               key={show.id}
               title={
-                <ViewTransitionLink
+                <Link
                   to="/show/$showId"
                   params={{ showId: String(show.id) }}
                   search={{ from: fromLocation }}
                 >
                   {show.title}
-                </ViewTransitionLink>
+                </Link>
               }
               year={show.year}
               posterAlt={show.title}
               posterPath={show.poster_path}
               imageBase={imageBase}
               posterLink={(node) => (
-                <ViewTransitionLink
+                // The title link is the one in the tab order. This one only
+                // makes the poster clickable.
+                <Link
                   to="/show/$showId"
                   params={{ showId: String(show.id) }}
                   search={{ from: fromLocation }}
+                  tabIndex={-1}
+                  aria-hidden="true"
                 >
                   {node}
-                </ViewTransitionLink>
+                </Link>
               )}
               statusBadge={
                 <div
-                  className={`py-1 pl-2.5 pr-5 text-xs font-bold capitalize tracking-wide text-white backdrop-blur-sm [clip-path:polygon(0_0,100%_0,calc(100%-10px)_100%,0_100%)] ${
-                    show.status === "watched"
-                      ? "bg-bf/75"
-                      : show.status === "watching"
-                        ? "bg-amber-500/75"
-                        : "bg-gf/75"
-                  }`}
+                  className={cn(
+                    "py-1 pl-2.5 pr-5 text-xs font-bold capitalize tracking-wide text-white backdrop-blur-sm [clip-path:polygon(0_0,100%_0,calc(100%-10px)_100%,0_100%)]",
+                    statusStyle(status).ribbon,
+                  )}
                 >
-                  {show.status || "planned"}
+                  {status}
                 </div>
               }
               metaBadges={
@@ -108,7 +136,7 @@ export function LibraryResults({
                 </>
               }
               footer={<RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />}
-              genresText={show.genres ? shortGenres(show.genres) : ""}
+              genresText={shortGenres(show.genres)}
               episodeMeta={
                 show.media_type === "tv" &&
                 show.status === "watching" &&

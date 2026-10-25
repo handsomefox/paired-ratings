@@ -5,495 +5,471 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/handsomefox/paired-ratings/backend/gen/pb"
 	"github.com/handsomefox/paired-ratings/backend/store"
 	"github.com/handsomefox/paired-ratings/backend/tmdb"
-	"github.com/stretchr/testify/require"
+	"github.com/handsomefox/paired-ratings/backend/tmdb/tmdbtest"
 )
 
-func newTestHandler(t *testing.T, st *store.Store) *Handler {
-	t.Helper()
-	return newTestHandlerWithTMDB(t, st, tmdb.New(""))
+const testPassword = "secret"
+
+// client drives the API routes with a session cookie.
+type client struct {
+	t      *testing.T
+	h      *Handler
+	router http.Handler
+	cookie *http.Cookie
 }
 
-func newTestHandlerWithTMDB(t *testing.T, st *store.Store, client tmdb.Interface) *Handler {
+func newTestStore(t *testing.T) *store.Store {
 	t.Helper()
-	if client == nil {
-		client = tmdb.New("")
+	st, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "ratings.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, st.Close()) })
+	return st
+}
+
+func newTestHandler(t *testing.T, st *store.Store, api tmdb.Interface) *Handler {
+	t.Helper()
+	if api == nil {
+		api = &tmdbtest.Mock{}
 	}
-	cat, err := New(&Config{
-		Store:     st,
-		TMDB:      client,
-		Password:  "secret",
-		ImageBase: "https://img.example",
-		BfName:    "BF",
-		GfName:    "GF",
+	h, err := New(&Config{
+		Store:      st,
+		TMDB:       api,
+		Password:   testPassword,
+		SessionKey: bytes.Repeat([]byte{7}, sessionKeySize),
+		ImageBase:  "https://img.example",
+		BfName:     "BF",
+		GfName:     "GF",
 	})
 	require.NoError(t, err)
-	return cat
+	return h
 }
 
-func login(t *testing.T, router http.Handler, password string) *http.Cookie {
+// newClient returns a signed-in client.
+func newClient(t *testing.T, st *store.Store, api tmdb.Interface) *client {
 	t.Helper()
-	//nolint:gosec // G117: the login request carries a password by design.
-	payload, err := json.Marshal(&pb.LoginRequest{Password: password})
-	require.NoError(t, err)
+	h := newTestHandler(t, st, api)
+	r := chi.NewRouter()
+	h.RegisterRoutes(r)
+	c := &client{t: t, h: h, router: r}
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", bytes.NewReader(payload))
-	router.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
+	rec := c.do(http.MethodPost, "/login", &pb.LoginRequest{Password: testPassword})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	cookies := rec.Result().Cookies()
-	require.NotEmpty(t, cookies)
-	return cookies[0]
+	require.Len(t, cookies, 1)
+	c.cookie = cookies[0]
+	return c
 }
 
-func TestAdaptErrorResponse(t *testing.T) {
-	h := Adapt(func(w http.ResponseWriter, r *http.Request) error {
-		return &Error{Status: http.StatusBadRequest, Message: "bad request"}
-	})
-
+func (c *client) do(method, path string, body any) *httptest.ResponseRecorder {
+	c.t.Helper()
+	var reader io.Reader = http.NoBody
+	if body != nil {
+		payload, err := json.Marshal(body)
+		require.NoError(c.t, err)
+		reader = bytes.NewReader(payload)
+	}
+	req := httptest.NewRequestWithContext(c.t.Context(), method, path, reader)
+	if c.cookie != nil {
+		req.AddCookie(c.cookie)
+	}
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
-	h.ServeHTTP(rec, req)
-
-	resp := rec.Result()
-	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
-
-	var body pb.ErrorResponse
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
-	require.Equal(t, "bad request", body.Error)
+	c.router.ServeHTTP(rec, req)
+	return rec
 }
 
-func TestAdaptInternalError(t *testing.T) {
-	h := Adapt(func(w http.ResponseWriter, r *http.Request) error {
-		return errors.New("boom")
-	})
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
-	h.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusInternalServerError, rec.Result().StatusCode)
+// decode checks the status and decodes the body into a new T.
+func decode[T any](t *testing.T, rec *httptest.ResponseRecorder, status int) *T {
+	t.Helper()
+	require.Equal(t, status, rec.Code, rec.Body.String())
+	var out T
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&out))
+	return &out
 }
 
-func TestMiddlewareRequireAuth(t *testing.T) {
-	st, err := store.Open(t.TempDir() + "/ratings.db")
+func addTestShow(t *testing.T, st *store.Store, tmdbID int64, mediaType store.MediaType) int64 {
+	t.Helper()
+	id, err := st.UpsertShow(t.Context(), &store.Metadata{
+		TMDBID:    tmdbID,
+		MediaType: mediaType,
+		Title:     "Show " + strconv.FormatInt(tmdbID, 10),
+	}, store.StatusPlanned)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, st.Close())
-	})
+	return id
+}
 
-	h := newTestHandler(t, st)
-	protected := h.MiddlewareRequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
+func showPath(id int64, rest string) string {
+	return "/shows/" + formatID(id) + rest
+}
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
-	protected.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusUnauthorized, rec.Result().StatusCode)
+func formatID(id int64) string {
+	return strconv.FormatInt(id, 10)
+}
 
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
+func TestAdaptErrors(t *testing.T) {
+	serve := func(err error) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		h := logRequests(Adapt(func(http.ResponseWriter, *http.Request) error { return err }))
+		h.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody))
+		return rec
+	}
+
+	body := decode[pb.ErrorResponse](t, serve(badRequest("bad request")), http.StatusBadRequest)
+	assert.Equal(t, "bad request", body.Error)
+
+	// A plain error is a 500 that keeps its details out of the response.
+	body = decode[pb.ErrorResponse](t, serve(errors.New("disk I/O error at /app/data")), http.StatusInternalServerError)
+	assert.Equal(t, "internal server error", body.Error)
+
+	body = decode[pb.ErrorResponse](t, serve(badGateway(errors.New("tmdb /3/movie/1: 500"))), http.StatusBadGateway)
+	assert.Equal(t, "TMDB request failed", body.Error)
+}
+
+func TestAuth(t *testing.T) {
+	st := newTestStore(t)
+	addTestShow(t, st, 1, store.MediaMovie)
+	c := newClient(t, st, nil)
+
+	session := decode[pb.SessionResponse](t, c.do(http.MethodGet, "/session", nil), http.StatusOK)
+	assert.True(t, *session.Authenticated)
+	assert.Equal(t, "BF", *session.BfName)
+
+	list := decode[pb.ListResponse](t, c.do(http.MethodGet, "/shows/", nil), http.StatusOK)
+	assert.Len(t, list.Shows, 1)
+
+	// The cookie is an HMAC of the password, not a hash anyone can compute.
+	assert.NotEqual(t, sessionToken(bytes.Repeat([]byte{8}, sessionKeySize), testPassword), c.cookie.Value)
+	assert.Equal(t, http.SameSiteLaxMode, c.cookie.SameSite)
+	assert.True(t, c.cookie.HttpOnly)
+
+	anonymous := &client{t: t, h: c.h, router: c.router}
+	body := decode[pb.ErrorResponse](t, anonymous.do(http.MethodGet, "/shows/", nil), http.StatusUnauthorized)
+	assert.Equal(t, "unauthorized", body.Error)
+	session = decode[pb.SessionResponse](t, anonymous.do(http.MethodGet, "/session", nil), http.StatusOK)
+	assert.False(t, *session.Authenticated)
+
 	//nolint:gosec // G124: a request cookie carries no response flags.
-	req.AddCookie(&http.Cookie{Name: authCookieName, Value: h.passHash})
-	protected.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
+	forged := &client{t: t, h: c.h, router: c.router, cookie: &http.Cookie{Name: authCookieName, Value: "00"}}
+	assert.Equal(t, http.StatusUnauthorized, forged.do(http.MethodGet, "/shows/", nil).Code)
+
+	logout := c.do(http.MethodPost, "/logout", nil)
+	require.Equal(t, http.StatusOK, logout.Code)
+	cleared := logout.Result().Cookies()
+	require.Len(t, cleared, 1)
+	assert.Negative(t, cleared[0].MaxAge)
 }
 
-func TestAuthFlowWithStore(t *testing.T) {
-	st, err := store.Open(t.TempDir() + "/ratings.db")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, st.Close())
-	})
-
-	ctx := context.Background()
-	_, err = st.UpsertShow(ctx, &store.Show{
-		TMDBID:    1,
-		MediaType: "movie",
-		Title:     "Test Movie",
-		Status:    "planned",
-	})
-	require.NoError(t, err)
-
-	h := newTestHandler(t, st)
+func TestLoginRateLimit(t *testing.T) {
+	c := &client{t: t}
+	c.h = newTestHandler(t, newTestStore(t), nil)
 	r := chi.NewRouter()
-	h.RegisterRoutes(r)
+	c.h.RegisterRoutes(r)
+	c.router = r
 
-	authCookie := login(t, r, "secret")
+	for range loginFailureLimit {
+		rec := c.do(http.MethodPost, "/login", &pb.LoginRequest{Password: "wrong"})
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+	}
+	// Even the right password waits until the window passes.
+	rec := c.do(http.MethodPost, "/login", &pb.LoginRequest{Password: testPassword})
+	require.Equal(t, http.StatusTooManyRequests, rec.Code)
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/session", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	var session pb.SessionResponse
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&session))
-	require.NotNil(t, session.Authenticated)
-	require.True(t, *session.Authenticated)
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/shows/", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	var listResp pb.ListResponse
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&listResp))
-	require.Len(t, listResp.Shows, 1)
-	require.Equal(t, "Test Movie", listResp.Shows[0].Title)
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/logout", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	var logoutResp pb.SessionResponse
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&logoutResp))
-	require.NotNil(t, logoutResp.Authenticated)
-	require.False(t, *logoutResp.Authenticated)
+	c.h.logins.mu.Lock()
+	for i := range c.h.logins.failures {
+		c.h.logins.failures[i] = c.h.logins.failures[i].Add(-loginFailureWindow)
+	}
+	c.h.logins.mu.Unlock()
+	rec = c.do(http.MethodPost, "/login", &pb.LoginRequest{Password: testPassword})
+	require.Equal(t, http.StatusOK, rec.Code)
 }
 
-func TestShowLifecycleHandlers(t *testing.T) {
-	st, err := store.Open(t.TempDir() + "/ratings.db")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, st.Close())
-	})
+func TestShowLifecycle(t *testing.T) {
+	st := newTestStore(t)
+	id := addTestShow(t, st, 2, store.MediaMovie)
+	c := newClient(t, st, nil)
 
-	ctx := context.Background()
-	showID, err := st.UpsertShow(ctx, &store.Show{
-		TMDBID:    2,
-		MediaType: "movie",
-		Title:     "Second Movie",
-		Status:    "planned",
-	})
-	require.NoError(t, err)
+	detail := decode[pb.ShowDetail](t, c.do(http.MethodPost, showPath(id, "/ratings"),
+		&pb.RatingsRequest{BfRating: new(int32(7)), GfComment: new("  Great  ")}), http.StatusOK)
+	assert.Equal(t, new(int64(7)), detail.Show.BfRating)
+	assert.Equal(t, new("Great"), detail.Show.GfComment)
 
-	h := newTestHandler(t, st)
-	r := chi.NewRouter()
-	h.RegisterRoutes(r)
+	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodPost, showPath(id, "/ratings"), &pb.RatingsRequest{GfRating: new(int32(11))}).Code)
+	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodPost, showPath(id, "/ratings"), &pb.RatingsRequest{}).Code)
 
-	authCookie := login(t, r, "secret")
+	// An empty comment clears it.
+	detail = decode[pb.ShowDetail](t, c.do(http.MethodPost, showPath(id, "/ratings"),
+		&pb.RatingsRequest{GfComment: new("")}), http.StatusOK)
+	assert.Nil(t, detail.Show.GfComment)
+	assert.Equal(t, new(int64(7)), detail.Show.BfRating)
 
-	ratingsPayload, err := json.Marshal(&pb.RatingsRequest{BfRating: new(int32(7))})
-	require.NoError(t, err)
+	detail = decode[pb.ShowDetail](t, c.do(http.MethodPost, showPath(id, "/set-status"), &pb.SetStatusRequest{Status: "watched"}), http.StatusOK)
+	assert.Equal(t, "watched", detail.Show.Status)
+	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodPost, showPath(id, "/set-status"), &pb.SetStatusRequest{Status: "dropped"}).Code)
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/shows/"+strconv.FormatInt(showID, 10)+"/ratings", bytes.NewReader(ratingsPayload))
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
+	detail = decode[pb.ShowDetail](t, c.do(http.MethodPost, showPath(id, "/clear-ratings"), nil), http.StatusOK)
+	assert.Nil(t, detail.Show.BfRating)
 
-	var detail pb.ShowDetail
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&detail))
-	require.NotNil(t, detail.Show)
-	require.NotNil(t, detail.Show.BfRating)
-	require.Equal(t, int64(7), *detail.Show.BfRating)
-	require.Equal(t, "planned", detail.Show.Status)
+	detail = decode[pb.ShowDetail](t, c.do(http.MethodPost, showPath(id, "/watch-order"), nil), http.StatusOK)
+	assert.Equal(t, new(int32(1)), detail.Show.WatchPriority)
+	detail = decode[pb.ShowDetail](t, c.do(http.MethodDelete, showPath(id, "/watch-order"), nil), http.StatusOK)
+	assert.Nil(t, detail.Show.WatchPriority)
 
-	setStatusPayload, err := json.Marshal(&pb.SetStatusRequest{Status: "watched"})
-	require.NoError(t, err)
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/shows/"+strconv.FormatInt(showID, 10)+"/set-status", bytes.NewReader(setStatusPayload))
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	detail = pb.ShowDetail{}
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&detail))
-	require.NotNil(t, detail.Show)
-	require.Equal(t, "watched", detail.Show.Status)
-
-	setStatusPayload, err = json.Marshal(&pb.SetStatusRequest{Status: "planned"})
-	require.NoError(t, err)
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/shows/"+strconv.FormatInt(showID, 10)+"/set-status", bytes.NewReader(setStatusPayload))
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	detail = pb.ShowDetail{}
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&detail))
-	require.NotNil(t, detail.Show)
-	require.Equal(t, "planned", detail.Show.Status)
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/shows/"+strconv.FormatInt(showID, 10)+"/clear-ratings", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	detail = pb.ShowDetail{}
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&detail))
-	require.NotNil(t, detail.Show)
-	require.Nil(t, detail.Show.BfRating)
-	require.Nil(t, detail.Show.GfRating)
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/shows/"+strconv.FormatInt(showID, 10)+"/", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusNoContent, rec.Result().StatusCode)
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/shows/"+strconv.FormatInt(showID, 10)+"/", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusNotFound, rec.Result().StatusCode)
+	assert.Equal(t, http.StatusNoContent, c.do(http.MethodDelete, showPath(id, "/"), nil).Code)
+	body := decode[pb.ErrorResponse](t, c.do(http.MethodGet, showPath(id, "/"), nil), http.StatusNotFound)
+	assert.Equal(t, "not found", body.Error)
+	assert.Equal(t, http.StatusNotFound, c.do(http.MethodPost, showPath(id, "/clear-ratings"), nil).Code)
+	assert.Equal(t, http.StatusNotFound, c.do(http.MethodGet, "/no-such-route", nil).Code)
 }
 
-func TestSearchEndpointsWithMockTMDB(t *testing.T) {
-	st, err := store.Open(t.TempDir() + "/ratings.db")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, st.Close())
+func TestAddShowKeepsExistingState(t *testing.T) {
+	st := newTestStore(t)
+	c := newClient(t, st, &tmdbtest.Mock{
+		FetchDetailsFunc: func(_ context.Context, id int64, mediaType string) (*tmdb.Detail, error) {
+			return &tmdb.Detail{TMDBID: id, MediaType: mediaType, Title: "Added", Genres: []string{"Drama", "Crime"}, IMDbID: "tt1"}, nil
+		},
 	})
 
-	mock := &tmdb.Mock{
-		FetchGenresFunc: func(ctx context.Context, mediaType string) ([]tmdb.Genre, error) {
+	added := decode[pb.ShowDetail](t, c.do(http.MethodPost, "/shows/", &pb.AddShowRequest{TmdbId: 5, MediaType: "tv", Status: "watching"}), http.StatusOK)
+	assert.Equal(t, "watching", added.Show.Status)
+	assert.Equal(t, []string{"Drama", "Crime"}, added.Show.Genres)
+	assert.Equal(t, new("https://www.imdb.com/title/tt1/"), added.ImdbUrl)
+
+	again := decode[pb.ShowDetail](t, c.do(http.MethodPost, "/shows/", &pb.AddShowRequest{TmdbId: 5, MediaType: "tv"}), http.StatusOK)
+	assert.Equal(t, added.Show.Id, again.Show.Id)
+	assert.Equal(t, "watching", again.Show.Status)
+
+	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodPost, "/shows/", &pb.AddShowRequest{TmdbId: 5, MediaType: "book"}).Code)
+	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodPost, "/shows/", &pb.AddShowRequest{TmdbId: 5, MediaType: "tv", Status: "dropped"}).Code)
+}
+
+func TestListPageSizeAll(t *testing.T) {
+	st := newTestStore(t)
+	for i := range 25 {
+		addTestShow(t, st, int64(i+1), store.MediaMovie)
+	}
+	c := newClient(t, st, nil)
+
+	page := decode[pb.ListResponse](t, c.do(http.MethodGet, "/shows/", nil), http.StatusOK)
+	assert.Len(t, page.Shows, 20)
+	assert.Equal(t, int32(25), page.TotalCount)
+
+	all := decode[pb.ListResponse](t, c.do(http.MethodGet, "/shows/?page_size=all", nil), http.StatusOK)
+	assert.Len(t, all.Shows, 25)
+
+	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodGet, "/shows/?status=dropped", nil).Code)
+	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodGet, "/shows/?year_from=soon", nil).Code)
+}
+
+func TestSearchEndpoints(t *testing.T) {
+	st := newTestStore(t)
+	inLibrary := addTestShow(t, st, 10, store.MediaMovie)
+	c := newClient(t, st, &tmdbtest.Mock{
+		FetchGenresFunc: func(_ context.Context, mediaType string) ([]tmdb.Genre, error) {
 			if mediaType == "movie" {
 				return []tmdb.Genre{{ID: 1, Name: "Action"}}, nil
 			}
-			return []tmdb.Genre{{ID: 2, Name: "Drama"}}, nil
+			return []tmdb.Genre{{ID: 1, Name: "Talk"}}, nil
 		},
-		FetchCountriesFunc: func(ctx context.Context) ([]tmdb.Country, error) {
+		FetchCountriesFunc: func(context.Context) ([]tmdb.Country, error) {
 			return []tmdb.Country{{Code: "US", Name: "United States"}}, nil
 		},
-		FetchLanguagesFunc: func(ctx context.Context) ([]tmdb.Language, error) {
+		FetchLanguagesFunc: func(context.Context) ([]tmdb.Language, error) {
 			return []tmdb.Language{{Code: "en", Name: "English"}}, nil
 		},
-		FetchDetailsFunc: func(ctx context.Context, id int64, mediaType string) (*tmdb.Detail, error) {
-			return &tmdb.Detail{IMDbID: "tt123", MediaType: mediaType}, nil
+		FetchDetailsFunc: func(_ context.Context, id int64, mediaType string) (*tmdb.Detail, error) {
+			return &tmdb.Detail{TMDBID: id, IMDbID: "tt123", MediaType: mediaType}, nil
 		},
-		SearchPageFunc: func(ctx context.Context, query string, mediaType string, page int) (tmdb.SearchPage, error) {
+		SearchPageFunc: func(_ context.Context, _, mediaType string, _ int) (tmdb.SearchPage, error) {
 			return tmdb.SearchPage{
-				Results: []tmdb.SearchResult{{
-					ID:               10,
-					MediaType:        mediaType,
-					Title:            "Test Movie",
-					VoteAverage:      7.2,
-					VoteCount:        12,
-					GenreIDs:         []int{1},
-					OriginalLanguage: "en",
-				}},
-				Page:         1,
-				TotalPages:   1,
-				TotalResults: 1,
+				Results: []tmdb.SearchResult{
+					{ID: 10, MediaType: mediaType, Title: "Saved", GenreIDs: []int{1}},
+					{ID: 11, MediaType: mediaType, Title: "New"},
+				},
+				Page: 1, TotalPages: 1, TotalResults: 2,
 			}, nil
 		},
-	}
+	})
 
-	h := newTestHandlerWithTMDB(t, st, mock)
-	r := chi.NewRouter()
-	h.RegisterRoutes(r)
+	genres := decode[pb.SearchGenresResponse](t, c.do(http.MethodGet, "/search/genres", nil), http.StatusOK)
+	assert.Len(t, genres.MovieGenres, 1)
+	countries := decode[pb.SearchCountriesResponse](t, c.do(http.MethodGet, "/search/countries", nil), http.StatusOK)
+	assert.Equal(t, "US", countries.Countries[0].Code)
+	languages := decode[pb.SearchLanguagesResponse](t, c.do(http.MethodGet, "/search/languages", nil), http.StatusOK)
+	assert.Equal(t, "en", languages.Languages[0].Code)
 
-	authCookie := login(t, r, "secret")
+	resolve := decode[pb.SearchResolveResponse](t, c.do(http.MethodGet, "/search/resolve?tmdb_id=10&media_type=movie", nil), http.StatusOK)
+	assert.Equal(t, new("https://www.imdb.com/title/tt123/"), resolve.ImdbUrl)
+	assert.Equal(t, new("https://www.themoviedb.org/movie/10"), resolve.TmdbUrl)
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/search/genres", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
+	search := decode[pb.SearchResponse](t, c.do(http.MethodGet, "/search?q=test&media_type=movie", nil), http.StatusOK)
+	require.Len(t, search.Results, 2)
+	assert.Equal(t, &inLibrary, search.Results[0].LibraryId)
+	assert.Equal(t, []string{"Action"}, search.Results[0].Genres)
+	assert.Nil(t, search.Results[1].LibraryId)
 
-	var genres pb.SearchGenresResponse
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&genres))
-	require.Len(t, genres.MovieGenres, 1)
-	require.Len(t, genres.TvGenres, 1)
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/search/countries", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	var countries pb.SearchCountriesResponse
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&countries))
-	require.Len(t, countries.Countries, 1)
-	require.Equal(t, "US", countries.Countries[0].Code)
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/search/languages", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	var languages pb.SearchLanguagesResponse
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&languages))
-	require.Len(t, languages.Languages, 1)
-	require.Equal(t, "en", languages.Languages[0].Code)
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/search/resolve?tmdb_id=10&media_type=movie", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	var resolve pb.SearchResolveResponse
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resolve))
-	require.NotNil(t, resolve.ImdbUrl)
-	require.Contains(t, *resolve.ImdbUrl, "tt123")
-
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/search?q=test&media_type=movie", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	var search pb.SearchResponse
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&search))
-	require.Len(t, search.Results, 1)
-	require.Equal(t, int64(10), search.Results[0].Id)
+	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodGet, "/search?q=test", nil).Code)
 }
 
-func TestRefreshTMDBAndExportHandlers(t *testing.T) {
-	st, err := store.Open(t.TempDir() + "/ratings.db")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, st.Close())
-	})
-
-	ctx := context.Background()
-	_, err = st.UpsertShow(ctx, &store.Show{
-		TMDBID:    7,
-		MediaType: "movie",
-		Title:     "Refresh Me",
-		Status:    "planned",
-	})
-	require.NoError(t, err)
-
-	mock := &tmdb.Mock{
-		FetchDetailsFunc: func(ctx context.Context, id int64, mediaType string) (*tmdb.Detail, error) {
-			return &tmdb.Detail{
-				TMDBID:        id,
-				MediaType:     mediaType,
-				Title:         "Refresh Me",
-				IMDbID:        "tt999",
-				VoteAverage:   8.1,
-				VoteCount:     44,
-				Genres:        []string{"Action"},
-				OriginCountry: []string{"US"},
+func TestFilteredSearchReadsABoundedWindow(t *testing.T) {
+	var calls atomic.Int32
+	c := newClient(t, newTestStore(t), &tmdbtest.Mock{
+		SearchPageFunc: func(_ context.Context, _, mediaType string, page int) (tmdb.SearchPage, error) {
+			calls.Add(1)
+			// Every page has one match for the vote filter.
+			return tmdb.SearchPage{
+				Results: []tmdb.SearchResult{
+					{ID: int64(page * 10), MediaType: mediaType, Title: "Popular", VoteCount: 1000, VoteAverage: float64(page % 7)},
+					{ID: int64(page*10 + 1), MediaType: mediaType, Title: "Obscure", VoteCount: 1},
+				},
+				Page: page, TotalPages: 500, TotalResults: 10000,
 			}, nil
 		},
+	})
+
+	first := decode[pb.SearchResponse](t, c.do(http.MethodGet, "/search?q=x&media_type=movie&min_votes=100&sort=rating", nil), http.StatusOK)
+	assert.Equal(t, int32(maxScanPages), calls.Load())
+	assert.Equal(t, int32(maxScanPages), first.TotalResults)
+	assert.Equal(t, int32(1), first.TotalPages)
+	for i := 1; i < len(first.Results); i++ {
+		assert.GreaterOrEqual(t, first.Results[i-1].VoteAverage, first.Results[i].VoteAverage)
 	}
+}
 
-	h := newTestHandlerWithTMDB(t, st, mock)
-	r := chi.NewRouter()
-	h.RegisterRoutes(r)
+func TestDiscoverBothTypesSortsTheMergedList(t *testing.T) {
+	c := newClient(t, newTestStore(t), &tmdbtest.Mock{
+		DiscoverPageFunc: func(_ context.Context, mediaType string, _ *tmdb.DiscoverFilters, page int) (tmdb.SearchPage, error) {
+			base := 5.0
+			if mediaType == "tv" {
+				base = 6.0
+			}
+			return tmdb.SearchPage{
+				Results: []tmdb.SearchResult{{
+					ID: int64(page), MediaType: mediaType, Title: mediaType, VoteAverage: base + float64(page)/10,
+				}},
+				Page: page, TotalPages: 2, TotalResults: 2,
+			}, nil
+		},
+	})
 
-	authCookie := login(t, r, "secret")
+	got := decode[pb.SearchResponse](t, c.do(http.MethodGet, "/search?sort=rating&min_votes=1", nil), http.StatusOK)
+	require.Len(t, got.Results, 4)
+	order := make([]float64, 0, len(got.Results))
+	for _, r := range got.Results {
+		order = append(order, r.VoteAverage)
+	}
+	assert.Equal(t, []float64{6.2, 6.1, 5.2, 5.1}, order)
+}
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/refresh-tmdb", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
+func TestRelatedSkipsTheShowItself(t *testing.T) {
+	st := newTestStore(t)
+	id := addTestShow(t, st, 1, store.MediaTV)
+	cached := []tmdb.SearchResult{{ID: 1, MediaType: "tv"}, {ID: 2, MediaType: "tv"}}
+	c := newClient(t, st, &tmdbtest.Mock{
+		FetchRecommendationsFunc: func(context.Context, int64, string) ([]tmdb.SearchResult, error) {
+			return cached, nil
+		},
+	})
 
-	var refreshed pb.RefreshResponse
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&refreshed))
+	related := decode[pb.GetRelatedResponse](t, c.do(http.MethodGet, showPath(id, "/related"), nil), http.StatusOK)
+	require.Len(t, related.Results, 1)
+	assert.Equal(t, int64(2), related.Results[0].Id)
+	// The client's cached slice is left alone.
+	assert.Equal(t, int64(1), cached[0].ID)
+	assert.Len(t, cached, 2)
+}
+
+func TestRefreshTMDBAndExport(t *testing.T) {
+	st := newTestStore(t)
+	id := addTestShow(t, st, 7, store.MediaTV)
+	require.NoError(t, st.UpdateStatus(t.Context(), id, store.StatusWatching))
+	require.NoError(t, st.SyncEpisodes(t.Context(), id, []store.EpisodeMetadata{{SeasonNumber: 1, EpisodeNumber: 1}}))
+	api := &tmdbtest.Mock{
+		FetchDetailsFunc: func(_ context.Context, id int64, mediaType string) (*tmdb.Detail, error) {
+			return &tmdb.Detail{
+				TMDBID: id, MediaType: mediaType, Title: "Refreshed", NumberOfSeasons: 2,
+				Genres: []string{"Action"}, OriginCountry: []string{"US"},
+			}, nil
+		},
+		FetchSeasonFunc: func(_ context.Context, _ int64, season int) (tmdb.Season, error) {
+			return tmdb.Season{Episodes: []tmdb.Episode{{SeasonNumber: season, EpisodeNumber: 1}}}, nil
+		},
+	}
+	c := newClient(t, st, api)
+
 	// UpsertShow stamped the row, so nothing is stale within the interval.
-	require.Equal(t, int32(0), refreshed.Updated)
-	require.Equal(t, int32(0), refreshed.Failed)
+	refreshed := decode[pb.RefreshResponse](t, c.do(http.MethodPost, "/refresh-tmdb", nil), http.StatusOK)
+	assert.Equal(t, int32(0), refreshed.Updated)
 
 	// A negative interval puts the cutoff in the future, making every row stale.
-	stale := newTestHandlerWithTMDB(t, st, mock)
-	stale.refreshInterval = -time.Hour
-	staleRouter := chi.NewRouter()
-	stale.RegisterRoutes(staleRouter)
+	c.h.refreshInterval = -time.Hour
+	refreshed = decode[pb.RefreshResponse](t, c.do(http.MethodPost, "/refresh-tmdb", nil), http.StatusOK)
+	assert.Equal(t, int32(1), refreshed.Updated)
+	assert.Equal(t, int32(0), refreshed.Failed)
 
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/refresh-tmdb", http.NoBody)
-	req.AddCookie(authCookie)
-	staleRouter.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&refreshed))
-	require.Equal(t, int32(1), refreshed.Updated)
-	require.Equal(t, int32(0), refreshed.Failed)
+	show, err := st.GetShow(t.Context(), id)
+	require.NoError(t, err)
+	assert.Equal(t, "Refreshed", show.Title)
+	assert.Equal(t, store.StatusWatching, show.Status)
+	// Tracked episodes picked up the new season.
+	seasons, err := st.CountSeasons(t.Context(), id)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), seasons)
 
-	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/export", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	var exported pb.ExportPayload
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&exported))
+	exported := decode[pb.ExportPayload](t, c.do(http.MethodPost, "/export", nil), http.StatusOK)
 	require.Len(t, exported.Shows, 1)
-	require.Equal(t, "Refresh Me", exported.Shows[0].Title)
+	assert.Equal(t, []string{"Action"}, exported.Shows[0].Genres)
 }
 
 func TestRefreshTMDBSurvivesFailures(t *testing.T) {
-	st, err := store.Open(t.TempDir() + "/ratings.db")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, st.Close())
-	})
-
-	ctx := context.Background()
+	st := newTestStore(t)
 	for _, id := range []int64{1, 2, 3, 4} {
-		_, err = st.UpsertShow(ctx, &store.Show{
-			TMDBID:    id,
-			MediaType: "movie",
-			Title:     "Movie " + strconv.FormatInt(id, 10),
-			Status:    "planned",
-		})
-		require.NoError(t, err)
+		addTestShow(t, st, id, store.MediaMovie)
 	}
-
-	// TMDB rejects one title out of the four.
-	mock := &tmdb.Mock{
+	c := newClient(t, st, &tmdbtest.Mock{
 		FetchDetailsFunc: func(_ context.Context, id int64, mediaType string) (*tmdb.Detail, error) {
 			if id == 3 {
 				return nil, errors.New("TMDB says no")
 			}
-			return &tmdb.Detail{
-				TMDBID:    id,
-				MediaType: mediaType,
-				Title:     "Refreshed " + strconv.FormatInt(id, 10),
-			}, nil
+			return &tmdb.Detail{TMDBID: id, MediaType: mediaType, Title: "Refreshed " + strconv.FormatInt(id, 10)}, nil
 		},
-	}
+	})
+	c.h.refreshInterval = -time.Hour
 
-	h := newTestHandlerWithTMDB(t, st, mock)
-	h.refreshInterval = -time.Hour
-	r := chi.NewRouter()
-	h.RegisterRoutes(r)
-	authCookie := login(t, r, "secret")
+	refreshed := decode[pb.RefreshResponse](t, c.do(http.MethodPost, "/refresh-tmdb", nil), http.StatusOK)
+	assert.Equal(t, int32(3), refreshed.Updated)
+	assert.Equal(t, int32(1), refreshed.Failed)
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/refresh-tmdb", http.NoBody)
-	req.AddCookie(authCookie)
-	r.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Result().StatusCode)
-
-	var refreshed pb.RefreshResponse
-	require.NoError(t, json.NewDecoder(rec.Body).Decode(&refreshed))
-	require.Equal(t, int32(3), refreshed.Updated)
-	require.Equal(t, int32(1), refreshed.Failed)
-
-	// The three that worked were written; the failure left its row alone.
-	shows, _, err := st.ListShows(ctx, &store.ListFilters{})
+	shows, _, err := st.ListShows(t.Context(), &store.ListFilters{})
 	require.NoError(t, err)
 	titles := map[int64]string{}
 	for i := range shows {
 		titles[shows[i].TMDBID] = shows[i].Title
 	}
-	require.Equal(t, "Refreshed 1", titles[1])
-	require.Equal(t, "Refreshed 2", titles[2])
-	require.Equal(t, "Movie 3", titles[3])
-	require.Equal(t, "Refreshed 4", titles[4])
+	assert.Equal(t, map[int64]string{1: "Refreshed 1", 2: "Refreshed 2", 3: "Show 3", 4: "Refreshed 4"}, titles)
+}
+
+func TestExportDB(t *testing.T) {
+	st := newTestStore(t)
+	addTestShow(t, st, 1, store.MediaMovie)
+	c := newClient(t, st, nil)
+
+	rec := c.do(http.MethodGet, "/export/db", nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Header().Get("Content-Disposition"), `filename="paired-ratings-`)
+	assert.True(t, bytes.HasPrefix(rec.Body.Bytes(), []byte("SQLite format 3\x00")))
 }

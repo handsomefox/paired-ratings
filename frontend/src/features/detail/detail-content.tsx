@@ -13,11 +13,12 @@ import { DetailHero } from "@/features/detail/detail-hero";
 import { DetailRatings } from "@/features/detail/detail-ratings";
 import { DetailEpisodes } from "@/features/detail/detail-episodes";
 import { DetailRelated } from "@/features/detail/detail-related";
-import type { ApiShow } from "@/lib/api";
+import type { ApiShow, ApiShowDetail } from "@/lib/api";
 import { api } from "@/lib/api";
-import { combinedRating } from "@/lib/utils";
+import { onShowDeleted, queryKeys } from "@/lib/queries";
+import { combinedRating, tmdbUrl } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export type DetailContentProps = {
@@ -28,7 +29,7 @@ export type DetailContentProps = {
   bfName: string;
   gfName: string;
   backLabel: string;
-  onBack: () => void;
+  onBack: () => Promise<void>;
 };
 
 export function DetailContent({
@@ -55,14 +56,18 @@ export function DetailContent({
     bfComment: show.bf_comment ?? "",
     gfComment: show.gf_comment ?? "",
   }));
-  const isDirty = useMemo(() => {
-    return (
-      bfRating !== initialState.bfRating ||
-      gfRating !== initialState.gfRating ||
-      bfComment.trim() !== initialState.bfComment.trim() ||
-      gfComment.trim() !== initialState.gfComment.trim()
-    );
-  }, [bfRating, gfRating, bfComment, gfComment, initialState]);
+  const isDirty =
+    bfRating !== initialState.bfRating ||
+    gfRating !== initialState.gfRating ||
+    bfComment.trim() !== initialState.bfComment.trim() ||
+    gfComment.trim() !== initialState.gfComment.trim();
+
+  // Each mutation answers with the updated show. Put it straight into the
+  // detail cache and let the library lists refetch.
+  const applyDetail = (data: ApiShowDetail) => {
+    queryClient.setQueryData(queryKeys.show(showId), data);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.shows });
+  };
 
   const updateMutation = useMutation({
     mutationFn: () =>
@@ -73,26 +78,10 @@ export function DetailContent({
         gf_comment: gfComment,
       }),
     onSuccess: (data) => {
-      queryClient.setQueryData(["show", String(showId)], data);
-      queryClient.invalidateQueries({ queryKey: ["shows"] });
-      if (!data.show) {
-        return;
-      }
-      const next = {
-        bfRating: data.show.bf_rating ?? null,
-        gfRating: data.show.gf_rating ?? null,
-        bfComment: data.show.bf_comment ?? "",
-        gfComment: data.show.gf_comment ?? "",
-      };
-      setInitialState(next);
-      setBfRating(next.bfRating);
-      setGfRating(next.gfRating);
-      setBfComment(next.bfComment);
-      setGfComment(next.gfComment);
-      setBfEditing(!next.bfComment.trim());
-      setGfEditing(!next.gfComment.trim());
+      applyDetail(data);
       toast.success("Ratings saved.");
-      onBack();
+      // Saving leaves the page, so the local form state is not reset here.
+      void onBack();
     },
     onError: () => {
       toast.error("Failed to save ratings.");
@@ -102,9 +91,8 @@ export function DetailContent({
   const setStatusMutation = useMutation({
     mutationFn: (status: string) => api.setStatus(showId, status),
     onSuccess: (data) => {
-      queryClient.setQueryData(["show", String(showId)], data);
-      queryClient.invalidateQueries({ queryKey: ["shows"] });
-      queryClient.invalidateQueries({ queryKey: ["episodes", showId] });
+      applyDetail(data);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.episodes(showId) });
       toast.success(`Marked ${data.show?.status ?? "updated"}.`);
     },
     onError: () => {
@@ -115,8 +103,7 @@ export function DetailContent({
   const clearRatingsMutation = useMutation({
     mutationFn: () => api.clearRatings(showId),
     onSuccess: (data) => {
-      queryClient.setQueryData(["show", String(showId)], data);
-      queryClient.invalidateQueries({ queryKey: ["shows"] });
+      applyDetail(data);
       const cleared = {
         bfRating: null,
         gfRating: null,
@@ -140,9 +127,8 @@ export function DetailContent({
   const refreshMutation = useMutation({
     mutationFn: () => api.refreshShow(showId),
     onSuccess: (data) => {
-      queryClient.setQueryData(["show", String(showId)], data);
-      queryClient.invalidateQueries({ queryKey: ["shows"] });
-      queryClient.invalidateQueries({ queryKey: ["episodes", showId] });
+      applyDetail(data);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.episodes(showId) });
       toast.success("TMDB refreshed.");
     },
     onError: () => {
@@ -150,24 +136,18 @@ export function DetailContent({
     },
   });
 
-  const findSimilarUrl = useMemo(() => {
-    const genreNames = show.genres
-      ?.split(",")
-      .map((g) => g.trim())
-      .filter(Boolean)
-      .join(",");
-    const params = new URLSearchParams({ media_type: show.media_type });
-    if (genreNames) params.set("genre_names", genreNames);
-    return `/search?${params.toString()}`;
-  }, [show.genres, show.media_type]);
+  const genreNames = show.genres.join(",");
+  const findSimilarSearch = {
+    media_type: show.media_type,
+    ...(genreNames ? { genre_names: genreNames } : {}),
+  };
 
   const watchOrderMutation = useMutation({
     mutationFn: (inWatchOrder: boolean) =>
       inWatchOrder ? api.removeFromWatchOrder(showId) : api.addToWatchOrder(showId),
     onSuccess: (data) => {
-      queryClient.setQueryData(["show", String(showId)], data);
-      queryClient.invalidateQueries({ queryKey: ["shows"] });
-      const added = data?.show?.watch_priority != null;
+      applyDetail(data);
+      const added = data.show?.watch_priority != null;
       toast.success(added ? "Added to watch order." : "Removed from watch order.");
     },
     onError: () => {
@@ -177,25 +157,22 @@ export function DetailContent({
 
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteShow(showId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shows"] });
+    onSuccess: async () => {
       toast.success("Show deleted.");
-      onBack();
+      // Leave the page first. Dropping its cache entry while it is still
+      // mounted would make it refetch the show that no longer exists.
+      await onBack();
+      onShowDeleted(queryClient, showId);
     },
     onError: () => {
       toast.error("Failed to delete show.");
     },
   });
 
-  const tmdbUrl =
-    show.tmdb_id && show.media_type
-      ? `https://www.themoviedb.org/${show.media_type === "tv" ? "tv" : "movie"}/${show.tmdb_id}`
-      : undefined;
-
   return (
     <section className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="ghost" onClick={onBack}>
+        <Button variant="ghost" onClick={() => void onBack()}>
           ← {backLabel}
         </Button>
       </div>
@@ -204,7 +181,7 @@ export function DetailContent({
         show={show}
         imageBase={imageBase}
         imdbUrl={imdbUrl}
-        tmdbUrl={tmdbUrl}
+        tmdbUrl={show.tmdb_id ? tmdbUrl(show.media_type, show.tmdb_id) : undefined}
         onSetStatus={(status) => setStatusMutation.mutate(status)}
         statusPending={setStatusMutation.isPending}
         onRefresh={() => refreshMutation.mutate()}
@@ -213,7 +190,7 @@ export function DetailContent({
         onAddToWatchOrder={() => watchOrderMutation.mutate(false)}
         onRemoveFromWatchOrder={() => watchOrderMutation.mutate(true)}
         watchOrderPending={watchOrderMutation.isPending}
-        findSimilarUrl={findSimilarUrl}
+        findSimilarSearch={findSimilarSearch}
       />
 
       <DetailRatings

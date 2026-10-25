@@ -1,7 +1,10 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-const DEFAULT_REGION_BY_LANG: Record<string, string> = {
+// Language code (ISO 639) to the region whose flag stands for it. Only used
+// for languages: it must never be applied to a country code, because many
+// codes collide. "IN" is India as a country but Indonesian as a language.
+const REGION_BY_LANGUAGE: Record<string, string> = {
   AM: "ET",
   AR: "SA",
   ARY: "MA",
@@ -10,7 +13,6 @@ const DEFAULT_REGION_BY_LANG: Record<string, string> = {
   BS: "BA",
   CS: "CZ",
   DA: "DK",
-  DD: "DE",
   DE: "DE",
   EL: "GR",
   EN: "US",
@@ -49,7 +51,6 @@ const DEFAULT_REGION_BY_LANG: Record<string, string> = {
   SK: "SK",
   SL: "SI",
   SR: "RS",
-  SU: "RU",
   SV: "SE",
   SW: "TZ",
   TA: "IN",
@@ -59,11 +60,18 @@ const DEFAULT_REGION_BY_LANG: Record<string, string> = {
   UK: "UA",
   UR: "PK",
   VI: "VN",
-  XC: "CZ",
-  XZ: "CZ",
   YO: "NG",
-  YU: "RS",
   ZH: "TW",
+};
+
+// Country codes that TMDB still uses for countries that no longer exist,
+// mapped to the closest current flag.
+const REGION_BY_HISTORICAL_COUNTRY: Record<string, string> = {
+  CS: "RS",
+  DD: "DE",
+  SU: "RU",
+  XC: "CZ",
+  YU: "RS",
   ZR: "CD",
 };
 
@@ -106,39 +114,63 @@ export function combinedRating(bf?: number | null, gf?: number | null) {
   return "-";
 }
 
-export function shortGenres(genres?: string | null) {
-  if (!genres) return "";
-  const parts = genres
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  return parts.slice(0, 2).join(", ");
-}
-
-export function shortGenreList(genres?: string[] | null) {
+export function shortGenres(genres?: string[] | null) {
   if (!genres || genres.length === 0) return "";
   return genres.slice(0, 2).join(", ");
 }
 
+function regionFlag(region: string) {
+  if (region == "RU") return String.fromCodePoint(0x1f4a9);
+  const base = 0x1f1e6;
+  return String.fromCodePoint(
+    base + (region.charCodeAt(0) - 65),
+    base + (region.charCodeAt(1) - 65),
+  );
+}
+
+/** Flag for an ISO 3166-1 country code, as TMDB reports it in origin_country. */
 export function flagEmoji(countryCode?: string | null) {
   if (!countryCode) return "";
   let code = countryCode.trim().toUpperCase();
-  code = DEFAULT_REGION_BY_LANG[code] ?? code;
+  code = REGION_BY_HISTORICAL_COUNTRY[code] ?? code;
   if (!/^[A-Z]{2}$/.test(code)) return "";
-  if (code == "RU") return String.fromCodePoint(0x1f4a9);
-  const base = 0x1f1e6;
-  return String.fromCodePoint(base + (code.charCodeAt(0) - 65), base + (code.charCodeAt(1) - 65));
+  return regionFlag(code);
 }
 
+/** Flag for an ISO 639 language code, as TMDB reports it in original_language. */
 export function flagEmojiFromLanguageCode(languageCode?: string | null) {
   if (!languageCode) return "";
 
   const lang = languageCode.trim().toLowerCase();
   if (!/^[a-z]{2,3}$/.test(lang)) return "";
 
-  const locale = new Intl.Locale(lang).maximize();
-  const region = DEFAULT_REGION_BY_LANG[lang.toUpperCase()] ?? locale.region ?? "";
-  if (region == "RU") return String.fromCodePoint(0x1f4a9);
+  const region = REGION_BY_LANGUAGE[lang.toUpperCase()] ?? new Intl.Locale(lang).maximize().region;
+  // The region is already a country code, so it goes straight to the flag and
+  // is not looked up a second time.
+  return region && /^[A-Z]{2}$/.test(region) ? regionFlag(region) : "";
+}
 
-  return region ? flagEmoji(region) : "";
+export function mediaTypeLabel(mediaType: string) {
+  if (mediaType === "movie") return "Movie";
+  if (mediaType === "tv") return "TV";
+  return mediaType;
+}
+
+export function tmdbUrl(mediaType: string, tmdbId: number) {
+  return `https://www.themoviedb.org/${mediaType === "tv" ? "tv" : "movie"}/${tmdbId}`;
+}
+
+// A half-typed year like "20" is not a filter anyone means. Hold it back until
+// it is a plausible four-digit year, so a list does not empty out mid-keystroke.
+export function usableYear(raw: string): string {
+  const trimmed = raw.trim();
+  if (!/^\d{4}$/.test(trimmed)) return "";
+  const year = Number(trimmed);
+  if (year < 1900 || year > 2100) return "";
+  return trimmed;
+}
+
+export function scrollToTop() {
+  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: prefersReducedMotion ? "auto" : "smooth" });
 }

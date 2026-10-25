@@ -1,9 +1,9 @@
-import { CountryCombobox, type CountryOption } from "@/components/country-combobox";
+import { CountryCombobox } from "@/components/country-combobox";
 import FilterField from "@/components/filter-field";
 import { GenreCombobox } from "@/components/genre-combobox";
+import { YearRangeFields } from "@/components/year-range-fields";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -12,6 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import type { ApiCountry } from "@/lib/api";
+import { useId } from "react";
 
 export type LibraryFiltersProps = {
   status: string;
@@ -31,7 +33,7 @@ export type LibraryFiltersProps = {
   statusOptions: Array<{ value: string; label: string }>;
   sortOptions: Array<{ value: string; label: string }>;
   genres: string[];
-  countries: CountryOption[];
+  countries: ApiCountry[];
   onRefresh: () => void;
   refreshPending: boolean;
 };
@@ -58,90 +60,97 @@ export function LibraryFilters({
   onRefresh,
   refreshPending,
 }: LibraryFiltersProps) {
+  const unratedId = useId();
+
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 [&>*]:min-w-0">
         <FilterField label="Status">
-          <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {statusOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {(id) => (
+            <Select value={status} onValueChange={onStatusChange}>
+              <SelectTrigger id={id}>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </FilterField>
 
         <FilterField label="Genre">
-          <div className="w-full min-w-0">
-            <GenreCombobox
-              value={genre}
-              onValueChange={onGenreChange}
-              genres={genres}
-              placeholder="Any"
-              anyLabel="Any"
-            />
-          </div>
+          {(id) => (
+            <div className="w-full min-w-0">
+              <GenreCombobox
+                id={id}
+                value={genre}
+                onValueChange={onGenreChange}
+                genres={genres}
+                placeholder="Any"
+                anyLabel="Any"
+              />
+            </div>
+          )}
         </FilterField>
 
         <FilterField label="Origin country">
-          <div className="w-full min-w-0">
-            <CountryCombobox
-              value={originCountry}
-              onValueChange={onOriginCountryChange}
-              options={countries}
-              placeholder="Any"
-              anyLabel="Any"
-            />
-          </div>
+          {(id) => (
+            <div className="w-full min-w-0">
+              <CountryCombobox
+                id={id}
+                value={originCountry}
+                onValueChange={onOriginCountryChange}
+                options={countries}
+                placeholder="Any"
+                anyLabel="Any"
+              />
+            </div>
+          )}
         </FilterField>
 
-        <div className="grid grid-cols-2 gap-3">
-          <FilterField label="Year from">
-            <Input
-              type="number"
-              min={1900}
-              max={2100}
-              value={yearFrom}
-              onChange={(event) => onYearFromChange(event.target.value)}
-            />
-          </FilterField>
-          <FilterField label="Year to">
-            <Input
-              type="number"
-              min={1900}
-              max={2100}
-              value={yearTo}
-              onChange={(event) => onYearToChange(event.target.value)}
-            />
-          </FilterField>
-        </div>
+        <YearRangeFields
+          yearFrom={yearFrom}
+          onYearFromChange={onYearFromChange}
+          yearTo={yearTo}
+          onYearToChange={onYearToChange}
+        />
 
         <FilterField label="Sort">
-          <Select value={sort} onValueChange={onSortChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Sort" />
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {(id) => (
+            <Select value={sort} onValueChange={onSortChange}>
+              <SelectTrigger id={id}>
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </FilterField>
       </div>
 
       <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
-        <Checkbox checked={unrated} onCheckedChange={(value) => onUnratedChange(Boolean(value))} />
+        <Checkbox
+          id={unratedId}
+          checked={unrated}
+          onCheckedChange={(value) => onUnratedChange(value === true)}
+          aria-describedby={`${unratedId}-hint`}
+        />
         <div>
-          <div className="text-sm font-medium">Unrated only</div>
-          <div className="text-xs text-muted-foreground">Hide anything with ratings.</div>
+          <label htmlFor={unratedId} className="cursor-pointer text-sm font-medium">
+            Unrated only
+          </label>
+          <div id={`${unratedId}-hint`} className="text-xs text-muted-foreground">
+            Hide anything with ratings.
+          </div>
         </div>
       </div>
 

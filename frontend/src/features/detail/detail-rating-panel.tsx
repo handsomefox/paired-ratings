@@ -9,11 +9,12 @@ type StarRatingProps = {
   value: number | null;
   onChange: (value: number) => void;
   tone: "bf" | "gf";
+  label: string;
 };
 
-function StarRating({ value, onChange, tone }: StarRatingProps) {
+function StarRating({ value, onChange, tone, label }: StarRatingProps) {
   return (
-    <div className="flex items-center gap-1 pr-1">
+    <div role="group" aria-label={label} className="flex items-center gap-1 pr-1">
       {ratingValues.map((rating) => {
         const active = value !== null && rating <= value;
         const toneClass = tone === "bf" ? "text-bf" : "text-gf";
@@ -28,6 +29,7 @@ function StarRating({ value, onChange, tone }: StarRatingProps) {
               active ? toneClass : idleClass,
             )}
             aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
+            aria-pressed={value === rating}
           >
             ★
           </button>
@@ -74,7 +76,12 @@ export function DetailRatingPanel({
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Rating
         </div>
-        <StarRating value={rating} onChange={onRatingChange} tone={tone} />
+        <StarRating
+          value={rating}
+          onChange={onRatingChange}
+          tone={tone}
+          label={`${name}'s rating`}
+        />
       </div>
       <div className="space-y-2">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -84,6 +91,7 @@ export function DetailRatingPanel({
           <Textarea
             rows={3}
             placeholder={`Leave a comment by ${name}`}
+            aria-label={`${name}'s comment`}
             value={comment}
             onChange={(event) => onCommentChange(event.target.value)}
             variant={tone}
@@ -95,9 +103,10 @@ export function DetailRatingPanel({
             <button
               type="button"
               onClick={() => onEditingChange(true)}
+              aria-label={`Edit ${name}'s comment`}
               className="cursor-pointer rounded-lg border border-border/60 px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
             >
-              ✎
+              <span aria-hidden="true">✎</span>
             </button>
           </div>
         )}

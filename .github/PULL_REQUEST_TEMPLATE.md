@@ -12,6 +12,6 @@
 
 ## API and schema impact
 
-<!-- Did proto/paired_ratings.proto change? If so, say that `make proto` ran and
-that both generated trees are committed. Did a migration land under
-backend/store/migrations? Write "none" if there is none. -->
+<!-- Did proto/paired_ratings.proto, a migration, or a query under
+backend/store/queries change? If so, say that `make generate` ran and that the
+generated trees are committed. Write "none" if nothing changed. -->

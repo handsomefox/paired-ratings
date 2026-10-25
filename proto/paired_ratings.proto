@@ -18,15 +18,19 @@ message ErrorResponse {
 message Show {
   int64 id = 1 [json_name = "id"];
   int64 tmdb_id = 2 [json_name = "tmdb_id"];
+  // "movie" or "tv".
   string media_type = 3 [json_name = "media_type"];
   string title = 4 [json_name = "title"];
   optional int64 year = 5 [json_name = "year"];
-  optional string genres = 6 [json_name = "genres"];
+  // Field 6 held the genres as one comma-joined string.
+  reserved 6;
+  repeated string genres = 25 [json_name = "genres"];
   optional string overview = 7 [json_name = "overview"];
   optional string poster_path = 8 [json_name = "poster_path"];
   optional string imdb_id = 9 [json_name = "imdb_id"];
   optional double tmdb_rating = 10 [json_name = "tmdb_rating"];
   optional int64 tmdb_votes = 11 [json_name = "tmdb_votes"];
+  // "planned", "watching", or "watched".
   string status = 12 [json_name = "status"];
   optional int64 bf_rating = 13 [json_name = "bf_rating"];
   optional int64 gf_rating = 14 [json_name = "gf_rating"];
@@ -54,10 +58,6 @@ message ListResponse {
   int32 total_count = 4 [json_name = "total_count"];
 }
 
-message GenresResponse {
-  repeated string genres = 1 [json_name = "genres"];
-}
-
 message SearchResult {
   int64 id = 1 [json_name = "id"];
   string media_type = 2 [json_name = "media_type"];
@@ -67,24 +67,12 @@ message SearchResult {
   string overview = 6 [json_name = "overview"];
   double vote_average = 7 [json_name = "vote_average"];
   int32 vote_count = 8 [json_name = "vote_count"];
-  bool in_library = 9 [json_name = "in_library"];
+  // Field 9 was the in_library flag, which library_id replaces.
+  reserved 9, 11;
   repeated string genres = 10 [json_name = "genres"];
-  reserved 11;
+  // The library show's id when the title is already in the library.
+  optional int64 library_id = 13 [json_name = "library_id"];
   string original_language = 12 [json_name = "original_language"];
-}
-
-message SearchRequest {
-  string q = 1 [json_name = "q"];
-  string media_type = 2 [json_name = "media_type"];
-  string year_from = 3 [json_name = "year_from"];
-  string year_to = 4 [json_name = "year_to"];
-  string min_rating = 5 [json_name = "min_rating"];
-  string min_votes = 6 [json_name = "min_votes"];
-  string sort = 7 [json_name = "sort"];
-  string genres = 8 [json_name = "genres"];
-  string origin_country = 9 [json_name = "origin_country"];
-  string original_language = 10 [json_name = "original_language"];
-  int32 page = 11 [json_name = "page"];
 }
 
 message SearchResponse {

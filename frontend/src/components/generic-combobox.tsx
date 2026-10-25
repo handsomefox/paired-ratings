@@ -1,5 +1,5 @@
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useMemo, useState, type JSX } from "react";
+import { useState, type ReactNode } from "react";
 import { useMediaQuery } from "@/lib/use-media-query";
 
 import { Button } from "@/components/ui/button";
@@ -19,28 +19,57 @@ export type ComboboxOption = {
   name: string;
 };
 
-type GenericComboboxProps = {
+// cmdk needs a value for the "Any" row. No option code starts with "__".
+const ANY_VALUE = "__any__";
+
+/** Props shared by the country, language, and genre pickers. */
+export type ComboboxFieldProps = {
+  id?: string;
   value: string;
   onValueChange: (value: string) => void;
-  options: ComboboxOption[];
-  anyValue: string;
-  renderLabel: (option: ComboboxOption) => JSX.Element;
-  normalizeOnSelect: (code: string) => string;
-  searchPlaceholder: string;
   placeholder?: string;
   anyLabel?: string;
   className?: string;
   disabled?: boolean;
+};
+
+type GenericComboboxProps = ComboboxFieldProps & {
+  options: ComboboxOption[];
+  renderLabel: (option: ComboboxOption) => ReactNode;
+  normalizeOnSelect?: (code: string) => string;
+  searchPlaceholder: string;
   emptyText?: string;
 };
 
+export function OptionLabel({
+  emoji,
+  primary,
+  code,
+}: {
+  emoji?: string;
+  primary: string;
+  code: string;
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      {emoji ? (
+        <span aria-hidden="true" className="shrink-0">
+          {emoji}
+        </span>
+      ) : null}
+      <span className="min-w-0 flex-1 truncate">{primary}</span>
+      <span className="shrink-0 text-muted-foreground">{code}</span>
+    </span>
+  );
+}
+
 export function GenericCombobox({
+  id,
   value,
   onValueChange,
   options,
-  anyValue,
   renderLabel,
-  normalizeOnSelect,
+  normalizeOnSelect = (code) => code,
   searchPlaceholder,
   placeholder = "Any",
   anyLabel = "Any",
@@ -51,14 +80,13 @@ export function GenericCombobox({
   const [open, setOpen] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
-  const normalizedValue = value || anyValue;
-
-  const selected = useMemo(() => options.find((option) => option.code === value), [options, value]);
+  const selected = options.find((option) => option.code === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           type="button"
           variant="outline"
           role="combobox"
@@ -69,9 +97,9 @@ export function GenericCombobox({
           )}
           disabled={disabled}
         >
-          <div className="min-w-0 max-w-full flex-1 overflow-hidden whitespace-nowrap">
+          <span className="min-w-0 max-w-full flex-1 overflow-hidden whitespace-nowrap">
             {selected ? renderLabel(selected) : <span className="truncate">{placeholder}</span>}
-          </div>
+          </span>
 
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -87,7 +115,8 @@ export function GenericCombobox({
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               <CommandItem
-                value={anyValue}
+                value={ANY_VALUE}
+                keywords={[anyLabel]}
                 onSelect={() => {
                   onValueChange("");
                   setOpen(false);
@@ -96,10 +125,7 @@ export function GenericCombobox({
               >
                 <span className="min-w-0 flex-1 truncate">{anyLabel}</span>
                 <Check
-                  className={cn(
-                    "ml-2 h-4 w-4 shrink-0",
-                    normalizedValue === anyValue ? "opacity-100" : "opacity-0",
-                  )}
+                  className={cn("ml-2 h-4 w-4 shrink-0", value ? "opacity-0" : "opacity-100")}
                 />
               </CommandItem>
 
@@ -117,7 +143,7 @@ export function GenericCombobox({
                   <Check
                     className={cn(
                       "ml-2 h-4 w-4 shrink-0",
-                      normalizedValue === option.code ? "opacity-100" : "opacity-0",
+                      value === option.code ? "opacity-100" : "opacity-0",
                     )}
                   />
                 </CommandItem>

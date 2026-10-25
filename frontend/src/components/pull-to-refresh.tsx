@@ -13,10 +13,24 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
   const [refreshing, setRefreshing] = useState(false);
   const startYRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // The listeners are attached once, so they read the live values from refs
+  // instead of from the render that attached them.
+  const pullRef = useRef(0);
+  const refreshingRef = useRef(false);
+  const onRefreshRef = useRef(onRefresh);
+
+  useEffect(() => {
+    onRefreshRef.current = onRefresh;
+  }, [onRefresh]);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
+    const setPull = (distance: number) => {
+      pullRef.current = distance;
+      setPullDistance(distance);
+    };
 
     const onTouchStart = (e: TouchEvent) => {
       // Only activate when at the top of the page
@@ -25,20 +39,20 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (startYRef.current === null || refreshing) return;
+      if (startYRef.current === null || refreshingRef.current) return;
       if (window.scrollY > 0) {
         startYRef.current = null;
-        setPullDistance(0);
+        setPull(0);
         return;
       }
       const delta = e.touches[0].clientY - startYRef.current;
       if (delta <= 0) {
-        setPullDistance(0);
+        setPull(0);
         return;
       }
       // Rubber-band resistance
       const distance = Math.min(delta * 0.5, MAX_PULL);
-      setPullDistance(distance);
+      setPull(distance);
       if (distance > 0) e.preventDefault();
     };
 
@@ -46,29 +60,40 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
       if (startYRef.current === null) return;
       startYRef.current = null;
 
-      if (pullDistance >= THRESHOLD && !refreshing) {
+      if (pullRef.current >= THRESHOLD && !refreshingRef.current) {
+        refreshingRef.current = true;
         setRefreshing(true);
-        setPullDistance(0);
+        setPull(0);
         try {
-          await onRefresh();
+          await onRefreshRef.current();
         } finally {
+          refreshingRef.current = false;
           setRefreshing(false);
         }
       } else {
-        setPullDistance(0);
+        setPull(0);
       }
+    };
+
+    // A cancelled gesture, for example one the system took over, never sends
+    // touchend. Without this the content would stay pulled down.
+    const onTouchCancel = () => {
+      startYRef.current = null;
+      setPull(0);
     };
 
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchCancel);
 
     return () => {
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchCancel);
     };
-  }, [pullDistance, refreshing, onRefresh]);
+  }, []);
 
   const indicatorVisible = pullDistance > 0 || refreshing;
   const progress = Math.min(pullDistance / THRESHOLD, 1);
@@ -87,6 +112,7 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
           >
             <svg
               viewBox="0 0 24 24"
+              aria-hidden="true"
               className="h-5 w-5 text-muted-foreground"
               style={{
                 opacity: refreshing ? 1 : progress,

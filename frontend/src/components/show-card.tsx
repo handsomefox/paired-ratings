@@ -10,7 +10,6 @@ type ShowCardProps = {
   posterAlt: string;
   imageBase: string;
   posterLink?: (node: ReactNode) => ReactNode;
-  topRight?: ReactNode;
   statusBadge?: ReactNode;
   metaBadges?: ReactNode;
   metaBadgesClassName?: string;
@@ -30,7 +29,6 @@ export function ShowCard({
   posterAlt,
   imageBase,
   posterLink,
-  topRight,
   statusBadge,
   metaBadges,
   metaBadgesClassName,
@@ -95,7 +93,6 @@ export function ShowCard({
     >
       <div className="relative">
         {posterLink ? posterLink(poster) : poster}
-        {topRight ? <div className="absolute right-0 top-0">{topRight}</div> : null}
         {statusBadge ? <div className="absolute left-0 top-0">{statusBadge}</div> : null}
       </div>
       <CardContent className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4 lg:gap-4 lg:p-5">

@@ -3,36 +3,49 @@ package store
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSyncEpisodesUsesTargetShowAndPreservesProgress(t *testing.T) {
+func TestSyncEpisodesPreservesProgress(t *testing.T) {
 	ctx := t.Context()
-	st, err := Open(t.TempDir() + "/ratings.db")
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, st.Close()) })
-	showID, err := st.UpsertShow(ctx, &Show{TMDBID: 1, MediaType: "tv", Title: "Target", Status: "watching"})
-	require.NoError(t, err)
-	otherID, err := st.UpsertShow(ctx, &Show{TMDBID: 2, MediaType: "tv", Title: "Other", Status: "planned"})
-	require.NoError(t, err)
+	st := openTestStore(t)
+	showID := addShow(t, st, &Metadata{TMDBID: 1, MediaType: MediaTV}, StatusWatching)
+	otherID := addShow(t, st, &Metadata{TMDBID: 2, MediaType: MediaTV}, StatusPlanned)
 
-	episodes := []Episode{{ShowID: otherID, SeasonNumber: 1, EpisodeNumber: 1, Title: "Original"}}
-	require.NoError(t, st.SyncEpisodes(ctx, showID, episodes))
-	stored, err := st.GetEpisodes(ctx, showID)
+	require.NoError(t, st.SyncEpisodes(ctx, showID, []EpisodeMetadata{
+		{SeasonNumber: 1, EpisodeNumber: 1, Title: new("Original")},
+		{SeasonNumber: 2, EpisodeNumber: 1},
+	}))
+	stored, err := st.ListEpisodes(ctx, showID)
 	require.NoError(t, err)
-	require.Len(t, stored, 1)
-	require.False(t, stored[0].Watched)
-	require.NoError(t, st.ToggleEpisode(ctx, stored[0].ID, true))
+	require.Len(t, stored, 2)
+	assert.False(t, stored[0].Watched)
+	require.NoError(t, st.SetEpisodeWatched(ctx, stored[0].ID, true))
 
-	episodes[0].ShowID = 0
-	episodes[0].Title = "Updated"
-	require.NoError(t, st.SyncEpisodes(ctx, showID, episodes))
-	stored, err = st.GetEpisodes(ctx, showID)
+	require.NoError(t, st.SyncEpisodes(ctx, showID, []EpisodeMetadata{
+		{SeasonNumber: 1, EpisodeNumber: 1, Title: new("Updated")},
+	}))
+	stored, err = st.ListEpisodes(ctx, showID)
 	require.NoError(t, err)
-	require.Len(t, stored, 1)
-	require.Equal(t, "Updated", stored[0].Title)
-	require.True(t, stored[0].Watched)
-	otherEpisodes, err := st.GetEpisodes(ctx, otherID)
+	require.Len(t, stored, 2)
+	assert.Equal(t, new("Updated"), stored[0].Title)
+	assert.True(t, stored[0].Watched)
+
+	seasons, err := st.CountSeasons(ctx, showID)
 	require.NoError(t, err)
-	require.Empty(t, otherEpisodes)
+	assert.Equal(t, int64(2), seasons)
+
+	require.NoError(t, st.SetSeasonWatched(ctx, showID, 2, true))
+	counts, err := st.EpisodeCounts(ctx, []int64{showID, otherID})
+	require.NoError(t, err)
+	assert.Equal(t, EpisodeCounts{Total: 2, Watched: 2}, counts[showID])
+	assert.NotContains(t, counts, otherID)
+
+	require.ErrorIs(t, st.SetSeasonWatched(ctx, showID, 9, true), ErrNotFound)
+	require.ErrorIs(t, st.SetEpisodeWatched(ctx, 9999, true), ErrNotFound)
+
+	other, err := st.ListEpisodes(ctx, otherID)
+	require.NoError(t, err)
+	assert.Empty(t, other)
 }

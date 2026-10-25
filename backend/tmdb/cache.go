@@ -14,7 +14,7 @@ const (
 	ttlStatic  = 24 * time.Hour   // genres, countries, languages: almost never change
 	ttlDetail  = 24 * time.Hour   // show details: user can force-refresh via the UI
 	ttlSeason  = 6 * time.Hour    // season/episode data
-	ttlRelated = 6 * time.Hour    // collections, similar
+	ttlRelated = 6 * time.Hour    // collections, recommendations
 	ttlSearch  = 10 * time.Minute // search & discover results
 
 	// maxCacheEntries bounds each cache. Reaching it evicts the entry that
@@ -73,6 +73,7 @@ func (c *ttlCache[K, V]) set(key K, value V, ttl time.Duration) {
 }
 
 // CachedClient wraps an Interface and caches responses that are safe to reuse.
+// Callers share the cached values, so they must not modify them.
 type CachedClient struct {
 	inner       Interface
 	details     *ttlCache[string, *Detail]
@@ -82,7 +83,7 @@ type CachedClient struct {
 	search      *ttlCache[string, SearchPage]
 	discover    *ttlCache[string, SearchPage]
 	collections *ttlCache[int64, []SearchResult]
-	similar     *ttlCache[string, []SearchResult]
+	recommended *ttlCache[string, []SearchResult]
 	seasons     *ttlCache[string, Season]
 }
 
@@ -97,7 +98,7 @@ func NewCachedClient(inner Interface) *CachedClient {
 		search:      newCache[string, SearchPage](),
 		discover:    newCache[string, SearchPage](),
 		collections: newCache[int64, []SearchResult](),
-		similar:     newCache[string, []SearchResult](),
+		recommended: newCache[string, []SearchResult](),
 		seasons:     newCache[string, Season](),
 	}
 }
@@ -221,16 +222,16 @@ func (c *CachedClient) FetchCollection(ctx context.Context, collectionID int64) 
 	return v, nil
 }
 
-func (c *CachedClient) FetchSimilar(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
+func (c *CachedClient) FetchRecommendations(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
 	key := fmt.Sprintf("%s:%d", mediaType, id)
-	if v, ok := c.similar.get(key); ok {
+	if v, ok := c.recommended.get(key); ok {
 		return v, nil
 	}
-	v, err := c.inner.FetchSimilar(ctx, id, mediaType)
+	v, err := c.inner.FetchRecommendations(ctx, id, mediaType)
 	if err != nil {
 		return nil, err
 	}
-	c.similar.set(key, v, ttlRelated)
+	c.recommended.set(key, v, ttlRelated)
 	return v, nil
 }
 

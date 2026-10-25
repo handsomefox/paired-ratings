@@ -3,14 +3,14 @@ package handlers
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/handsomefox/paired-ratings/backend/gen/pb"
 	"github.com/handsomefox/paired-ratings/backend/logger"
@@ -18,40 +18,45 @@ import (
 	"github.com/handsomefox/paired-ratings/backend/tmdb"
 )
 
-type genreCache struct {
-	mu        sync.RWMutex
-	movie     map[int]string
-	tv        map[int]string
-	movieList []tmdb.Genre
-	tvList    []tmdb.Genre
-	fetchedAt time.Time
-}
+const (
+	// searchPageSize matches TMDB's page size, so a plain search maps one
+	// page to one TMDB page.
+	searchPageSize = 20
+	// maxScanPages bounds the TMDB pages one filtered or merged search reads.
+	// Matches past that window are not reachable.
+	maxScanPages = 10
+	// maxPage is the last page TMDB serves.
+	maxPage         = 500
+	scanConcurrency = 4
+)
 
-type countryCache struct {
-	mu        sync.RWMutex
-	items     []tmdb.Country
-	fetchedAt time.Time
-}
+type searchSort string
 
-type languageCache struct {
-	mu        sync.RWMutex
-	items     []tmdb.Language
-	fetchedAt time.Time
-}
+const (
+	sortRelevance  searchSort = "relevance"
+	sortRating     searchSort = "rating"
+	sortVotes      searchSort = "votes"
+	sortYear       searchSort = "year"
+	sortTitle      searchSort = "title"
+	sortPopularity searchSort = "popularity"
+)
 
 type searchFilters struct {
-	MediaType        string
-	YearFrom         *int
-	YearTo           *int
-	MinRating        *float64
-	MinVotes         *int
-	Sort             string
-	Page             int
-	GenreIDs         []int
-	GenreMode        string
-	GenreRaw         string
+	// MediaType is "movie", "tv", or empty for both.
+	MediaType string
+	YearFrom  *int
+	YearTo    *int
+	MinRating *float64
+	MinVotes  *int
+	GenreIDs  []int
+	// GenreMatchAny matches a title with any listed genre instead of all.
+	GenreMatchAny bool
+	// Genres is the genre filter in TMDB's with_genres syntax.
+	Genres           string
 	OriginCountry    string
 	OriginalLanguage string
+	Sort             searchSort
+	Page             int
 }
 
 type searchPage struct {
@@ -61,598 +66,300 @@ type searchPage struct {
 	TotalResults int
 }
 
-func (h *Handler) getSearchGenres(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-
-	movieGenres, tvGenres, err := h.fetchGenreLists(ctx)
-	if err != nil {
-		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
-	}
-
-	resp := &pb.SearchGenresResponse{
-		MovieGenres: toPBGenres(movieGenres),
-		TvGenres:    toPBGenres(tvGenres),
-	}
-
-	writeJSON(w, http.StatusOK, resp)
-	return nil
-}
-
-func (h *Handler) getSearchCountries(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-
-	countries, err := h.fetchCountryList(ctx)
-	if err != nil {
-		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
-	}
-
-	resp := &pb.SearchCountriesResponse{
-		Countries: toPBCountries(countries),
-	}
-	writeJSON(w, http.StatusOK, resp)
-	return nil
-}
-
-func (h *Handler) getSearchLanguages(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-
-	languages, err := h.fetchLanguageList(ctx)
-	if err != nil {
-		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
-	}
-
-	resp := &pb.SearchLanguagesResponse{
-		Languages: toPBLanguages(languages),
-	}
-	writeJSON(w, http.StatusOK, resp)
-	return nil
-}
-
-func (h *Handler) getSearchResolve(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-	tmdbIDRaw := strings.TrimSpace(r.URL.Query().Get("tmdb_id"))
-	if tmdbIDRaw == "" {
-		return badRequest("tmdb_id required")
-	}
-	tmdbID, err := strconv.ParseInt(tmdbIDRaw, 10, 64)
-	if err != nil || tmdbID <= 0 {
-		return badRequest("invalid tmdb_id")
-	}
-
-	mediaType := strings.TrimSpace(r.URL.Query().Get("media_type"))
-	if mediaType != "movie" && mediaType != "tv" {
-		return badRequest("invalid media_type")
-	}
-
-	detail, err := h.tmdb.FetchDetails(ctx, tmdbID, mediaType)
-	if err != nil {
-		slog.Warn("search resolve failed", logger.Error(err))
-		return internal(err)
-	}
-
-	tmdbURL := fmt.Sprintf("https://www.themoviedb.org/%s/%d", mediaType, tmdbID)
-	imdbURL := ""
-	if strings.TrimSpace(detail.IMDbID) != "" {
-		imdbURL = "https://www.imdb.com/title/" + detail.IMDbID
-	}
-
-	writeJSON(w, http.StatusOK, &pb.SearchResolveResponse{
-		ImdbUrl: optionalString(imdbURL),
-		TmdbUrl: optionalString(tmdbURL),
-	})
-	return nil
-}
-
 func (h *Handler) getSearch(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
+	query := r.URL.Query()
+	text := strings.TrimSpace(query.Get("q"))
+	f := parseSearchFilters(query)
 
-	req := parseSearchRequest(r)
-	query := strings.TrimSpace(req.Q)
-	filters := searchFiltersFromRequest(req)
-
-	if query != "" {
-		if filters.MediaType != "movie" && filters.MediaType != "tv" {
+	var page searchPage
+	var err error
+	switch {
+	case text != "":
+		if f.MediaType == "" {
 			return badRequest("media_type required")
 		}
+		page, err = h.searchText(ctx, text, &f)
+	case f.MediaType != "" || f.narrows():
+		page, err = h.discover(ctx, &f)
+	default:
+		// Nothing to look for yet.
+		page = searchPage{Page: f.Page}
 	}
-
-	pageData, err := h.searchTMDB(ctx, query, &filters)
 	if err != nil {
-		return &Error{Status: http.StatusBadGateway, Message: err.Error()}
+		return badGateway(err)
 	}
 
-	inLibrary, err := h.lookupInLibrary(ctx, pageData.Results)
+	results, err := h.toPBSearchResults(ctx, page.Results)
 	if err != nil {
-		return internal(err)
+		return err
 	}
-
-	movieGenres, tvGenres := h.genreMaps(ctx)
-
-	results := make([]*pb.SearchResult, 0, len(pageData.Results))
-	for i := range pageData.Results {
-		item := &pageData.Results[i]
-		results = append(results, &pb.SearchResult{
-			Id:               item.ID,
-			MediaType:        item.MediaType,
-			Title:            item.Title,
-			Year:             item.Year,
-			PosterPath:       item.PosterPath,
-			Overview:         item.Overview,
-			VoteAverage:      item.VoteAverage,
-			VoteCount:        clampInt32(item.VoteCount),
-			InLibrary:        inLibrary[store.TMDBRef{ID: item.ID, MediaType: item.MediaType}],
-			Genres:           genreNamesFor(item, movieGenres, tvGenres),
-			OriginalLanguage: item.OriginalLanguage,
-		})
-	}
-
 	writeJSON(w, http.StatusOK, &pb.SearchResponse{
 		Results:      results,
-		Page:         clampInt32(pageData.Page),
-		TotalPages:   clampInt32(pageData.TotalPages),
-		TotalResults: clampInt32(pageData.TotalResults),
+		Page:         clampInt32(page.Page),
+		TotalPages:   clampInt32(page.TotalPages),
+		TotalResults: clampInt32(page.TotalResults),
 	})
 	return nil
 }
 
-func (h *Handler) searchTMDB(ctx context.Context, query string, filters *searchFilters) (searchPage, error) {
-	const perPage = 20
-	const tmdbPageSize = 20
-
-	if filters.Page < 1 {
-		filters.Page = 1
+// searchText runs a title search. TMDB's search applies none of the filters,
+// so a filtered or re-sorted search reads a window of pages and filters it here.
+func (h *Handler) searchText(ctx context.Context, text string, f *searchFilters) (searchPage, error) {
+	fetch := func(ctx context.Context, page int) (tmdb.SearchPage, error) {
+		return h.tmdb.SearchPage(ctx, text, f.MediaType, page)
+	}
+	if !f.narrows() && f.Sort == sortRelevance {
+		p, err := fetch(ctx, f.Page)
+		return searchPage{Results: p.Results, Page: f.Page, TotalPages: p.TotalPages, TotalResults: p.TotalResults}, err
 	}
 
-	if query != "" {
-		mediaType := strings.TrimSpace(filters.MediaType)
-		fetch := func(page int) (tmdb.SearchPage, error) {
-			return h.tmdb.SearchPage(ctx, query, mediaType, page)
-		}
-		startFromFirst := !filters.isEmpty() || filters.Sort != "relevance"
-		return h.searchWithFilterPaging(ctx, fetch, filters, perPage, tmdbPageSize, startFromFirst, true)
-
+	items, err := scan(ctx, fetch, maxScanPages)
+	if err != nil {
+		return searchPage{}, err
 	}
-
-	if filters.isEmpty() {
-		return searchPage{}, nil
-	}
-
-	discoverFilters := tmdb.DiscoverFilters{
-		YearFrom:         filters.YearFrom,
-		YearTo:           filters.YearTo,
-		MinRating:        filters.MinRating,
-		MinVotes:         filters.MinVotes,
-		Genres:           filters.GenreRaw,
-		OriginCountry:    filters.OriginCountry,
-		OriginalLanguage: filters.OriginalLanguage,
-	}
-
-	switch filters.MediaType {
-	case "movie", "tv":
-		discoverFilters.Sort = tmdbSort(filters.Sort, filters.MediaType)
-		pageData, err := h.tmdb.DiscoverPage(ctx, filters.MediaType, &discoverFilters, filters.Page)
-		if err != nil {
-			return searchPage{}, err
-		}
-		return searchPage{
-			Results:      pageData.Results,
-			Page:         filters.Page,
-			TotalPages:   pageData.TotalPages,
-			TotalResults: pageData.TotalResults,
-		}, nil
-	default:
-		discoverFilters.Sort = tmdbSort(filters.Sort, "movie")
-		movies, err := h.tmdb.DiscoverPage(ctx, "movie", &discoverFilters, filters.Page)
-		if err != nil {
-			return searchPage{}, err
-		}
-		discoverFilters.Sort = tmdbSort(filters.Sort, "tv")
-		tv, err := h.tmdb.DiscoverPage(ctx, "tv", &discoverFilters, filters.Page)
-		if err != nil {
-			return searchPage{}, err
-		}
-		found := make([]tmdb.SearchResult, 0, len(movies.Results)+len(tv.Results))
-		found = append(found, movies.Results...)
-		found = append(found, tv.Results...)
-
-		return searchPage{
-			Results:      found,
-			Page:         filters.Page,
-			TotalPages:   max(movies.TotalPages, tv.TotalPages),
-			TotalResults: movies.TotalResults + tv.TotalResults,
-		}, nil
-	}
+	items = slices.DeleteFunc(items, func(item tmdb.SearchResult) bool { return !f.matches(&item) })
+	sortResults(items, f.Sort)
+	return paginate(items, f.Page), nil
 }
 
-func (h *Handler) searchWithFilterPaging(
-	ctx context.Context,
-	fetch func(page int) (tmdb.SearchPage, error),
-	filters *searchFilters,
-	perPage int,
-	remotePageSize int,
-	startFromFirst bool,
-	applyFilters bool,
-) (searchPage, error) {
-	if filters.Page < 1 {
-		filters.Page = 1
-	}
-	offset := (filters.Page - 1) * perPage
-	tmdbPage := 1
-	if !startFromFirst {
-		offset %= remotePageSize
-		tmdbPage = (filters.Page-1)*perPage/remotePageSize + 1
+// discover browses by filter. TMDB filters and sorts one media type itself.
+// Both types read a window of each, merged and sorted here.
+func (h *Handler) discover(ctx context.Context, f *searchFilters) (searchPage, error) {
+	filters := tmdb.DiscoverFilters{
+		YearFrom:         f.YearFrom,
+		YearTo:           f.YearTo,
+		MinRating:        f.MinRating,
+		MinVotes:         f.MinVotes,
+		Genres:           f.Genres,
+		OriginCountry:    f.OriginCountry,
+		OriginalLanguage: f.OriginalLanguage,
 	}
 
-	collected := make([]tmdb.SearchResult, 0, perPage*2)
-	totalResults := 0
-	totalPages := 1
-	exhausted := false
+	if f.MediaType != "" {
+		filters.Sort = tmdbSort(f.Sort, f.MediaType)
+		p, err := h.tmdb.DiscoverPage(ctx, f.MediaType, &filters, f.Page)
+		return searchPage{Results: p.Results, Page: f.Page, TotalPages: p.TotalPages, TotalResults: p.TotalResults}, err
+	}
 
-	for len(collected) < offset+perPage {
-		pageData, err := fetch(tmdbPage)
+	var items []tmdb.SearchResult
+	for _, mediaType := range []string{"movie", "tv"} {
+		typed := filters
+		typed.Sort = tmdbSort(f.Sort, mediaType)
+		found, err := scan(ctx, func(ctx context.Context, page int) (tmdb.SearchPage, error) {
+			return h.tmdb.DiscoverPage(ctx, mediaType, &typed, page)
+		}, maxScanPages/2)
 		if err != nil {
 			return searchPage{}, err
 		}
-		if pageData.TotalPages > 0 {
-			totalPages = pageData.TotalPages
-		}
-		if pageData.TotalResults > 0 {
-			totalResults = pageData.TotalResults
-		}
-
-		if applyFilters {
-			filtered := applySearchFilters(pageData.Results, filters)
-			collected = append(collected, filtered...)
-		} else {
-			collected = append(collected, pageData.Results...)
-		}
-
-		if tmdbPage >= pageData.TotalPages || pageData.TotalPages == 0 {
-			exhausted = true
-			break
-		}
-		tmdbPage++
+		items = append(items, found...)
 	}
 
-	if applyFilters && filters.Sort != "relevance" {
-		collected = applySearchSort(collected, filters.Sort, false)
+	sort := f.Sort
+	if sort == sortRelevance {
+		sort = sortPopularity
 	}
-	paged := paginateSearchResults(collected, offset, perPage)
+	sortResults(items, sort)
+	return paginate(items, f.Page), nil
+}
 
-	if exhausted {
-		filteredTotal := len(collected)
-		if filters.Page > 1 {
-			filteredTotal = max(filteredTotal, (filters.Page-1)*perPage+len(paged))
-		}
-		totalResults = filteredTotal
-		totalPages = 1
-		if totalResults > 0 {
-			totalPages = (totalResults + perPage - 1) / perPage
-		}
+// scan reads TMDB pages 1 to maxPages, or fewer if TMDB has fewer, and returns
+// their results in order in a new slice.
+func scan(ctx context.Context, fetch func(ctx context.Context, page int) (tmdb.SearchPage, error), maxPages int) ([]tmdb.SearchResult, error) {
+	first, err := fetch(ctx, 1)
+	if err != nil {
+		return nil, err
 	}
+	pages := make([][]tmdb.SearchResult, min(first.TotalPages, maxPages))
+	if len(pages) == 0 {
+		return nil, nil
+	}
+	pages[0] = first.Results
 
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(scanConcurrency)
+	for i := 1; i < len(pages); i++ {
+		g.Go(func() error {
+			p, err := fetch(ctx, i+1)
+			pages[i] = p.Results
+			return err
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return slices.Concat(pages...), nil
+}
+
+func paginate(items []tmdb.SearchResult, page int) searchPage {
+	offset := min((page-1)*searchPageSize, len(items))
+	end := min(offset+searchPageSize, len(items))
 	return searchPage{
-		Results:      paged,
-		Page:         filters.Page,
-		TotalPages:   totalPages,
-		TotalResults: totalResults,
-	}, nil
-}
-
-func parseSearchRequest(r *http.Request) *pb.SearchRequest {
-	query := r.URL.Query()
-	req := &pb.SearchRequest{
-		Q:                strings.TrimSpace(query.Get("q")),
-		MediaType:        strings.TrimSpace(query.Get("media_type")),
-		YearFrom:         strings.TrimSpace(query.Get("year_from")),
-		YearTo:           strings.TrimSpace(query.Get("year_to")),
-		MinRating:        strings.TrimSpace(query.Get("min_rating")),
-		MinVotes:         strings.TrimSpace(query.Get("min_votes")),
-		Sort:             strings.TrimSpace(query.Get("sort")),
-		Genres:           strings.TrimSpace(query.Get("genres")),
-		OriginCountry:    strings.TrimSpace(query.Get("origin_country")),
-		OriginalLanguage: strings.TrimSpace(query.Get("original_language")),
-	}
-
-	if val := strings.TrimSpace(query.Get("page")); val != "" {
-		if parsed, err := strconv.ParseInt(val, 10, 32); err == nil && parsed > 0 {
-			req.Page = int32(parsed)
-		}
-	}
-
-	return req
-}
-
-func searchFiltersFromRequest(req *pb.SearchRequest) searchFilters {
-	mediaType := strings.TrimSpace(req.MediaType)
-	if mediaType != "movie" && mediaType != "tv" {
-		mediaType = "all"
-	}
-
-	var yearFrom *int
-	if val := strings.TrimSpace(req.YearFrom); val != "" {
-		if parsed, err := strconv.Atoi(val); err == nil {
-			yearFrom = &parsed
-		}
-	}
-
-	var yearTo *int
-	if val := strings.TrimSpace(req.YearTo); val != "" {
-		if parsed, err := strconv.Atoi(val); err == nil {
-			yearTo = &parsed
-		}
-	}
-
-	var minRating *float64
-	if val := strings.TrimSpace(req.MinRating); val != "" {
-		if parsed, err := strconv.ParseFloat(val, 64); err == nil && parsed > 0 {
-			minRating = &parsed
-		}
-	}
-
-	var minVotes *int
-	if val := strings.TrimSpace(req.MinVotes); val != "" {
-		if parsed, err := strconv.Atoi(val); err == nil && parsed > 0 {
-			minVotes = &parsed
-		}
-	}
-
-	originCountry := strings.TrimSpace(req.OriginCountry)
-	if originCountry != "" {
-		originCountry = strings.ToUpper(originCountry)
-	}
-
-	originalLanguage := strings.TrimSpace(req.OriginalLanguage)
-	if originalLanguage != "" {
-		originalLanguage = strings.ToLower(originalLanguage)
-	}
-
-	genreRaw := strings.TrimSpace(req.Genres)
-	genreIDs, genreMode, genreQuery := parseGenreFilter(genreRaw)
-
-	page := 1
-	if req.Page > 0 {
-		page = int(req.Page)
-	}
-
-	sort := strings.TrimSpace(req.Sort)
-	switch sort {
-	case "rating", "year", "title", "votes":
-	default:
-		sort = "relevance"
-	}
-
-	return searchFilters{
-		MediaType:        mediaType,
-		YearFrom:         yearFrom,
-		YearTo:           yearTo,
-		MinRating:        minRating,
-		MinVotes:         minVotes,
-		Sort:             sort,
-		Page:             page,
-		GenreIDs:         genreIDs,
-		GenreMode:        genreMode,
-		GenreRaw:         genreQuery,
-		OriginCountry:    originCountry,
-		OriginalLanguage: originalLanguage,
+		Results:      items[offset:end],
+		Page:         page,
+		TotalPages:   (len(items) + searchPageSize - 1) / searchPageSize,
+		TotalResults: len(items),
 	}
 }
 
-func (f *searchFilters) isEmpty() bool {
-	return f.MediaType == "all" &&
-		f.YearFrom == nil &&
-		f.YearTo == nil &&
-		f.MinRating == nil &&
-		f.MinVotes == nil &&
-		len(f.GenreIDs) == 0 &&
-		f.OriginCountry == "" &&
-		f.OriginalLanguage == ""
+func parseSearchFilters(q url.Values) searchFilters {
+	f := searchFilters{
+		OriginCountry:    strings.ToUpper(strings.TrimSpace(q.Get("origin_country"))),
+		OriginalLanguage: strings.ToLower(strings.TrimSpace(q.Get("original_language"))),
+		Sort:             sortRelevance,
+		Page:             1,
+	}
+
+	if mediaType := strings.TrimSpace(q.Get("media_type")); store.MediaType(mediaType).Valid() {
+		f.MediaType = mediaType
+	}
+	switch sort := searchSort(strings.TrimSpace(q.Get("sort"))); sort {
+	case sortRating, sortVotes, sortYear, sortTitle:
+		f.Sort = sort
+	case sortRelevance, sortPopularity:
+		// Relevance is the default. Popularity only orders merged discover
+		// results, so a client cannot ask for it.
+	}
+	if page, err := strconv.Atoi(q.Get("page")); err == nil && page > 1 {
+		f.Page = min(page, maxPage)
+	}
+
+	f.YearFrom = positiveInt(q.Get("year_from"))
+	f.YearTo = positiveInt(q.Get("year_to"))
+	f.MinVotes = positiveInt(q.Get("min_votes"))
+	if v, err := strconv.ParseFloat(strings.TrimSpace(q.Get("min_rating")), 64); err == nil && v > 0 {
+		f.MinRating = &v
+	}
+	f.GenreIDs, f.GenreMatchAny, f.Genres = parseGenreFilter(q.Get("genres"))
+	return f
 }
 
-func applySearchFilters(items []tmdb.SearchResult, filters *searchFilters) []tmdb.SearchResult {
-	if len(items) == 0 {
-		return items
+func positiveInt(s string) *int {
+	v, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil || v <= 0 {
+		return nil
 	}
-
-	out := make([]tmdb.SearchResult, 0, len(items))
-	for i := range items {
-		item := &items[i]
-		if filters.MediaType != "all" && item.MediaType != filters.MediaType {
-			continue
-		}
-		if filters.MinRating != nil && item.VoteAverage < *filters.MinRating {
-			continue
-		}
-		if filters.MinVotes != nil && item.VoteCount < *filters.MinVotes {
-			continue
-		}
-		if filters.OriginalLanguage != "" {
-			if item.OriginalLanguage == "" || !strings.EqualFold(item.OriginalLanguage, filters.OriginalLanguage) {
-				continue
-			}
-		}
-		if filters.OriginCountry != "" {
-			if len(item.OriginCountry) == 0 {
-				continue
-			}
-			matched := false
-			for _, code := range item.OriginCountry {
-				if strings.EqualFold(code, filters.OriginCountry) {
-					matched = true
-					break
-				}
-			}
-			if !matched {
-				continue
-			}
-		}
-		if len(filters.GenreIDs) > 0 {
-			if !matchesGenres(item.GenreIDs, filters.GenreIDs, filters.GenreMode) {
-				continue
-			}
-		}
-		if filters.YearFrom != nil || filters.YearTo != nil {
-			yearPtr := tmdb.ParseYear(item.Year)
-			if yearPtr == nil {
-				continue
-			}
-			if filters.YearFrom != nil && *yearPtr < *filters.YearFrom {
-				continue
-			}
-			if filters.YearTo != nil && *yearPtr > *filters.YearTo {
-				continue
-			}
-		}
-		out = append(out, *item)
-	}
-	return out
+	return &v
 }
 
-func parseGenreFilter(raw string) (genreIDs []int, matchMode, normalized string) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil, "and", ""
-	}
-
-	mode := "and"
+// parseGenreFilter reads TMDB's with_genres syntax: "1,2" needs every genre
+// and "1|2" any of them.
+func parseGenreFilter(raw string) (ids []int, matchAny bool, normalized string) {
 	separator := ","
 	if strings.Contains(raw, "|") {
-		mode = "or"
-		separator = "|"
+		matchAny, separator = true, "|"
 	}
 
-	parts := strings.Split(raw, separator)
-	ids := make([]int, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		if val, err := strconv.Atoi(part); err == nil && val > 0 {
-			ids = append(ids, val)
+	var parts []string
+	for part := range strings.SplitSeq(raw, separator) {
+		if id, err := strconv.Atoi(strings.TrimSpace(part)); err == nil && id > 0 {
+			ids = append(ids, id)
+			parts = append(parts, strconv.Itoa(id))
 		}
 	}
-
 	if len(ids) == 0 {
-		return nil, "and", ""
+		return nil, false, ""
 	}
-
-	rawParts := make([]string, 0, len(ids))
-	for _, id := range ids {
-		rawParts = append(rawParts, strconv.Itoa(id))
-	}
-
-	return ids, mode, strings.Join(rawParts, separator)
+	return ids, matchAny, strings.Join(parts, separator)
 }
 
-func matchesGenres(itemIDs, filterIDs []int, mode string) bool {
-	if len(filterIDs) == 0 {
-		return true
-	}
-	if len(itemIDs) == 0 {
+// narrows reports a filter beyond the media type and the sort.
+func (f *searchFilters) narrows() bool {
+	return f.YearFrom != nil || f.YearTo != nil || f.MinRating != nil || f.MinVotes != nil ||
+		len(f.GenreIDs) > 0 || f.OriginCountry != "" || f.OriginalLanguage != ""
+}
+
+func (f *searchFilters) matches(item *tmdb.SearchResult) bool {
+	if f.MediaType != "" && item.MediaType != f.MediaType {
 		return false
 	}
-
-	itemSet := make(map[int]struct{}, len(itemIDs))
-	for _, id := range itemIDs {
-		itemSet[id] = struct{}{}
-	}
-
-	if mode == "or" {
-		for _, id := range filterIDs {
-			if _, ok := itemSet[id]; ok {
-				return true
-			}
-		}
+	if f.MinRating != nil && item.VoteAverage < *f.MinRating {
 		return false
 	}
-
-	for _, id := range filterIDs {
-		if _, ok := itemSet[id]; !ok {
+	if f.MinVotes != nil && item.VoteCount < *f.MinVotes {
+		return false
+	}
+	if f.OriginalLanguage != "" && !strings.EqualFold(item.OriginalLanguage, f.OriginalLanguage) {
+		return false
+	}
+	if f.OriginCountry != "" && !slices.ContainsFunc(item.OriginCountry, func(code string) bool {
+		return strings.EqualFold(code, f.OriginCountry)
+	}) {
+		return false
+	}
+	if len(f.GenreIDs) > 0 && !matchesGenres(item.GenreIDs, f.GenreIDs, f.GenreMatchAny) {
+		return false
+	}
+	if f.YearFrom != nil || f.YearTo != nil {
+		year := tmdb.ParseYear(item.Year)
+		if year == nil ||
+			(f.YearFrom != nil && *year < *f.YearFrom) ||
+			(f.YearTo != nil && *year > *f.YearTo) {
 			return false
 		}
 	}
 	return true
 }
 
-func applySearchSort(items []tmdb.SearchResult, sort string, keepRelevance bool) []tmdb.SearchResult {
-	if len(items) < 2 {
-		return items
+func matchesGenres(itemIDs, filterIDs []int, matchAny bool) bool {
+	has := func(id int) bool { return slices.Contains(itemIDs, id) }
+	if matchAny {
+		return slices.ContainsFunc(filterIDs, has)
 	}
-
-	switch sort {
-	case "rating":
-		slices.SortFunc(items, func(a, b tmdb.SearchResult) int {
-			if a.VoteAverage != b.VoteAverage {
-				return cmp.Compare(b.VoteAverage, a.VoteAverage)
-			}
-			if a.VoteCount != b.VoteCount {
-				return cmp.Compare(b.VoteCount, a.VoteCount)
-			}
-			return strings.Compare(a.Title, b.Title)
-		})
-	case "votes":
-		slices.SortFunc(items, func(a, b tmdb.SearchResult) int {
-			if a.VoteCount != b.VoteCount {
-				return cmp.Compare(b.VoteCount, a.VoteCount)
-			}
-			if a.VoteAverage != b.VoteAverage {
-				return cmp.Compare(b.VoteAverage, a.VoteAverage)
-			}
-			return strings.Compare(a.Title, b.Title)
-		})
-	case "year":
-		slices.SortFunc(items, func(a, b tmdb.SearchResult) int {
-			yearA := 0
-			if val := tmdb.ParseYear(a.Year); val != nil {
-				yearA = *val
-			}
-			yearB := 0
-			if val := tmdb.ParseYear(b.Year); val != nil {
-				yearB = *val
-			}
-			if yearA != yearB {
-				return cmp.Compare(yearB, yearA)
-			}
-			return strings.Compare(a.Title, b.Title)
-		})
-	case "title":
-		slices.SortFunc(items, func(a, b tmdb.SearchResult) int {
-			left := strings.ToLower(a.Title)
-			right := strings.ToLower(b.Title)
-			return strings.Compare(left, right)
-		})
-	default:
-		if keepRelevance {
-			return items
+	for _, id := range filterIDs {
+		if !has(id) {
+			return false
 		}
-		slices.SortFunc(items, func(a, b tmdb.SearchResult) int {
-			if a.VoteCount != b.VoteCount {
-				return cmp.Compare(b.VoteCount, a.VoteCount)
-			}
-			if a.VoteAverage != b.VoteAverage {
-				return cmp.Compare(b.VoteAverage, a.VoteAverage)
-			}
-			return strings.Compare(a.Title, b.Title)
-		})
 	}
-
-	return items
+	return true
 }
 
-func tmdbSort(sort, mediaType string) string {
-	sort = strings.TrimSpace(sort)
+// sortResults orders items in place. Relevance keeps TMDB's order.
+func sortResults(items []tmdb.SearchResult, sort searchSort) {
+	year := func(r *tmdb.SearchResult) int {
+		if y := tmdb.ParseYear(r.Year); y != nil {
+			return *y
+		}
+		return 0
+	}
+	var compare func(a, b *tmdb.SearchResult) int
 	switch sort {
-	case "rating":
+	case sortRating:
+		compare = func(a, b *tmdb.SearchResult) int {
+			return cmp.Or(cmp.Compare(b.VoteAverage, a.VoteAverage), cmp.Compare(b.VoteCount, a.VoteCount))
+		}
+	case sortVotes:
+		compare = func(a, b *tmdb.SearchResult) int {
+			return cmp.Or(cmp.Compare(b.VoteCount, a.VoteCount), cmp.Compare(b.VoteAverage, a.VoteAverage))
+		}
+	case sortYear:
+		compare = func(a, b *tmdb.SearchResult) int { return cmp.Compare(year(b), year(a)) }
+	case sortTitle:
+		compare = func(a, b *tmdb.SearchResult) int {
+			return strings.Compare(strings.ToLower(a.Title), strings.ToLower(b.Title))
+		}
+	case sortPopularity:
+		compare = func(a, b *tmdb.SearchResult) int { return cmp.Compare(b.Popularity, a.Popularity) }
+	default:
+		return
+	}
+	slices.SortStableFunc(items, func(a, b tmdb.SearchResult) int {
+		return cmp.Or(compare(&a, &b), strings.Compare(a.Title, b.Title))
+	})
+}
+
+func tmdbSort(sort searchSort, mediaType string) string {
+	switch sort {
+	case sortRating:
 		return "vote_average.desc"
-	case "votes":
+	case sortVotes:
 		return "vote_count.desc"
-	case "year":
+	case sortYear:
 		if mediaType == "tv" {
 			return "first_air_date.desc"
 		}
 		return "primary_release_date.desc"
-	case "title":
+	case sortTitle:
 		if mediaType == "tv" {
 			return "original_name.asc"
 		}
@@ -662,211 +369,131 @@ func tmdbSort(sort, mediaType string) string {
 	}
 }
 
-func paginateSearchResults(items []tmdb.SearchResult, offset, limit int) []tmdb.SearchResult {
-	if offset < 0 {
-		offset = 0
-	}
-	if offset >= len(items) {
-		return []tmdb.SearchResult{}
-	}
-	end := min(offset+limit, len(items))
-	return items[offset:end]
-}
-
-func (h *Handler) lookupInLibrary(ctx context.Context, items []tmdb.SearchResult) (map[store.TMDBRef]bool, error) {
+// toPBSearchResults adds each item's library id and genre names.
+func (h *Handler) toPBSearchResults(ctx context.Context, items []tmdb.SearchResult) ([]*pb.SearchResult, error) {
 	refs := make([]store.TMDBRef, 0, len(items))
 	for i := range items {
-		mediaType := strings.TrimSpace(items[i].MediaType)
-		if items[i].ID == 0 || mediaType == "" {
-			continue
-		}
-		refs = append(refs, store.TMDBRef{ID: items[i].ID, MediaType: mediaType})
+		refs = append(refs, store.TMDBRef{ID: items[i].ID, MediaType: store.MediaType(items[i].MediaType)})
 	}
-	return h.store.InLibraryByTMDB(ctx, refs)
-}
-
-func (h *Handler) fetchGenreLists(ctx context.Context) (movies, tv []tmdb.Genre, err error) {
-	const cacheTTL = 24 * time.Hour
-
-	h.genres.mu.RLock()
-	if h.genres.movieList != nil && h.genres.tvList != nil && time.Since(h.genres.fetchedAt) < cacheTTL {
-		movies = append([]tmdb.Genre(nil), h.genres.movieList...)
-		tv = append([]tmdb.Genre(nil), h.genres.tvList...)
-		h.genres.mu.RUnlock()
-		return movies, tv, nil
-	}
-	h.genres.mu.RUnlock()
-
-	movieGenres, err := h.tmdb.FetchGenres(ctx, "movie")
-	if err != nil {
-		return nil, nil, err
-	}
-	tvGenres, err := h.tmdb.FetchGenres(ctx, "tv")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	movieMap := make(map[int]string, len(movieGenres))
-	for _, g := range movieGenres {
-		if strings.TrimSpace(g.Name) == "" {
-			continue
-		}
-		movieMap[g.ID] = g.Name
-	}
-	tvMap := make(map[int]string, len(tvGenres))
-	for _, g := range tvGenres {
-		if strings.TrimSpace(g.Name) == "" {
-			continue
-		}
-		tvMap[g.ID] = g.Name
-	}
-
-	h.genres.mu.Lock()
-	h.genres.movieList = append([]tmdb.Genre(nil), movieGenres...)
-	h.genres.tvList = append([]tmdb.Genre(nil), tvGenres...)
-	h.genres.movie = movieMap
-	h.genres.tv = tvMap
-	h.genres.fetchedAt = time.Now()
-	h.genres.mu.Unlock()
-
-	return movieGenres, tvGenres, nil
-}
-
-func (h *Handler) genreMaps(ctx context.Context) (movies, tv map[int]string) {
-	const cacheTTL = 24 * time.Hour
-
-	h.genres.mu.RLock()
-	if h.genres.movie != nil && h.genres.tv != nil && time.Since(h.genres.fetchedAt) < cacheTTL {
-		movies, tv = h.genres.movie, h.genres.tv
-		h.genres.mu.RUnlock()
-		return movies, tv
-	}
-	h.genres.mu.RUnlock()
-
-	if _, _, err := h.fetchGenreLists(ctx); err != nil {
-		return nil, nil
-	}
-
-	h.genres.mu.RLock()
-	movies, tv = h.genres.movie, h.genres.tv
-	h.genres.mu.RUnlock()
-	return movies, tv
-}
-
-func genreNamesFor(item *tmdb.SearchResult, movieGenres, tvGenres map[int]string) []string {
-	var lookup map[int]string
-	if item.MediaType == "tv" {
-		lookup = tvGenres
-	} else {
-		lookup = movieGenres
-	}
-
-	if lookup == nil || len(item.GenreIDs) == 0 {
-		return nil
-	}
-
-	out := make([]string, 0, len(item.GenreIDs))
-	for _, id := range item.GenreIDs {
-		if name, ok := lookup[id]; ok {
-			out = append(out, name)
-		}
-	}
-	return out
-}
-
-func toPBGenres(items []tmdb.Genre) []*pb.Genre {
-	out := make([]*pb.Genre, 0, len(items))
-	for _, item := range items {
-		out = append(out, &pb.Genre{
-			Id:   clampInt32(item.ID),
-			Name: item.Name,
-		})
-	}
-	return out
-}
-
-func (h *Handler) fetchCountryList(ctx context.Context) ([]tmdb.Country, error) {
-	const cacheTTL = 24 * time.Hour
-
-	h.countries.mu.RLock()
-	if h.countries.items != nil && time.Since(h.countries.fetchedAt) < cacheTTL {
-		cached := append([]tmdb.Country(nil), h.countries.items...)
-		h.countries.mu.RUnlock()
-		return cached, nil
-	}
-	h.countries.mu.RUnlock()
-
-	countries, err := h.tmdb.FetchCountries(ctx)
+	library, err := h.store.LibraryIDs(ctx, refs)
 	if err != nil {
 		return nil, err
 	}
-	slices.SortFunc(countries, func(a, b tmdb.Country) int {
-		nameA := strings.ToLower(strings.TrimSpace(a.Name))
-		nameB := strings.ToLower(strings.TrimSpace(b.Name))
-		if nameA == nameB {
-			return strings.Compare(strings.ToLower(a.Code), strings.ToLower(b.Code))
+	genreNames := h.genreNames(ctx)
+
+	out := make([]*pb.SearchResult, 0, len(items))
+	for i := range items {
+		item := &items[i]
+		var libraryID *int64
+		if id, ok := library[refs[i]]; ok {
+			libraryID = &id
 		}
-		return strings.Compare(nameA, nameB)
-	})
-
-	h.countries.mu.Lock()
-	h.countries.items = append([]tmdb.Country(nil), countries...)
-	h.countries.fetchedAt = time.Now()
-	h.countries.mu.Unlock()
-
-	return countries, nil
+		var genres []string
+		for _, id := range item.GenreIDs {
+			if name, ok := genreNames[item.MediaType][id]; ok {
+				genres = append(genres, name)
+			}
+		}
+		out = append(out, &pb.SearchResult{
+			Id:               item.ID,
+			MediaType:        item.MediaType,
+			Title:            item.Title,
+			Year:             item.Year,
+			PosterPath:       item.PosterPath,
+			Overview:         item.Overview,
+			VoteAverage:      item.VoteAverage,
+			VoteCount:        clampInt32(item.VoteCount),
+			LibraryId:        libraryID,
+			Genres:           genres,
+			OriginalLanguage: item.OriginalLanguage,
+		})
+	}
+	return out, nil
 }
 
-func toPBCountries(items []tmdb.Country) []*pb.Country {
-	out := make([]*pb.Country, 0, len(items))
-	for _, item := range items {
-		out = append(out, &pb.Country{
-			Code: item.Code,
-			Name: item.Name,
-		})
+// genreNames maps media type and genre id to the genre name. Results only
+// lose their genre names if TMDB is unavailable.
+func (h *Handler) genreNames(ctx context.Context) map[string]map[int]string {
+	out := make(map[string]map[int]string, 2)
+	for _, mediaType := range []string{"movie", "tv"} {
+		genres, err := h.tmdb.FetchGenres(ctx, mediaType)
+		if err != nil {
+			slog.Warn("search: fetch genres failed", logger.Error(err))
+			continue
+		}
+		names := make(map[int]string, len(genres))
+		for _, g := range genres {
+			names[g.ID] = g.Name
+		}
+		out[mediaType] = names
 	}
 	return out
 }
 
-func (h *Handler) fetchLanguageList(ctx context.Context) ([]tmdb.Language, error) {
-	const cacheTTL = 24 * time.Hour
-
-	h.languages.mu.RLock()
-	if h.languages.items != nil && time.Since(h.languages.fetchedAt) < cacheTTL {
-		cached := append([]tmdb.Language(nil), h.languages.items...)
-		h.languages.mu.RUnlock()
-		return cached, nil
-	}
-	h.languages.mu.RUnlock()
-
-	languages, err := h.tmdb.FetchLanguages(ctx)
+func (h *Handler) getSearchGenres(w http.ResponseWriter, r *http.Request) error {
+	movie, err := h.tmdb.FetchGenres(r.Context(), "movie")
 	if err != nil {
-		return nil, err
+		return badGateway(err)
 	}
-	slices.SortFunc(languages, func(a, b tmdb.Language) int {
-		nameA := strings.ToLower(strings.TrimSpace(a.Name))
-		nameB := strings.ToLower(strings.TrimSpace(b.Name))
-		if nameA == nameB {
-			return strings.Compare(strings.ToLower(a.Code), strings.ToLower(b.Code))
+	tv, err := h.tmdb.FetchGenres(r.Context(), "tv")
+	if err != nil {
+		return badGateway(err)
+	}
+	toPB := func(genres []tmdb.Genre) []*pb.Genre {
+		out := make([]*pb.Genre, 0, len(genres))
+		for _, g := range genres {
+			out = append(out, &pb.Genre{Id: clampInt32(g.ID), Name: g.Name})
 		}
-		return strings.Compare(nameA, nameB)
-	})
-
-	h.languages.mu.Lock()
-	h.languages.items = append([]tmdb.Language(nil), languages...)
-	h.languages.fetchedAt = time.Now()
-	h.languages.mu.Unlock()
-
-	return languages, nil
+		return out
+	}
+	writeJSON(w, http.StatusOK, &pb.SearchGenresResponse{MovieGenres: toPB(movie), TvGenres: toPB(tv)})
+	return nil
 }
 
-func toPBLanguages(items []tmdb.Language) []*pb.Language {
-	out := make([]*pb.Language, 0, len(items))
-	for _, item := range items {
-		out = append(out, &pb.Language{
-			Code: item.Code,
-			Name: item.Name,
-		})
+func (h *Handler) getSearchCountries(w http.ResponseWriter, r *http.Request) error {
+	countries, err := h.tmdb.FetchCountries(r.Context())
+	if err != nil {
+		return badGateway(err)
 	}
-	return out
+	out := make([]*pb.Country, 0, len(countries))
+	for _, c := range countries {
+		out = append(out, &pb.Country{Code: c.Code, Name: c.Name})
+	}
+	writeJSON(w, http.StatusOK, &pb.SearchCountriesResponse{Countries: out})
+	return nil
+}
+
+func (h *Handler) getSearchLanguages(w http.ResponseWriter, r *http.Request) error {
+	languages, err := h.tmdb.FetchLanguages(r.Context())
+	if err != nil {
+		return badGateway(err)
+	}
+	out := make([]*pb.Language, 0, len(languages))
+	for _, l := range languages {
+		out = append(out, &pb.Language{Code: l.Code, Name: l.Name})
+	}
+	writeJSON(w, http.StatusOK, &pb.SearchLanguagesResponse{Languages: out})
+	return nil
+}
+
+func (h *Handler) getSearchResolve(w http.ResponseWriter, r *http.Request) error {
+	query := r.URL.Query()
+	tmdbID, err := strconv.ParseInt(strings.TrimSpace(query.Get("tmdb_id")), 10, 64)
+	if err != nil || tmdbID <= 0 {
+		return badRequest("invalid tmdb_id")
+	}
+	mediaType := strings.TrimSpace(query.Get("media_type"))
+	if !store.MediaType(mediaType).Valid() {
+		return badRequest("invalid media_type")
+	}
+
+	detail, err := h.tmdb.FetchDetails(r.Context(), tmdbID, mediaType)
+	if err != nil {
+		return badGateway(err)
+	}
+	writeJSON(w, http.StatusOK, &pb.SearchResolveResponse{
+		ImdbUrl: imdbURL(optional(detail.IMDbID)),
+		TmdbUrl: new(tmdbURL(mediaType, tmdbID)),
+	})
+	return nil
 }

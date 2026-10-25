@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { ApiEpisode, EpisodesResponse } from "@/lib/api";
 import { api } from "@/lib/api";
+import { queryKeys } from "@/lib/queries";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Loader2, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -23,18 +24,25 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
   const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(() => new Set());
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const episodesQuery = useQuery<EpisodesResponse>({
-    queryKey: ["episodes", showId],
-    queryFn: () => api.getEpisodes(showId),
+  const episodesQuery = useQuery({
+    queryKey: queryKeys.episodes(showId),
+    queryFn: ({ signal }) => api.getEpisodes(showId, { signal }),
     staleTime: 60_000,
-    refetchOnWindowFocus: false,
-    retry: 1,
   });
+
+  const updateEpisodes = (update: (episode: ApiEpisode) => ApiEpisode) => {
+    queryClient.setQueryData<EpisodesResponse>(queryKeys.episodes(showId), (old) =>
+      old ? { ...old, episodes: old.episodes.map(update) } : old,
+    );
+    // Library cards show "watched/total eps" for shows in progress.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.shows });
+  };
 
   const syncMutation = useMutation({
     mutationFn: () => api.syncEpisodes(showId),
     onSuccess: (data) => {
-      queryClient.setQueryData(["episodes", showId], data);
+      queryClient.setQueryData(queryKeys.episodes(showId), data);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shows });
       toast.success("Episodes synced from TMDB.");
     },
     onError: () => {
@@ -45,17 +53,8 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
   const toggleMutation = useMutation({
     mutationFn: ({ episodeId, watched }: { episodeId: number; watched: boolean }) =>
       api.toggleEpisode(episodeId, watched),
-    onSuccess: (_data, variables) => {
-      queryClient.setQueryData<EpisodesResponse>(["episodes", showId], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          episodes: old.episodes.map((ep) => {
-            if (ep.id !== variables.episodeId) return ep;
-            return { ...ep, watched: variables.watched };
-          }),
-        };
-      });
+    onSuccess: (_data, { episodeId, watched }) => {
+      updateEpisodes((ep) => (ep.id === episodeId ? { ...ep, watched } : ep));
     },
     onError: () => {
       toast.error("Failed to update episode.");
@@ -65,17 +64,8 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
   const toggleSeasonMutation = useMutation({
     mutationFn: ({ season, watched }: { season: number; watched: boolean }) =>
       api.toggleSeason(showId, season, watched),
-    onSuccess: (_data, variables) => {
-      queryClient.setQueryData<EpisodesResponse>(["episodes", showId], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          episodes: old.episodes.map((ep) => {
-            if (ep.season_number !== variables.season) return ep;
-            return { ...ep, watched: variables.watched };
-          }),
-        };
-      });
+    onSuccess: (_data, { season, watched }) => {
+      updateEpisodes((ep) => (ep.season_number === season ? { ...ep, watched } : ep));
     },
     onError: () => {
       toast.error("Failed to update season.");
@@ -233,10 +223,6 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
       </div>
     </Card>
   );
-
-  if (episodesQuery.isLoading && seasons.length === 0) {
-    return episodesCard;
-  }
 
   if (!episodesQuery.isLoading && seasons.length === 0) return null;
 

@@ -2,19 +2,12 @@ import CardGrid from "@/components/card-grid";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type LoadingGridProps = {
-  count?: number;
-  className?: string;
-};
-
 const skeletons = Array.from({ length: 8 }, (_, index) => index);
 
-export function LoadingGrid({ count = 8, className }: LoadingGridProps) {
-  const items = count > 0 ? skeletons.slice(0, count) : skeletons;
-
+export function LoadingGrid() {
   return (
-    <CardGrid className={className}>
-      {items.map((id) => (
+    <CardGrid>
+      {skeletons.map((id) => (
         <Card
           key={id}
           className="flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg"

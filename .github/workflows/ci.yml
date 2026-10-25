@@ -141,9 +141,58 @@ jobs:
           name: web-dist
           path: backend/web/dist
       - name: Audit the Go modules
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@"$GOVULNCHECK_VERSION"
-          govulncheck ./backend/...
+        run: $GO_TOOL govulncheck ./backend/...
       - name: Audit the committed npm lockfile
         run: npm audit --audit-level=moderate
         working-directory: frontend
+
+  # Generated code and applied migrations are easy to break without a failing
+  # test, so this job checks both against the committed tree.
+  generated:
+    name: Generated code and migrations
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
+            tools/buf/go.sum
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Check that the generated code matches its sources
+        run: |
+          make generate
+          git add --intent-to-add --all backend/gen frontend/src/gen
+          git diff --exit-code -- backend/gen frontend/src/gen || {
+            echo "Run make generate and commit the result."; exit 1;
+          }
+      - name: Check that applied migrations are unchanged
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # The 001_schema baseline replaced every earlier migration. A base
+          # from before it has nothing to compare against.
+          if ! git cat-file -e "$BASE:backend/store/migrations/001_schema.sql" 2>/dev/null; then
+            echo "Base $BASE predates the migration baseline; skipping."
+            exit 0
+          fi
+          changed=$(git diff --name-only --diff-filter=MDR "$BASE" HEAD -- backend/store/migrations)
+          if [ -n "$changed" ]; then
+            echo "Applied migrations must not change. Add a new numbered file instead:"
+            echo "$changed"
+            exit 1
+          fi

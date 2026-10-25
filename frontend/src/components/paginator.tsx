@@ -18,52 +18,66 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { getPageItems } from "@/lib/pagination";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent, type MouseEvent } from "react";
 
-export type SearchPaginationProps = {
+export type PaginatorProps = {
   totalPages: number;
   activePage: number;
-  isCompact: boolean;
-  pageItems: Array<number | "ellipsis">;
   onGoToPage: (page: number) => void;
+  className?: string;
 };
 
-export function SearchPagination({
-  totalPages,
-  activePage,
-  isCompact,
-  pageItems,
-  onGoToPage,
-}: SearchPaginationProps) {
+// Props for a prev/next link that cannot be followed. pointer-events-none
+// alone still leaves it focusable and announced as a working link.
+function disabledLinkProps(disabled: boolean) {
+  return disabled
+    ? { "aria-disabled": true, tabIndex: -1, className: "pointer-events-none opacity-50" }
+    : {};
+}
+
+export function Paginator({ totalPages, activePage, onGoToPage, className }: PaginatorProps) {
+  const isCompact = useMediaQuery("(max-width: 640px)");
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpValue, setJumpValue] = useState("");
+  const jumpInputId = useId();
 
   if (totalPages <= 1) return null;
+
+  const pageItems = getPageItems(totalPages, activePage, isCompact ? 1 : 2, 1);
+  const atStart = activePage <= 1;
+  const atEnd = activePage >= totalPages;
+
+  const go = (page: number) => (event: MouseEvent) => {
+    event.preventDefault();
+    onGoToPage(Math.max(1, Math.min(totalPages, page)));
+  };
 
   const handleJumpSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!jumpValue.trim()) return;
     const parsed = Number(jumpValue);
     if (!Number.isFinite(parsed)) return;
-    const clamped = Math.max(1, Math.min(totalPages || 1, Math.floor(parsed)));
     setJumpOpen(false);
-    onGoToPage(clamped);
+    onGoToPage(Math.max(1, Math.min(totalPages, Math.floor(parsed))));
   };
 
+  const previous = disabledLinkProps(atStart);
+  const next = disabledLinkProps(atEnd);
+
   return (
-    <Pagination className="pt-6">
+    <Pagination className={cn("pt-6", className)}>
       {isCompact ? (
         <PaginationContent className="w-full justify-between px-2">
           <PaginationItem>
             <PaginationPrevious
               href="#"
               size="icon"
-              className={cn("pl-0 pr-0", activePage <= 1 ? "pointer-events-none opacity-50" : "")}
-              onClick={(event) => {
-                event.preventDefault();
-                onGoToPage(activePage - 1);
-              }}
+              {...previous}
+              className={cn("pl-0 pr-0", previous.className)}
+              onClick={go(activePage - 1)}
             />
           </PaginationItem>
 
@@ -81,6 +95,7 @@ export function SearchPagination({
                 <button
                   type="button"
                   className="cursor-pointer rounded-md border border-border/60 bg-card/40 px-3 py-2 text-sm tabular-nums"
+                  aria-label={`Page ${activePage} of ${totalPages}. Jump to page`}
                 >
                   {activePage} / {totalPages}
                 </button>
@@ -94,17 +109,17 @@ export function SearchPagination({
                 </DialogHeader>
                 <form className="space-y-4" onSubmit={handleJumpSubmit}>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="jump-page">
+                    <label className="text-sm font-medium text-foreground" htmlFor={jumpInputId}>
                       Page number (1-{totalPages})
                     </label>
+                    {/* The dialog moves focus to this input when it opens. */}
                     <Input
-                      id="jump-page"
+                      id={jumpInputId}
                       name="jump-page"
                       type="number"
                       min={1}
                       max={totalPages}
                       inputMode="numeric"
-                      autoFocus
                       value={jumpValue}
                       onChange={(event) => setJumpValue(event.target.value)}
                     />
@@ -121,28 +136,16 @@ export function SearchPagination({
             <PaginationNext
               href="#"
               size="icon"
-              className={cn(
-                "pl-0 pr-0",
-                activePage >= totalPages ? "pointer-events-none opacity-50" : "",
-              )}
-              onClick={(event) => {
-                event.preventDefault();
-                onGoToPage(activePage + 1);
-              }}
+              {...next}
+              className={cn("pl-0 pr-0", next.className)}
+              onClick={go(activePage + 1)}
             />
           </PaginationItem>
         </PaginationContent>
       ) : (
         <PaginationContent className="flex-wrap justify-center">
           <PaginationItem>
-            <PaginationPrevious
-              href="#"
-              className={activePage <= 1 ? "pointer-events-none opacity-50" : ""}
-              onClick={(event) => {
-                event.preventDefault();
-                onGoToPage(activePage - 1);
-              }}
-            />
+            <PaginationPrevious href="#" {...previous} onClick={go(activePage - 1)} />
           </PaginationItem>
 
           {pageItems.map((item, index) => (
@@ -153,10 +156,8 @@ export function SearchPagination({
                 <PaginationLink
                   href="#"
                   isActive={item === activePage}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    onGoToPage(item);
-                  }}
+                  aria-label={`Page ${item}`}
+                  onClick={go(item)}
                 >
                   {item}
                 </PaginationLink>
@@ -165,14 +166,7 @@ export function SearchPagination({
           ))}
 
           <PaginationItem>
-            <PaginationNext
-              href="#"
-              className={activePage >= totalPages ? "pointer-events-none opacity-50" : ""}
-              onClick={(event) => {
-                event.preventDefault();
-                onGoToPage(activePage + 1);
-              }}
-            />
+            <PaginationNext href="#" {...next} onClick={go(activePage + 1)} />
           </PaginationItem>
         </PaginationContent>
       )}
