@@ -20,13 +20,13 @@ import (
 
 func newTestHandler(t *testing.T, st *store.Store) *Handler {
 	t.Helper()
-	return newTestHandlerWithTMDB(t, st, tmdb.New("", ""))
+	return newTestHandlerWithTMDB(t, st, tmdb.New(""))
 }
 
 func newTestHandlerWithTMDB(t *testing.T, st *store.Store, client tmdb.Interface) *Handler {
 	t.Helper()
 	if client == nil {
-		client = tmdb.New("", "")
+		client = tmdb.New("")
 	}
 	cat, err := New(&Config{
 		Store:     st,

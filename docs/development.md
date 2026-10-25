@@ -54,7 +54,7 @@ make proto
 so the host needs nothing else.
 
 1. Copy `bin/server` to the host.
-2. Set `APP_PASSWORD` and `TMDB_API_KEY` in the process environment.
+2. Set `APP_PASSWORD` and `TMDB_READ_ACCESS_TOKEN` in the process environment.
 3. Mount persistent storage at `/app/data`, or point `DB_PATH` at a file on
    another persistent mount. Without one, every restart starts an empty library.
 4. Terminate HTTPS at your host or reverse proxy. Production mode marks the

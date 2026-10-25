@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -20,19 +19,15 @@ const (
 )
 
 type Client struct {
-	http      *http.Client
-	apiKey    string
-	readToken string
+	http        *http.Client
+	accessToken string
 }
 
-func New(apiKey, readToken string) *Client {
-	if strings.TrimSpace(readToken) == "" && looksLikeJWT(apiKey) {
-		readToken = apiKey
-		apiKey = ""
-	}
+// New returns a client that authenticates with a TMDB API Read Access Token,
+// sent as a Bearer header on every request.
+func New(accessToken string) *Client {
 	return &Client{
-		apiKey:    strings.TrimSpace(apiKey),
-		readToken: strings.TrimSpace(readToken),
+		accessToken: strings.TrimSpace(accessToken),
 		http: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -55,7 +50,9 @@ func (c *Client) doJSON(ctx context.Context, method, endpoint string, dst any) e
 		return err
 	}
 
-	c.applyAuth(req)
+	if c.accessToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -74,27 +71,9 @@ func (c *Client) doJSON(ctx context.Context, method, endpoint string, dst any) e
 	return json.NewDecoder(resp.Body).Decode(dst)
 }
 
-func (c *Client) maybeSetAPIKey(values url.Values) {
-	if c.apiKey != "" {
-		values.Set("api_key", c.apiKey)
-	}
-}
-
-func (c *Client) applyAuth(req *http.Request) {
-	if strings.TrimSpace(c.readToken) == "" {
-		return
-	}
-	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(c.readToken))
-}
-
 func yearFromDate(date string) string {
 	if len(date) < 4 {
 		return ""
 	}
 	return date[:4]
-}
-
-func looksLikeJWT(token string) bool {
-	parts := strings.Split(strings.TrimSpace(token), ".")
-	return len(parts) == 3 && len(token) > 80
 }

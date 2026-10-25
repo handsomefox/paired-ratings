@@ -26,8 +26,7 @@ import (
 type appConfig struct {
 	Port                 string `envconfig:"PORT" default:"8080"`
 	DBPath               string `envconfig:"DB_PATH" default:"/app/data/website-rating.db"`
-	TMDBAPIKey           string `envconfig:"TMDB_API_KEY" required:"true"`
-	TMDBReadToken        string `envconfig:"TMDB_API_READ_TOKEN"`
+	TMDBReadAccessToken  string `envconfig:"TMDB_READ_ACCESS_TOKEN" required:"true"`
 	Password             string `envconfig:"APP_PASSWORD" required:"true"`
 	ImageBase            string `envconfig:"TMDB_IMAGE_BASE" default:"https://image.tmdb.org/t/p/w342"`
 	BFName               string `envconfig:"BF_NAME" default:"Boyfriend"`
@@ -87,7 +86,7 @@ func run() error {
 
 	app, err := handlers.New(&handlers.Config{
 		Store:     st,
-		TMDB:      tmdb.NewCachedClient(tmdb.New(cfg.TMDBAPIKey, cfg.TMDBReadToken)),
+		TMDB:      tmdb.NewCachedClient(tmdb.New(cfg.TMDBReadAccessToken)),
 		Password:  cfg.Password,
 		ImageBase: cfg.ImageBase,
 		BfName:    cfg.BFName,

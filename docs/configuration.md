@@ -8,10 +8,10 @@ environment variables take precedence over values in `.env`.
 
 The configuration loader requires these variables:
 
-| Variable       | Purpose                                                                         |
-| -------------- | ------------------------------------------------------------------------------- |
-| `APP_PASSWORD` | Shared login password.                                                          |
-| `TMDB_API_KEY` | TMDB API credential. The client also accepts a JWT read token in this variable. |
+| Variable                 | Purpose                                                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `APP_PASSWORD`           | Shared login password.                                                                               |
+| `TMDB_READ_ACCESS_TOKEN` | The API Read Access Token from TMDB's API settings, not the shorter API Key. Sent as a Bearer token. |
 
 ## Optional variables
 
@@ -19,7 +19,6 @@ These variables control storage, metadata, and server behavior:
 
 | Variable              | Default                           | Purpose                                                                                                                                      |
 | --------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TMDB_API_READ_TOKEN` | Unset                             | Bearer token for TMDB requests. `TMDB_API_KEY` is still required by the configuration loader.                                                |
 | `DB_PATH`             | `/app/data/website-rating.db`     | SQLite database path. `make dev` and `make watch-backend` use `./data/website-rating.db` unless the shell already sets a nonempty `DB_PATH`. |
 | `PORT`                | `8080`                            | HTTP server port.                                                                                                                            |
 | `TMDB_IMAGE_BASE`     | `https://image.tmdb.org/t/p/w342` | Base URL for TMDB images.                                                                                                                    |

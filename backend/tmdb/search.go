@@ -26,7 +26,6 @@ func (c *Client) SearchPage(ctx context.Context, query, mediaType string, page i
 	}
 
 	values := url.Values{}
-	c.maybeSetAPIKey(values)
 	values.Set("query", query)
 	values.Set("include_adult", "false")
 	values.Set("page", strconv.Itoa(page))
@@ -44,7 +43,6 @@ func (c *Client) DiscoverPage(ctx context.Context, mediaType string, filters *Di
 	}
 
 	values := url.Values{}
-	c.maybeSetAPIKey(values)
 	values.Set("include_adult", "false")
 	sortBy := strings.TrimSpace(filters.Sort)
 	if sortBy == "" {
@@ -92,9 +90,7 @@ func (c *Client) FetchGenres(ctx context.Context, mediaType string) ([]Genre, er
 		return nil, errors.New("invalid media type")
 	}
 
-	values := url.Values{}
-	c.maybeSetAPIKey(values)
-	endpoint := baseURL + "/genre/" + mediaType + "/list?" + values.Encode()
+	endpoint := baseURL + "/genre/" + mediaType + "/list"
 
 	var payload genreResponse
 	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
@@ -104,9 +100,7 @@ func (c *Client) FetchGenres(ctx context.Context, mediaType string) ([]Genre, er
 }
 
 func (c *Client) FetchCountries(ctx context.Context) ([]Country, error) {
-	values := url.Values{}
-	c.maybeSetAPIKey(values)
-	endpoint := baseURL + "/configuration/countries?" + values.Encode()
+	endpoint := baseURL + "/configuration/countries"
 
 	var payload countryResponse
 	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
@@ -126,9 +120,7 @@ func (c *Client) FetchCountries(ctx context.Context) ([]Country, error) {
 }
 
 func (c *Client) FetchLanguages(ctx context.Context) ([]Language, error) {
-	values := url.Values{}
-	c.maybeSetAPIKey(values)
-	endpoint := baseURL + "/configuration/languages?" + values.Encode()
+	endpoint := baseURL + "/configuration/languages"
 
 	var payload languageResponse
 	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {

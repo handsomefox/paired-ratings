@@ -14,15 +14,16 @@ search, posters, and metadata. The library lives in a SQLite file.
 
 ## Run it locally
 
-You need Go, Node.js, npm, Make, and a TMDB API key. `go.mod` pins the Go
-version, `frontend/.nvmrc` pins Node, and `frontend/package.json` pins npm under
-`engines`. Run `nvm use` in `frontend` to pick up the pinned Node.
+You need Go, Node.js, npm, Make, and a TMDB API Read Access Token. `go.mod`
+pins the Go version, `frontend/.nvmrc` pins Node, and `frontend/package.json`
+pins npm under `engines`. Run `nvm use` in `frontend` to pick up the pinned
+Node.
 
 Write `.env` in the repository root:
 
 ```dotenv
 APP_PASSWORD=replace_with_your_shared_password
-TMDB_API_KEY=replace_with_your_tmdb_key
+TMDB_READ_ACCESS_TOKEN=replace_with_your_tmdb_read_access_token
 ```
 
 Then start everything with one command:

@@ -4,14 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 )
 
 func (c *Client) FetchCollection(ctx context.Context, collectionID int64) ([]SearchResult, error) {
-	values := url.Values{}
-	c.maybeSetAPIKey(values)
-
-	endpoint := fmt.Sprintf("%s/collection/%d?%s", baseURL, collectionID, values.Encode())
+	endpoint := fmt.Sprintf("%s/collection/%d", baseURL, collectionID)
 
 	var payload collectionResponse
 	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {
@@ -35,10 +31,7 @@ func (c *Client) FetchCollection(ctx context.Context, collectionID int64) ([]Sea
 }
 
 func (c *Client) FetchSimilar(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
-	values := url.Values{}
-	c.maybeSetAPIKey(values)
-
-	endpoint := fmt.Sprintf("%s/%s/%d/recommendations?%s", baseURL, mediaType, id, values.Encode())
+	endpoint := fmt.Sprintf("%s/%s/%d/recommendations", baseURL, mediaType, id)
 
 	var payload recommendationsResponse
 	if err := c.doJSON(ctx, http.MethodGet, endpoint, &payload); err != nil {

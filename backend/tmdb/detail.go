@@ -21,7 +21,6 @@ func (c *Client) FetchDetails(ctx context.Context, id int64, mediaType string) (
 	}
 
 	values := url.Values{}
-	c.maybeSetAPIKey(values)
 	values.Set("append_to_response", "external_ids")
 
 	endpoint := fmt.Sprintf("%s/%s/%d?%s", baseURL, mediaType, id, values.Encode())
