@@ -54,6 +54,16 @@ export function LoginPage() {
             </p>
           </div>
           <form className="space-y-4" onSubmit={handleSubmit}>
+            {/* There is no username, but password managers on iOS and Android
+                file a saved password under one. */}
+            <input
+              type="text"
+              name="username"
+              autoComplete="username"
+              value="Show Ratings"
+              readOnly
+              hidden
+            />
             <label htmlFor={passwordId} className="sr-only">
               Password
             </label>
