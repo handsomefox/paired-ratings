@@ -1,5 +1,5 @@
 import { Loading } from "@/components/loading";
-import { Navbar } from "@/components/navbar";
+import { Navbar, TabBar } from "@/components/navbar";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { useSession } from "@/lib/queries";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -29,10 +29,15 @@ export function RootLayout() {
   return (
     <div className="min-h-screen">
       {authenticated ? <Navbar /> : null}
-      <main className="mx-auto w-full max-w-[1720px] px-4 py-6 sm:px-6 md:py-8 lg:px-8 xl:px-10 2xl:px-12">
+      <main className="mx-auto w-full max-w-[1720px] px-4 pb-[calc(var(--bottom-inset)+1.5rem)] pt-5 sm:px-6 md:pb-[calc(var(--bottom-inset)+2rem)] md:pt-8 lg:px-8 xl:px-10 2xl:px-12">
         <Outlet />
       </main>
-      {authenticated ? <ScrollToTop /> : null}
+      {authenticated ? (
+        <>
+          <ScrollToTop />
+          <TabBar />
+        </>
+      ) : null}
     </div>
   );
 }

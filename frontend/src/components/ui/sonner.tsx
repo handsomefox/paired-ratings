@@ -6,6 +6,10 @@ import { cn } from "@/lib/utils";
 const Toaster = ({ className, ...props }: ComponentProps<typeof Sonner>) => (
   <Sonner
     className={cn("group", className)}
+    // Sonner's default gaps, measured from above the tab bar and the home
+    // indicator rather than from the bottom of the screen.
+    offset={{ bottom: "calc(var(--bottom-inset) + 24px)" }}
+    mobileOffset={{ bottom: "calc(var(--bottom-inset) + 16px)" }}
     toastOptions={{
       classNames: {
         toast:

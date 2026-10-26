@@ -1,6 +1,6 @@
 import * as pb from "@/gen/paired_ratings";
 import { pageSearch, renderApp } from "@/test/render";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -44,7 +44,8 @@ describe("LibraryPage", () => {
     await waitFor(() => expect(listShows).toHaveBeenCalledWith("status=watched&sort=title"));
 
     // The navbar link has no search, so it lands on the bare library.
-    await user.click(screen.getByRole("link", { name: "Library" }));
+    // The tab bar repeats the link for phones. Use the one in the header.
+    await user.click(within(screen.getByRole("banner")).getByRole("link", { name: "Library" }));
 
     await waitFor(() => expect(listShows).toHaveBeenLastCalledWith(""));
     expect(pageSearch(router)).toEqual({});
