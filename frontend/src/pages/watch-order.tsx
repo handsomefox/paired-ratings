@@ -1,5 +1,6 @@
 import { LoadingGrid } from "@/components/loading-grid";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { ShowLink } from "@/components/show-link";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,7 @@ import { listState, queryKeys, useSession } from "@/lib/queries";
 import { shortGenres } from "@/lib/utils";
 import {
   DndContext,
+  KeyboardSensor,
   PointerSensor,
   closestCenter,
   useSensor,
@@ -33,12 +35,12 @@ import {
 import {
   SortableContext,
   arrayMove,
+  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { CircleAlert, Film, GripVertical } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -69,6 +71,7 @@ function SortableRow({
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const positionRef = useRef<HTMLButtonElement>(null);
   // Escape hides the input, which blurs it. The blur must not commit the move.
   const cancelledRef = useRef(false);
 
@@ -95,19 +98,25 @@ function SortableRow({
     inputRef.current?.select();
   };
 
+  // Enter and Escape hide the input, which would drop focus on the page.
+  // Hand it back to the position button, after the row has moved.
+  const refocusPosition = () => positionRef.current?.focus();
+
   const cancelEdit = () => {
     cancelledRef.current = true;
-    setEditing(false);
+    flushSync(() => setEditing(false));
+    refocusPosition();
   };
 
   const commitEdit = () => {
     if (!editing || cancelledRef.current) return;
-    setEditing(false);
-    const parsed = parseInt(inputValue, 10);
-    if (!isNaN(parsed)) {
-      const clamped = Math.max(1, Math.min(total, parsed));
-      onMoveToPosition(show, clamped - 1);
-    }
+    const parsed = Number.parseInt(inputValue, 10);
+    flushSync(() => {
+      setEditing(false);
+      if (!Number.isNaN(parsed)) {
+        onMoveToPosition(show, Math.max(1, Math.min(total, parsed)) - 1);
+      }
+    });
   };
 
   return (
@@ -131,6 +140,7 @@ function SortableRow({
           from the click handler, which is required for mobile keyboards. */}
       <div className="relative w-6 shrink-0">
         <button
+          ref={positionRef}
           type="button"
           onClick={startEditing}
           aria-label={`Position ${index + 1}. Change position of ${show.title}`}
@@ -150,26 +160,31 @@ function SortableRow({
           onChange={(e) => setInputValue(e.target.value)}
           onBlur={commitEdit}
           onKeyDown={(e) => {
-            if (e.key === "Enter") commitEdit();
-            else if (e.key === "Escape") cancelEdit();
+            if (e.key === "Enter") {
+              // Focus moves to the position button before the key's default
+              // action runs, which would press that button and reopen the
+              // input.
+              e.preventDefault();
+              commitEdit();
+              refocusPosition();
+            } else if (e.key === "Escape") {
+              cancelEdit();
+            }
           }}
           className={`absolute inset-0 w-full rounded border border-primary bg-background text-center text-xs font-semibold tabular-nums text-foreground outline-none ${editing ? "" : "invisible"}`}
         />
       </div>
 
       {/* The title link below is the one in the tab order. */}
-      <Link
-        to="/show/$showId"
-        params={{ showId: String(show.id) }}
-        search={{ from: "/watch-order" }}
+      <ShowLink
+        showId={show.id}
         className="overflow-hidden rounded-lg border border-border/60"
-        tabIndex={-1}
-        aria-hidden="true"
+        hidden
       >
         {posterUrl ? (
           <img
             src={posterUrl}
-            alt={show.title}
+            alt=""
             className="h-14 w-10 object-cover md:h-28 md:w-20"
             loading="lazy"
           />
@@ -178,17 +193,15 @@ function SortableRow({
             —
           </div>
         )}
-      </Link>
+      </ShowLink>
 
       <div className="min-w-0 flex-1 space-y-0.5">
-        <Link
-          to="/show/$showId"
-          params={{ showId: String(show.id) }}
-          search={{ from: "/watch-order" }}
+        <ShowLink
+          showId={show.id}
           className="block truncate font-medium text-foreground hover:text-primary"
         >
           {show.title}
-        </Link>
+        </ShowLink>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {show.year ? <span>{show.year}</span> : null}
           {genres ? <span className="truncate">{genres}</span> : null}
@@ -200,6 +213,7 @@ function SortableRow({
         size="sm"
         className="shrink-0 text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive"
         onClick={() => onDelete(show)}
+        aria-label={`Remove ${show.title} from the watch order`}
       >
         Remove
       </Button>
@@ -251,7 +265,7 @@ export function WatchOrderPage() {
 
   const serverShows = useMemo(() => showsQuery.data?.shows ?? [], [showsQuery.data?.shows]);
 
-  // Display order: use local drag state if present, otherwise server order
+  // An unsaved reorder lists ids only, so the shows come from the server data.
   const displayShows = useMemo(() => {
     if (!localOrder) return serverShows;
     const byId = new Map(serverShows.map((s) => [s.id, s]));
@@ -267,7 +281,12 @@ export function WatchOrderPage() {
     (localOrder.length !== serverIds.length || localOrder.some((id, i) => serverIds[i] !== id));
   const { isInitialLoading, isEmpty, isError } = listState(showsQuery, serverShows.length);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  // The keyboard sensor backs the drag handle's announced instructions: Space
+  // picks a row up, the arrow keys move it, and Space drops it.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -296,7 +315,7 @@ export function WatchOrderPage() {
       <section className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <h1 className="font-display text-xl sm:text-2xl">Watch order</h1>
+            <h1 className="text-xl sm:text-2xl">Watch order</h1>
             <p className="text-sm text-muted-foreground">
               Drag to reorder. Add shows from the detail page.
             </p>

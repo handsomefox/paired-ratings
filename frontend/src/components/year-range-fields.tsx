@@ -1,5 +1,6 @@
-import FilterField from "@/components/filter-field";
+import { FilterField } from "@/components/filter-field";
 import { Input } from "@/components/ui/input";
+import { MAX_YEAR, MIN_YEAR } from "@/lib/utils";
 
 type YearRangeFieldsProps = {
   yearFrom: string;
@@ -22,8 +23,8 @@ export function YearRangeFields({
             id={id}
             type="number"
             inputMode="numeric"
-            min={1900}
-            max={2100}
+            min={MIN_YEAR}
+            max={MAX_YEAR}
             value={yearFrom}
             onChange={(event) => onYearFromChange(event.target.value)}
           />
@@ -35,8 +36,8 @@ export function YearRangeFields({
             id={id}
             type="number"
             inputMode="numeric"
-            min={1900}
-            max={2100}
+            min={MIN_YEAR}
+            max={MAX_YEAR}
             value={yearTo}
             onChange={(event) => onYearToChange(event.target.value)}
           />

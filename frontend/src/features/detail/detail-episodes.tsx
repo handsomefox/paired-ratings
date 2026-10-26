@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import type { ApiEpisode, EpisodesResponse } from "@/lib/api";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/queries";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Loader2, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -23,6 +24,8 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
   const queryClient = useQueryClient();
   const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(() => new Set());
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Large screens always show the list, so only small ones get a toggle.
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const episodesQuery = useQuery({
     queryKey: queryKeys.episodes(showId),
@@ -103,25 +106,39 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
   const totalWatched = seasons.reduce((acc, g) => acc + g.watchedCount, 0);
   const totalEpisodes = seasons.reduce((acc, g) => acc + g.episodes.length, 0);
 
-  const episodesCard = (
+  // A show that TMDB lists no episodes for has nothing to show. A failed load
+  // still shows the card, so Sync stays within reach.
+  if (episodesQuery.isSuccess && seasons.length === 0) return null;
+
+  const heading = (
+    <>
+      <CardTitle className="text-base">Episodes</CardTitle>
+      {seasons.length > 0 && (
+        <span className="text-xs text-muted-foreground">
+          {totalWatched}/{totalEpisodes}
+        </span>
+      )}
+    </>
+  );
+
+  return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <button
-          type="button"
-          className="flex flex-1 cursor-pointer items-center gap-2 text-left lg:cursor-default"
-          onClick={() => setMobileOpen((o) => !o)}
-          aria-expanded={mobileOpen}
-        >
-          <CardTitle className="text-base">Episodes</CardTitle>
-          {seasons.length > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {totalWatched}/{totalEpisodes}
-            </span>
-          )}
-          <ChevronDown
-            className={`ml-auto h-4 w-4 shrink-0 transition-transform lg:hidden ${mobileOpen ? "rotate-180" : ""}`}
-          />
-        </button>
+        {isDesktop ? (
+          <div className="flex flex-1 items-center gap-2">{heading}</div>
+        ) : (
+          <button
+            type="button"
+            className="flex flex-1 cursor-pointer items-center gap-2 text-left"
+            onClick={() => setMobileOpen((open) => !open)}
+            aria-expanded={mobileOpen}
+          >
+            {heading}
+            <ChevronDown
+              className={`ml-auto h-4 w-4 shrink-0 transition-transform ${mobileOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+        )}
         <Button
           variant="ghost"
           size="sm"
@@ -137,10 +154,14 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
           Sync
         </Button>
       </CardHeader>
-      <div className={`${mobileOpen ? "block" : "hidden"} lg:block`}>
-        {episodesQuery.isLoading ? (
+      <div className={isDesktop || mobileOpen ? "block" : "hidden"}>
+        {episodesQuery.isPending ? (
           <CardContent className="flex justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </CardContent>
+        ) : episodesQuery.isError ? (
+          <CardContent className="text-sm text-muted-foreground">
+            Could not load the episodes. Sync to fetch them from TMDB again.
           </CardContent>
         ) : (
           <CardContent className="space-y-2">
@@ -223,8 +244,4 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
       </div>
     </Card>
   );
-
-  if (!episodesQuery.isLoading && seasons.length === 0) return null;
-
-  return episodesCard;
 }

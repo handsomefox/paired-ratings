@@ -1,21 +1,24 @@
-import FiltersPane from "@/components/filters-pane";
-import { FiltersPaneContent } from "@/components/filters-pane-content";
+import { FiltersPane } from "@/components/filters-pane";
 import { Paginator } from "@/components/paginator";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { mediaTypeOptions, type MediaType } from "@/features/search/search-constants";
 import { SearchFilters } from "@/features/search/search-filters";
 import { SearchResults } from "@/features/search/search-results";
-import { mediaTypeOptions, type MediaType, type Sort } from "@/features/search/search-constants";
 import {
-  buildSearchParams,
+  cleanRating,
+  cleanVotes,
+  formatGenres,
   parseGenres,
   resultKey,
-  sanitizeMediaType,
-  sanitizeSort,
+  searchApiParams,
+  type SearchPageSearch,
 } from "@/features/search/search-utils";
 import type { SearchResult } from "@/lib/api";
 import { api } from "@/lib/api";
 import {
+  listState,
   onShowAdded,
   queryKeys,
   useCountries,
@@ -23,154 +26,116 @@ import {
   useLanguages,
   useSession,
 } from "@/lib/queries";
-import { useDebouncedValue } from "@/lib/use-debounced-value";
-import { useKeyboardInset } from "@/lib/use-keyboard-inset";
+import { pageNumber } from "@/lib/search-params";
+import { useTypedSearchValue } from "@/lib/use-typed-search-value";
 import { scrollToTop, usableYear } from "@/lib/utils";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { getRouteApi } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { toast } from "sonner";
 
-function parsePage(val: string | undefined): number {
-  const page = Number.parseInt(val ?? "1", 10);
-  return Number.isFinite(page) && page >= 1 ? page : 1;
-}
+// Each typed filter costs a TMDB request, so wait for a longer pause than the
+// library does.
+const TYPING_DELAY = 600;
+
+const route = getRouteApi("/authed/search");
 
 export function SearchPage() {
-  const search = useSearch({ from: "/search" });
-  const navigate = useNavigate({ from: "/search" });
-
-  const [queryInput, setQueryInput] = useState(() => search.q ?? "");
-  const [mediaType, setMediaType] = useState<MediaType>(() => sanitizeMediaType(search.media_type));
-  const [yearFrom, setYearFrom] = useState(() => search.year_from ?? "");
-  const [yearTo, setYearTo] = useState(() => search.year_to ?? "");
-  const [minRating, setMinRating] = useState(() => search.min_rating ?? "");
-  const [minVotes, setMinVotes] = useState(() => search.min_votes ?? "");
-  const [page, setPage] = useState(() => parsePage(search.page));
-  const [originCountry, setOriginCountry] = useState(() =>
-    (search.origin_country ?? "").toUpperCase(),
-  );
-  const [originalLanguage, setOriginalLanguage] = useState(() =>
-    (search.original_language ?? "").toLowerCase(),
-  );
-  const [sort, setSort] = useState<Sort>(() => sanitizeSort(search.sort));
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [expandedOverviews, setExpandedOverviews] = useState<Set<string>>(() => new Set());
-
-  useKeyboardInset();
-
-  const [genreMode, setGenreMode] = useState<"all" | "any">(() => parseGenres(search.genres).mode);
-  const [selectedGenres, setSelectedGenres] = useState<string[]>(
-    () => parseGenres(search.genres).selected,
-  );
-
-  // "genre_names" comes from Find similar on a detail page. It holds names,
-  // which are resolved to TMDB genre ids once the genre list loads.
-  const [initialGenreNames] = useState(
-    () =>
-      search.genre_names
-        ?.split(",")
-        .map((s) => s.trim())
-        .filter(Boolean) ?? [],
-  );
-  // Track whether we've already applied the resolved names (derived state pattern).
-  const [resolvedNamesKey, setResolvedNamesKey] = useState("");
-
-  const handleMediaTypeChange = (value: MediaType) => {
-    setMediaType(value);
-    // Movie and TV genre ids differ, so a selection does not carry over.
-    setGenreMode("all");
-    setSelectedGenres([]);
-  };
-
+  const search = route.useSearch();
+  const navigate = route.useNavigate();
   const queryClient = useQueryClient();
-
   const { imageBase } = useSession();
-  const searchGenresQuery = useGenres();
+  const genresQuery = useGenres();
   const availableCountries = useCountries().data?.countries ?? [];
   const availableLanguages = useLanguages().data?.languages ?? [];
 
-  // Derived state: once genres load, resolve "genre_names" URL param to IDs (one-shot).
-  const pendingNamesKey =
-    initialGenreNames.length && searchGenresQuery.data ? initialGenreNames.join(",") : "";
-  if (pendingNamesKey && pendingNamesKey !== resolvedNamesKey) {
-    setResolvedNamesKey(pendingNamesKey);
-    const list =
-      mediaType === "movie"
-        ? searchGenresQuery.data!.movie_genres
-        : searchGenresQuery.data!.tv_genres;
-    const ids = initialGenreNames
-      .map((name) => list.find((g) => g.name.toLowerCase() === name.toLowerCase())?.id)
-      .filter((id): id is number => id !== undefined)
-      .map(String);
-    if (ids.length) setSelectedGenres(ids);
-  }
+  const mediaType: MediaType = search.media_type ?? "movie";
+  const genres = parseGenres(search.genres);
+  const page = pageNumber(search.page);
 
-  // Typed filters wait until the reader pauses, so typing "2015" sends one TMDB
-  // request rather than four. The object stays the same until an input changes,
-  // which useDebouncedValue relies on.
-  const typed = useMemo(
-    () => ({ queryInput, yearFrom, yearTo, minRating, minVotes }),
-    [queryInput, yearFrom, yearTo, minRating, minVotes],
+  // Every change replaces the history entry, so Back leaves the search rather
+  // than stepping through each filter. A filter change starts again at page 1;
+  // validateSearch drops the values that are defaults.
+  const updateSearch = (patch: Partial<SearchPageSearch>) =>
+    navigate({
+      search: (prev) => ({ ...prev, page: undefined, ...patch }),
+      replace: true,
+      resetScroll: false,
+      viewTransition: false,
+    });
+
+  const typedDelay = { delay: TYPING_DELAY };
+  const [queryText, setQueryText] = useTypedSearchValue(
+    search.q ?? "",
+    (q) => void updateSearch({ q: q || undefined }),
+    typedDelay,
   );
-  const debouncedTyped = useDebouncedValue(typed, 600);
-  const trimmedQuery = debouncedTyped.queryInput.trim();
+  const [yearFromText, setYearFromText] = useTypedSearchValue(
+    search.year_from ?? "",
+    (year) => void updateSearch({ year_from: year || undefined }),
+    { ...typedDelay, clean: usableYear },
+  );
+  const [yearToText, setYearToText] = useTypedSearchValue(
+    search.year_to ?? "",
+    (year) => void updateSearch({ year_to: year || undefined }),
+    { ...typedDelay, clean: usableYear },
+  );
+  const [minRatingText, setMinRatingText] = useTypedSearchValue(
+    search.min_rating ?? "",
+    (rating) => void updateSearch({ min_rating: rating || undefined }),
+    { ...typedDelay, clean: cleanRating },
+  );
+  const [minVotesText, setMinVotesText] = useTypedSearchValue(
+    search.min_votes ?? "",
+    (votes) => void updateSearch({ min_votes: votes || undefined }),
+    { ...typedDelay, clean: cleanVotes },
+  );
 
-  const genreQuery = selectedGenres.join(genreMode === "any" ? "|" : ",");
+  // "Find similar" links here with genre names, because the detail page does
+  // not know TMDB's genre ids. Swap them for ids once the genre list loads.
+  // The search waits meanwhile, so it does not run once without the genres.
+  const genreNames = search.genre_names;
+  const genreLists = genresQuery.data;
+  const genresFailed = genresQuery.isError;
+  useEffect(() => {
+    if (!genreNames || (!genreLists && !genresFailed)) return;
+    const list = mediaType === "movie" ? genreLists?.movie_genres : genreLists?.tv_genres;
+    const wanted = new Set(genreNames.split(",").map((name) => name.trim().toLowerCase()));
+    const ids = (list ?? [])
+      .filter((g) => wanted.has(g.name.toLowerCase()))
+      .map((g) => String(g.id));
+    void navigate({
+      search: (prev) => ({ ...prev, genre_names: undefined, genres: formatGenres("all", ids) }),
+      replace: true,
+      resetScroll: false,
+      viewTransition: false,
+    });
+  }, [genreNames, genreLists, genresFailed, mediaType, navigate]);
 
-  const baseParams = {
-    mediaType,
-    trimmedQuery,
-    yearFrom: usableYear(debouncedTyped.yearFrom),
-    yearTo: usableYear(debouncedTyped.yearTo),
-    minRating: debouncedTyped.minRating,
-    minVotes: debouncedTyped.minVotes,
-    sort,
-    genres: genreQuery,
-    originCountry,
-    originalLanguage,
-  };
-
-  // Any filter change starts again at page 1 with every overview collapsed
-  // (derived state pattern avoids an effect).
-  const filterKey = buildSearchParams({ ...baseParams, page: 1 }).toString();
-  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
-  if (filterKey !== prevFilterKey) {
-    setPrevFilterKey(filterKey);
-    setPage(1);
-    setExpandedOverviews(new Set());
-  }
-
-  const paramsString = buildSearchParams({ ...baseParams, page }).toString();
-
+  const paramsString = searchApiParams(search).toString();
   const searchQuery = useQuery({
     queryKey: queryKeys.search(paramsString),
     queryFn: ({ signal }) => api.search(new URLSearchParams(paramsString), { signal }),
+    enabled: !genreNames,
     staleTime: 30_000,
     refetchOnReconnect: false,
     placeholderData: keepPreviousData,
   });
 
-  const isInitialLoading = searchQuery.isLoading && !searchQuery.data;
-  const activePage = searchQuery.data?.page || page;
-
-  // The URL shows the page the backend actually returned, which can differ
-  // from the requested one when it is past the end.
-  const urlParamsString = buildSearchParams({ ...baseParams, page: activePage }).toString();
-  const fromLocation = urlParamsString ? `/search?${urlParamsString}` : "/search";
-
+  // The backend answers with the last page when asked for one past the end.
+  // Show that page in the URL too. Placeholder data belongs to the previous
+  // request, so its page number says nothing about this one.
+  const returnedPage = searchQuery.isPlaceholderData ? undefined : searchQuery.data?.page;
   useEffect(() => {
-    void navigate({
-      search: Object.fromEntries(new URLSearchParams(urlParamsString)),
-      replace: true,
-      resetScroll: false,
-      viewTransition: false,
-    });
-  }, [urlParamsString, navigate]);
-
-  useEffect(() => {
-    if (searchQuery.isError) toast.error("Failed to load search results.");
-  }, [searchQuery.isError]);
+    if (returnedPage && returnedPage !== page) {
+      void navigate({
+        search: (prev) => ({ ...prev, page: returnedPage > 1 ? String(returnedPage) : undefined }),
+        replace: true,
+        resetScroll: false,
+        viewTransition: false,
+      });
+    }
+  }, [returnedPage, page, navigate]);
 
   const addMutation = useMutation({
     mutationFn: ({ item, status }: { item: SearchResult; status: string }) =>
@@ -183,7 +148,7 @@ export function SearchPage() {
           libraryId: data.show.id,
         });
       }
-      toast.success("Added to library.");
+      toast.success(`Added "${item.title}" to library.`);
     },
     onError: () => {
       toast.error("Failed to add to library.");
@@ -193,20 +158,13 @@ export function SearchPage() {
   const results = searchQuery.data?.results ?? [];
   const totalResults = searchQuery.data?.total_results ?? 0;
   const totalPages = searchQuery.data?.total_pages ?? 0;
+  const { isInitialLoading, isEmpty, isError } = listState(searchQuery, results.length);
 
-  const goToPage = (next: number) => {
-    if (next === activePage && next === page) return;
-    setPage(next);
-    setExpandedOverviews(new Set());
-    scrollToTop();
-  };
+  const handleMediaTypeChange = (value: MediaType) =>
+    // Movie and TV genre ids differ, so a selection does not carry over.
+    void updateSearch({ media_type: value === "tv" ? "tv" : undefined, genres: undefined });
 
-  const availableGenres =
-    mediaType === "movie"
-      ? (searchGenresQuery.data?.movie_genres ?? [])
-      : (searchGenresQuery.data?.tv_genres ?? []);
-
-  const handleOpenImdb = async (item: SearchResult) => {
+  const handleOpenExternal = async (item: SearchResult) => {
     // Open the tab now, inside the click. A window.open after the await is no
     // longer tied to the gesture, and Safari blocks it as a popup.
     const tab = window.open("", "_blank");
@@ -227,65 +185,80 @@ export function SearchPage() {
     }
   };
 
-  const toggleOverview = (key: string) => {
-    setExpandedOverviews((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
-  const renderResultsCount = () => {
-    if (searchQuery.isLoading) return "";
-    const loaded = results.length;
-    if (totalResults && totalResults !== loaded) {
-      return `Total results ${totalResults}, showing ${loaded}`;
+  const resultsCount = () => {
+    if (isInitialLoading) return "";
+    if (totalResults && totalResults !== results.length) {
+      return `Total results ${totalResults}, showing ${results.length}`;
     }
-    return `Total results ${loaded}`;
+    return `Total results ${results.length}`;
   };
 
-  const handleResetFilters = () => {
-    setMediaType("movie");
-    setQueryInput("");
-    setYearFrom("");
-    setYearTo("");
-    setMinRating("");
-    setMinVotes("");
-    setOriginCountry("");
-    setOriginalLanguage("");
-    setSort("relevance");
-    setGenreMode("all");
-    setSelectedGenres([]);
-    setPage(1);
-    setExpandedOverviews(new Set());
-  };
+  // The search text, media type and sort sit outside the pane, so Reset keeps
+  // them, as the library keeps its sort. The typed fields count as soon as
+  // something is typed, because Reset also clears the text.
+  const activeFilterCount = [
+    search.genres,
+    search.origin_country,
+    search.original_language,
+    yearFromText.trim(),
+    yearToText.trim(),
+    minRatingText.trim(),
+    minVotesText.trim(),
+  ].filter(Boolean).length;
 
-  const FiltersForm = (
+  const handleResetFilters = () =>
+    navigate({
+      search: (prev) => ({ q: prev.q, media_type: prev.media_type, sort: prev.sort }),
+      replace: true,
+      resetScroll: false,
+      viewTransition: false,
+    });
+
+  const resetAction = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7 px-2 text-xs"
+      onClick={() => void handleResetFilters()}
+      disabled={activeFilterCount === 0}
+    >
+      Reset{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+    </Button>
+  );
+
+  const filters = (
     <SearchFilters
-      genreMode={genreMode}
-      onGenreModeChange={setGenreMode}
-      selectedGenres={selectedGenres}
-      onSelectedGenresChange={setSelectedGenres}
-      availableGenres={availableGenres}
-      genresLoading={searchGenresQuery.isLoading}
-      originCountry={originCountry}
-      onOriginCountryChange={setOriginCountry}
-      originalLanguage={originalLanguage}
-      onOriginalLanguageChange={setOriginalLanguage}
+      genreMode={genres.mode}
+      onGenreModeChange={(mode) =>
+        void updateSearch({ genres: formatGenres(mode, genres.selected) })
+      }
+      selectedGenres={genres.selected}
+      onSelectedGenresChange={(selected) =>
+        void updateSearch({ genres: formatGenres(genres.mode, selected) })
+      }
+      availableGenres={
+        (mediaType === "movie" ? genreLists?.movie_genres : genreLists?.tv_genres) ?? []
+      }
+      genresLoading={genresQuery.isLoading}
+      originCountry={search.origin_country ?? ""}
+      onOriginCountryChange={(code) => void updateSearch({ origin_country: code || undefined })}
+      originalLanguage={search.original_language ?? ""}
+      onOriginalLanguageChange={(code) =>
+        void updateSearch({ original_language: code || undefined })
+      }
       availableCountries={availableCountries}
       availableLanguages={availableLanguages}
-      yearFrom={yearFrom}
-      onYearFromChange={setYearFrom}
-      yearTo={yearTo}
-      onYearToChange={setYearTo}
-      minRating={minRating}
-      onMinRatingChange={setMinRating}
-      minVotes={minVotes}
-      onMinVotesChange={setMinVotes}
-      sort={sort}
-      onSortChange={setSort}
-      onReset={handleResetFilters}
+      yearFrom={yearFromText}
+      onYearFromChange={setYearFromText}
+      yearTo={yearToText}
+      onYearToChange={setYearToText}
+      minRating={minRatingText}
+      onMinRatingChange={setMinRatingText}
+      minVotes={minVotesText}
+      onMinVotesChange={setMinVotesText}
+      sort={search.sort ?? "relevance"}
+      onSortChange={(sort) => void updateSearch({ sort: sort === "relevance" ? undefined : sort })}
     />
   );
 
@@ -295,73 +268,72 @@ export function SearchPage() {
     <PullToRefresh
       onRefresh={() => queryClient.invalidateQueries({ queryKey: queryKeys.searchAll })}
     >
-      <FiltersPane
-        filtersOpen={filtersOpen}
-        onOpenChange={setFiltersOpen}
-        filters={FiltersForm}
-        headerClassName="flex-wrap items-end gap-4"
-      >
-        <FiltersPaneContent>
-          <form
-            role="search"
-            className="flex w-full justify-center"
-            onSubmit={(event) => event.preventDefault()}
-          >
-            <Input
-              type="search"
-              name="q"
-              aria-label="Search TMDB"
-              placeholder="Search TMDB"
-              value={queryInput}
-              onChange={(event) => setQueryInput(event.target.value)}
-              className="w-full max-w-md md:max-w-lg lg:max-w-xl"
-            />
-          </form>
-
-          <div className="flex items-center justify-between gap-4">
-            <div
-              role="group"
-              aria-label="Media type"
-              className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-1"
-            >
-              {mediaTypeOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={mediaType === option.value}
-                  onClick={() => handleMediaTypeChange(option.value)}
-                  className={`cursor-pointer rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-                    mediaType === option.value
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <div className="text-xs text-muted-foreground sm:text-sm">{renderResultsCount()}</div>
-          </div>
-
-          <SearchResults
-            isInitialLoading={isInitialLoading}
-            isFetching={searchQuery.isFetching}
-            results={results}
-            availableLanguages={availableLanguages}
-            imageBase={imageBase}
-            expandedOverviews={expandedOverviews}
-            onToggleOverview={toggleOverview}
-            onOpenImdb={(item) => void handleOpenImdb(item)}
-            onAdd={(item, status) => addMutation.mutate({ item, status })}
-            pendingKey={pendingItem ? resultKey(pendingItem) : undefined}
-            fromLocation={fromLocation}
-            query={trimmedQuery}
-            mediaType={mediaType}
-            onSwitchMediaType={handleMediaTypeChange}
+      <FiltersPane filters={filters} headerAction={resetAction}>
+        <form
+          role="search"
+          className="flex w-full justify-center"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <Input
+            type="search"
+            name="q"
+            aria-label="Search TMDB"
+            placeholder="Search TMDB"
+            value={queryText}
+            onChange={(event) => setQueryText(event.target.value)}
+            className="w-full max-w-md md:max-w-lg lg:max-w-xl"
           />
+        </form>
 
-          <Paginator totalPages={totalPages} activePage={activePage} onGoToPage={goToPage} />
-        </FiltersPaneContent>
+        <div className="flex items-center justify-between gap-4">
+          <div
+            role="group"
+            aria-label="Media type"
+            className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-1"
+          >
+            {mediaTypeOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={mediaType === option.value}
+                onClick={() => handleMediaTypeChange(option.value)}
+                className={`cursor-pointer rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                  mediaType === option.value
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-muted-foreground sm:text-sm">{resultsCount()}</div>
+        </div>
+
+        <SearchResults
+          isInitialLoading={isInitialLoading}
+          isEmpty={isEmpty}
+          isError={isError}
+          isFetching={searchQuery.isFetching}
+          results={results}
+          availableLanguages={availableLanguages}
+          imageBase={imageBase}
+          onOpenExternal={(item) => void handleOpenExternal(item)}
+          onAdd={(item, status) => addMutation.mutate({ item, status })}
+          pendingKey={pendingItem ? resultKey(pendingItem) : undefined}
+          query={search.q}
+          mediaType={mediaType}
+          onSwitchMediaType={handleMediaTypeChange}
+        />
+
+        <Paginator
+          totalPages={totalPages}
+          activePage={page}
+          onGoToPage={(next) => {
+            void updateSearch({ page: next > 1 ? String(next) : undefined });
+            scrollToTop();
+          }}
+        />
       </FiltersPane>
     </PullToRefresh>
   );

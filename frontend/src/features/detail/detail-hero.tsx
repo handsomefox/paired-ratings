@@ -8,12 +8,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ApiShow } from "@/lib/api";
-import { showStatusOptions, statusStyle } from "@/lib/status";
+import type { SearchPageSearch } from "@/features/search/search-utils";
+import { displayStatus, showStatusOptions, statusStyle } from "@/lib/status";
 import { cn, formatScore, formatVotes } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { ExternalLink, ListOrdered, Telescope, RotateCcw, Trash2 } from "lucide-react";
 
-export type DetailHeroProps = {
+type DetailHeroProps = {
   show: ApiShow;
   imageBase: string;
   imdbUrl?: string;
@@ -26,7 +27,7 @@ export type DetailHeroProps = {
   onAddToWatchOrder: () => void;
   onRemoveFromWatchOrder: () => void;
   watchOrderPending: boolean;
-  findSimilarSearch: { media_type: string; genre_names?: string };
+  findSimilarSearch: SearchPageSearch;
 };
 
 export function DetailHero({
@@ -46,7 +47,7 @@ export function DetailHero({
 }: DetailHeroProps) {
   const inWatchOrder = show.watch_priority != null;
   const showWatchOrderButton = show.status !== "watched";
-  const status = show.status || "planned";
+  const status = displayStatus(show.status);
   const tmdbScore = (
     <span className="font-normal normal-case text-muted-foreground">
       {show.tmdb_rating ? (
@@ -79,7 +80,7 @@ export function DetailHero({
       <div className="space-y-6 p-6 lg:p-8">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-display text-2xl">{show.title}</h1>
+            <h1 className="text-2xl">{show.title}</h1>
             {show.year ? <span className="text-sm text-muted-foreground">{show.year}</span> : null}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">

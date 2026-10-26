@@ -19,76 +19,67 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { getPageItems } from "@/lib/pagination";
+import { useKeyboardInset } from "@/lib/use-keyboard-inset";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
-import { useId, useState, type FormEvent, type MouseEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 
-export type PaginatorProps = {
+type PaginatorProps = {
   totalPages: number;
   activePage: number;
   onGoToPage: (page: number) => void;
   className?: string;
 };
 
-// Props for a prev/next link that cannot be followed. pointer-events-none
-// alone still leaves it focusable and announced as a working link.
-function disabledLinkProps(disabled: boolean) {
-  return disabled
-    ? { "aria-disabled": true, tabIndex: -1, className: "pointer-events-none opacity-50" }
-    : {};
-}
-
 export function Paginator({ totalPages, activePage, onGoToPage, className }: PaginatorProps) {
   const isCompact = useMediaQuery("(max-width: 640px)");
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpValue, setJumpValue] = useState("");
   const jumpInputId = useId();
+  // The jump dialog sits at the bottom of the screen, above the keyboard.
+  useKeyboardInset(jumpOpen);
 
   if (totalPages <= 1) return null;
 
-  const pageItems = getPageItems(totalPages, activePage, isCompact ? 1 : 2, 1);
-  const atStart = activePage <= 1;
-  const atEnd = activePage >= totalPages;
-
-  const go = (page: number) => (event: MouseEvent) => {
-    event.preventDefault();
-    onGoToPage(Math.max(1, Math.min(totalPages, page)));
-  };
+  const go = (page: number) => onGoToPage(Math.max(1, Math.min(totalPages, page)));
 
   const handleJumpSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!jumpValue.trim()) return;
     const parsed = Number(jumpValue);
-    if (!Number.isFinite(parsed)) return;
+    if (!jumpValue.trim() || !Number.isFinite(parsed)) return;
     setJumpOpen(false);
-    onGoToPage(Math.max(1, Math.min(totalPages, Math.floor(parsed))));
+    go(Math.floor(parsed));
   };
 
-  const previous = disabledLinkProps(atStart);
-  const next = disabledLinkProps(atEnd);
+  const previous = (
+    <PaginationPrevious
+      size={isCompact ? "icon" : "default"}
+      className={isCompact ? "px-0" : undefined}
+      disabled={activePage <= 1}
+      onClick={() => go(activePage - 1)}
+    />
+  );
+  const next = (
+    <PaginationNext
+      size={isCompact ? "icon" : "default"}
+      className={isCompact ? "px-0" : undefined}
+      disabled={activePage >= totalPages}
+      onClick={() => go(activePage + 1)}
+    />
+  );
 
   return (
     <Pagination className={cn("pt-6", className)}>
       {isCompact ? (
         <PaginationContent className="w-full justify-between px-2">
-          <PaginationItem>
-            <PaginationPrevious
-              href="#"
-              size="icon"
-              {...previous}
-              className={cn("pl-0 pr-0", previous.className)}
-              onClick={go(activePage - 1)}
-            />
-          </PaginationItem>
+          <PaginationItem>{previous}</PaginationItem>
 
           <PaginationItem>
             <Dialog
               open={jumpOpen}
               onOpenChange={(open) => {
                 setJumpOpen(open);
-                if (open) {
-                  setJumpValue(String(activePage));
-                }
+                if (open) setJumpValue(String(activePage));
               }}
             >
               <DialogTrigger asChild>
@@ -132,32 +123,21 @@ export function Paginator({ totalPages, activePage, onGoToPage, className }: Pag
             </Dialog>
           </PaginationItem>
 
-          <PaginationItem>
-            <PaginationNext
-              href="#"
-              size="icon"
-              {...next}
-              className={cn("pl-0 pr-0", next.className)}
-              onClick={go(activePage + 1)}
-            />
-          </PaginationItem>
+          <PaginationItem>{next}</PaginationItem>
         </PaginationContent>
       ) : (
         <PaginationContent className="flex-wrap justify-center">
-          <PaginationItem>
-            <PaginationPrevious href="#" {...previous} onClick={go(activePage - 1)} />
-          </PaginationItem>
+          <PaginationItem>{previous}</PaginationItem>
 
-          {pageItems.map((item, index) => (
+          {getPageItems(totalPages, activePage).map((item, index) => (
             <PaginationItem key={`${item}-${index}`}>
               {item === "ellipsis" ? (
                 <PaginationEllipsis />
               ) : (
                 <PaginationLink
-                  href="#"
                   isActive={item === activePage}
                   aria-label={`Page ${item}`}
-                  onClick={go(item)}
+                  onClick={() => go(item)}
                 >
                   {item}
                 </PaginationLink>
@@ -165,9 +145,7 @@ export function Paginator({ totalPages, activePage, onGoToPage, className }: Pag
             </PaginationItem>
           ))}
 
-          <PaginationItem>
-            <PaginationNext href="#" {...next} onClick={go(activePage + 1)} />
-          </PaginationItem>
+          <PaginationItem>{next}</PaginationItem>
         </PaginationContent>
       )}
     </Pagination>

@@ -15,7 +15,6 @@ export function LanguageCombobox({
       {...props}
       options={options}
       searchPlaceholder="Search languages..."
-      normalizeOnSelect={(code) => code.toLowerCase()}
       renderLabel={(l) => (
         <OptionLabel
           emoji={flagEmojiFromLanguageCode(l.code)}

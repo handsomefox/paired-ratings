@@ -103,15 +103,11 @@ export function ratingText(value?: number | null) {
 }
 
 export function combinedRating(bf?: number | null, gf?: number | null) {
-  if (!bf && !gf) return "-";
-  if (bf && !gf) return ratingText(bf);
-  if (gf && !bf) return ratingText(gf);
   if (bf && gf) {
     const avg = (bf + gf) / 2;
-    if (Number.isInteger(avg)) return String(avg);
-    return avg.toFixed(1);
+    return Number.isInteger(avg) ? String(avg) : avg.toFixed(1);
   }
-  return "-";
+  return ratingText(bf || gf);
 }
 
 export function shortGenres(genres?: string[] | null) {
@@ -120,7 +116,7 @@ export function shortGenres(genres?: string[] | null) {
 }
 
 function regionFlag(region: string) {
-  if (region == "RU") return String.fromCodePoint(0x1f4a9);
+  if (region === "RU") return String.fromCodePoint(0x1f4a9);
   const base = 0x1f1e6;
   return String.fromCodePoint(
     base + (region.charCodeAt(0) - 65),
@@ -162,11 +158,14 @@ export function tmdbUrl(mediaType: string, tmdbId: number) {
 
 // A half-typed year like "20" is not a filter anyone means. Hold it back until
 // it is a plausible four-digit year, so a list does not empty out mid-keystroke.
+export const MIN_YEAR = 1900;
+export const MAX_YEAR = 2100;
+
 export function usableYear(raw: string): string {
   const trimmed = raw.trim();
   if (!/^\d{4}$/.test(trimmed)) return "";
   const year = Number(trimmed);
-  if (year < 1900 || year > 2100) return "";
+  if (year < MIN_YEAR || year > MAX_YEAR) return "";
   return trimmed;
 }
 

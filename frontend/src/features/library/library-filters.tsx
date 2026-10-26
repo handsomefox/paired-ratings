@@ -1,5 +1,5 @@
 import { CountryCombobox } from "@/components/country-combobox";
-import FilterField from "@/components/filter-field";
+import { FilterField } from "@/components/filter-field";
 import { GenreCombobox } from "@/components/genre-combobox";
 import { YearRangeFields } from "@/components/year-range-fields";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import type { LibrarySort } from "@/features/library/library-search";
 import type { ApiCountry } from "@/lib/api";
+import { showStatusOptions, type ShowStatus } from "@/lib/status";
 import { useId } from "react";
 
-export type LibraryFiltersProps = {
-  status: string;
-  onStatusChange: (value: string) => void;
+const statusOptions = [{ value: "all", label: "All" }, ...showStatusOptions] as const;
+
+type LibraryFiltersProps = {
+  status: ShowStatus | "all";
+  onStatusChange: (value: ShowStatus | "all") => void;
   genre: string;
   onGenreChange: (value: string) => void;
   originCountry: string;
@@ -26,12 +30,11 @@ export type LibraryFiltersProps = {
   onYearFromChange: (value: string) => void;
   yearTo: string;
   onYearToChange: (value: string) => void;
-  sort: string;
-  onSortChange: (value: string) => void;
+  sort: LibrarySort;
+  onSortChange: (value: LibrarySort) => void;
   unrated: boolean;
   onUnratedChange: (value: boolean) => void;
-  statusOptions: Array<{ value: string; label: string }>;
-  sortOptions: Array<{ value: string; label: string }>;
+  sortOptions: Array<{ value: LibrarySort; label: string }>;
   genres: string[];
   countries: ApiCountry[];
   onRefresh: () => void;
@@ -53,7 +56,6 @@ export function LibraryFilters({
   onSortChange,
   unrated,
   onUnratedChange,
-  statusOptions,
   sortOptions,
   genres,
   countries,
@@ -67,7 +69,10 @@ export function LibraryFilters({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 [&>*]:min-w-0">
         <FilterField label="Status">
           {(id) => (
-            <Select value={status} onValueChange={onStatusChange}>
+            <Select
+              value={status}
+              onValueChange={(value) => onStatusChange(value as ShowStatus | "all")}
+            >
               <SelectTrigger id={id}>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -85,14 +90,7 @@ export function LibraryFilters({
         <FilterField label="Genre">
           {(id) => (
             <div className="w-full min-w-0">
-              <GenreCombobox
-                id={id}
-                value={genre}
-                onValueChange={onGenreChange}
-                genres={genres}
-                placeholder="Any"
-                anyLabel="Any"
-              />
+              <GenreCombobox id={id} value={genre} onValueChange={onGenreChange} genres={genres} />
             </div>
           )}
         </FilterField>
@@ -105,8 +103,6 @@ export function LibraryFilters({
                 value={originCountry}
                 onValueChange={onOriginCountryChange}
                 options={countries}
-                placeholder="Any"
-                anyLabel="Any"
               />
             </div>
           )}
@@ -121,7 +117,7 @@ export function LibraryFilters({
 
         <FilterField label="Sort">
           {(id) => (
-            <Select value={sort} onValueChange={onSortChange}>
+            <Select value={sort} onValueChange={(value) => onSortChange(value as LibrarySort)}>
               <SelectTrigger id={id}>
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>

@@ -40,40 +40,51 @@ export const sessionQueryOptions = queryOptions({
 });
 
 export function useSession() {
-  const query = useQuery(sessionQueryOptions);
+  // Read only what the callers need. Spreading the whole result would
+  // subscribe them to every field, isFetching included.
+  const { data, isLoading } = useQuery(sessionQueryOptions);
   return {
-    ...query,
-    imageBase: query.data?.image_base ?? "",
-    bfName: query.data?.bf_name ?? "BF",
-    gfName: query.data?.gf_name ?? "GF",
+    isLoading,
+    authenticated: data?.authenticated ?? false,
+    imageBase: data?.image_base ?? "",
+    bfName: data?.bf_name ?? "BF",
+    gfName: data?.gf_name ?? "GF",
   };
 }
 
 // TMDB reference lists change rarely, so they are fetched once a day at most.
-const REFERENCE_STALE_TIME = 1000 * 60 * 60 * 24;
+// gcTime matches, or a list that no mounted page uses would be dropped after
+// the default five minutes and fetched again.
+const REFERENCE_CACHE_TIME = 1000 * 60 * 60 * 24;
+
+function referenceQuery<T>(
+  queryKey: readonly string[],
+  fetch: (options: { signal: AbortSignal }) => Promise<T>,
+) {
+  return queryOptions({
+    queryKey,
+    queryFn: ({ signal }) => fetch({ signal }),
+    staleTime: REFERENCE_CACHE_TIME,
+    gcTime: REFERENCE_CACHE_TIME,
+  });
+}
 
 export function useCountries() {
-  return useQuery({
-    queryKey: queryKeys.searchCountries,
-    queryFn: ({ signal }) => api.searchCountries({ signal }),
-    staleTime: REFERENCE_STALE_TIME,
-  });
+  return useQuery(referenceQuery(queryKeys.searchCountries, api.searchCountries));
 }
 
 export function useLanguages() {
-  return useQuery({
-    queryKey: queryKeys.searchLanguages,
-    queryFn: ({ signal }) => api.searchLanguages({ signal }),
-    staleTime: REFERENCE_STALE_TIME,
-  });
+  return useQuery(referenceQuery(queryKeys.searchLanguages, api.searchLanguages));
 }
 
 export function useGenres() {
-  return useQuery({
-    queryKey: queryKeys.searchGenres,
-    queryFn: ({ signal }) => api.searchGenres({ signal }),
-    staleTime: REFERENCE_STALE_TIME,
-  });
+  return useQuery(referenceQuery(queryKeys.searchGenres, api.searchGenres));
+}
+
+/** Looks up a country name by its ISO code, falling back to the code. */
+export function useCountryName(): (code: string) => string {
+  const countries = useCountries().data?.countries ?? [];
+  return (code) => countries.find((country) => country.code === code)?.name ?? code;
 }
 
 type ResultsPage = SearchResponse | GetRelatedResponse;
@@ -126,11 +137,13 @@ export function onShowDeleted(queryClient: QueryClient, id: number) {
  * its old rows while refetching, so "empty" waits until no fetch is running.
  */
 export function listState(
-  query: { isLoading: boolean; isFetching: boolean; isError: boolean },
+  query: { isPending: boolean; isFetching: boolean; isError: boolean },
   count: number,
 ) {
-  const isInitialLoading = query.isLoading || (query.isFetching && count === 0);
+  // isPending rather than isLoading, so a query that waits on `enabled`
+  // counts as loading too instead of as empty.
+  const isInitialLoading = query.isPending || (query.isFetching && count === 0);
   const isError = query.isError && count === 0 && !query.isFetching;
-  const isEmpty = !query.isLoading && !query.isFetching && !query.isError && count === 0;
+  const isEmpty = !query.isPending && !query.isFetching && !query.isError && count === 0;
   return { isInitialLoading, isEmpty, isError };
 }

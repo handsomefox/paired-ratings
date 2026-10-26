@@ -7,7 +7,7 @@ export const sortOptions = [
 ] as const;
 
 export const mediaTypeOptions = [
-  { value: "movie", label: "Movie" },
+  { value: "movie", label: "Movies" },
   { value: "tv", label: "TV Shows" },
 ] as const;
 

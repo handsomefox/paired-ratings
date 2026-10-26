@@ -10,9 +10,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DetailHero } from "@/features/detail/detail-hero";
-import { DetailRatings } from "@/features/detail/detail-ratings";
+import {
+  DetailRatings,
+  type Person,
+  type RatingForm,
+  type RatingForms,
+} from "@/features/detail/detail-ratings";
 import { DetailEpisodes } from "@/features/detail/detail-episodes";
 import { DetailRelated } from "@/features/detail/detail-related";
+import type { SearchPageSearch } from "@/features/search/search-utils";
 import type { ApiShow, ApiShowDetail } from "@/lib/api";
 import { api } from "@/lib/api";
 import { onShowDeleted, queryKeys } from "@/lib/queries";
@@ -21,9 +27,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export type DetailContentProps = {
+type DetailContentProps = {
   show: ApiShow;
-  showId: number;
   imageBase: string;
   imdbUrl?: string;
   bfName: string;
@@ -32,9 +37,19 @@ export type DetailContentProps = {
   onBack: () => Promise<void>;
 };
 
+function ratingForm(rating: number | undefined, comment: string | undefined): RatingForm {
+  // An empty comment opens in the editor, a written one as text with an edit
+  // button.
+  return { rating: rating ?? null, comment: comment ?? "", editing: !comment?.trim() };
+}
+
+const clearedForms: RatingForms = { bf: ratingForm(undefined, ""), gf: ratingForm(undefined, "") };
+
+const sameRating = (a: RatingForm, b: RatingForm) =>
+  a.rating === b.rating && a.comment.trim() === b.comment.trim();
+
 export function DetailContent({
   show,
-  showId,
   imageBase,
   imdbUrl,
   bfName,
@@ -43,24 +58,18 @@ export function DetailContent({
   onBack,
 }: DetailContentProps) {
   const queryClient = useQueryClient();
+  const showId = show.id;
   const [pendingDelete, setPendingDelete] = useState(false);
-  const [bfRating, setBfRating] = useState<number | null>(() => show.bf_rating ?? null);
-  const [gfRating, setGfRating] = useState<number | null>(() => show.gf_rating ?? null);
-  const [bfComment, setBfComment] = useState(() => show.bf_comment ?? "");
-  const [gfComment, setGfComment] = useState(() => show.gf_comment ?? "");
-  const [bfEditing, setBfEditing] = useState(() => !(show.bf_comment && show.bf_comment.trim()));
-  const [gfEditing, setGfEditing] = useState(() => !(show.gf_comment && show.gf_comment.trim()));
-  const [initialState, setInitialState] = useState(() => ({
-    bfRating: show.bf_rating ?? null,
-    gfRating: show.gf_rating ?? null,
-    bfComment: show.bf_comment ?? "",
-    gfComment: show.gf_comment ?? "",
+  const [forms, setForms] = useState<RatingForms>(() => ({
+    bf: ratingForm(show.bf_rating, show.bf_comment),
+    gf: ratingForm(show.gf_rating, show.gf_comment),
   }));
-  const isDirty =
-    bfRating !== initialState.bfRating ||
-    gfRating !== initialState.gfRating ||
-    bfComment.trim() !== initialState.bfComment.trim() ||
-    gfComment.trim() !== initialState.gfComment.trim();
+  // What the server holds, to tell whether Save has anything to send.
+  const [savedForms, setSavedForms] = useState(forms);
+  const isDirty = !sameRating(forms.bf, savedForms.bf) || !sameRating(forms.gf, savedForms.gf);
+
+  const updateForm = (person: Person, patch: Partial<RatingForm>) =>
+    setForms((prev) => ({ ...prev, [person]: { ...prev[person], ...patch } }));
 
   // Each mutation answers with the updated show. Put it straight into the
   // detail cache and let the library lists refetch.
@@ -72,10 +81,10 @@ export function DetailContent({
   const updateMutation = useMutation({
     mutationFn: () =>
       api.updateRatings(showId, {
-        bf_rating: bfRating ?? undefined,
-        gf_rating: gfRating ?? undefined,
-        bf_comment: bfComment,
-        gf_comment: gfComment,
+        bf_rating: forms.bf.rating ?? undefined,
+        gf_rating: forms.gf.rating ?? undefined,
+        bf_comment: forms.bf.comment,
+        gf_comment: forms.gf.comment,
       }),
     onSuccess: (data) => {
       applyDetail(data);
@@ -104,19 +113,8 @@ export function DetailContent({
     mutationFn: () => api.clearRatings(showId),
     onSuccess: (data) => {
       applyDetail(data);
-      const cleared = {
-        bfRating: null,
-        gfRating: null,
-        bfComment: "",
-        gfComment: "",
-      };
-      setInitialState(cleared);
-      setBfRating(null);
-      setGfRating(null);
-      setBfComment("");
-      setGfComment("");
-      setBfEditing(true);
-      setGfEditing(true);
+      setForms(clearedForms);
+      setSavedForms(clearedForms);
       toast.success("Ratings cleared.");
     },
     onError: () => {
@@ -136,15 +134,14 @@ export function DetailContent({
     },
   });
 
-  const genreNames = show.genres.join(",");
-  const findSimilarSearch = {
-    media_type: show.media_type,
-    ...(genreNames ? { genre_names: genreNames } : {}),
+  const findSimilarSearch: SearchPageSearch = {
+    media_type: show.media_type === "tv" ? "tv" : undefined,
+    genre_names: show.genres.join(",") || undefined,
   };
 
   const watchOrderMutation = useMutation({
-    mutationFn: (inWatchOrder: boolean) =>
-      inWatchOrder ? api.removeFromWatchOrder(showId) : api.addToWatchOrder(showId),
+    mutationFn: (add: boolean) =>
+      add ? api.addToWatchOrder(showId) : api.removeFromWatchOrder(showId),
     onSuccess: (data) => {
       applyDetail(data);
       const added = data.show?.watch_priority != null;
@@ -187,28 +184,17 @@ export function DetailContent({
         onRefresh={() => refreshMutation.mutate()}
         refreshPending={refreshMutation.isPending}
         onRequestDelete={() => setPendingDelete(true)}
-        onAddToWatchOrder={() => watchOrderMutation.mutate(false)}
-        onRemoveFromWatchOrder={() => watchOrderMutation.mutate(true)}
+        onAddToWatchOrder={() => watchOrderMutation.mutate(true)}
+        onRemoveFromWatchOrder={() => watchOrderMutation.mutate(false)}
         watchOrderPending={watchOrderMutation.isPending}
         findSimilarSearch={findSimilarSearch}
       />
 
       <DetailRatings
-        bfName={bfName}
-        gfName={gfName}
-        bfRating={bfRating}
-        gfRating={gfRating}
-        bfComment={bfComment}
-        gfComment={gfComment}
-        bfEditing={bfEditing}
-        gfEditing={gfEditing}
-        onBfRatingChange={setBfRating}
-        onGfRatingChange={setGfRating}
-        onBfCommentChange={setBfComment}
-        onGfCommentChange={setGfComment}
-        onBfEditingChange={setBfEditing}
-        onGfEditingChange={setGfEditing}
-        average={combinedRating(bfRating, gfRating)}
+        names={{ bf: bfName, gf: gfName }}
+        forms={forms}
+        onChange={updateForm}
+        average={combinedRating(forms.bf.rating, forms.gf.rating)}
         onClearRatings={() => clearRatingsMutation.mutate()}
         clearPending={clearRatingsMutation.isPending}
         onSave={() => updateMutation.mutate()}

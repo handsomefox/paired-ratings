@@ -15,13 +15,8 @@ export function CountryCombobox({
       {...props}
       options={options}
       searchPlaceholder="Search countries..."
-      normalizeOnSelect={(code) => code.toUpperCase()}
       renderLabel={(c) => (
-        <OptionLabel
-          emoji={flagEmoji(c.code)}
-          primary={c.name || c.code.toUpperCase()}
-          code={c.code.toUpperCase()}
-        />
+        <OptionLabel emoji={flagEmoji(c.code)} primary={c.name || c.code} code={c.code} />
       )}
       emptyText="No countries found."
     />

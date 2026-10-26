@@ -1,5 +1,4 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 
@@ -12,14 +11,10 @@ type ShowCardProps = {
   posterLink?: (node: ReactNode) => ReactNode;
   statusBadge?: ReactNode;
   metaBadges?: ReactNode;
-  metaBadgesClassName?: string;
   genresText?: string | null;
   episodeMeta?: ReactNode;
   overview?: string | null;
   footer?: ReactNode;
-  overviewExpanded?: boolean;
-  onToggleOverview?: () => void;
-  className?: string;
 };
 
 export function ShowCard({
@@ -31,24 +26,14 @@ export function ShowCard({
   posterLink,
   statusBadge,
   metaBadges,
-  metaBadgesClassName,
   genresText,
   episodeMeta,
   overview,
   footer,
-  overviewExpanded,
-  onToggleOverview,
-  className,
 }: ShowCardProps) {
-  const [internalExpanded, setInternalExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [canToggle, setCanToggle] = useState(false);
   const overviewRef = useRef<HTMLParagraphElement | null>(null);
-  const isExpanded = overviewExpanded ?? internalExpanded;
-  const handleToggle =
-    onToggleOverview ??
-    (() => {
-      setInternalExpanded((prev) => !prev);
-    });
 
   useLayoutEffect(() => {
     const node = overviewRef.current;
@@ -58,7 +43,7 @@ export function ShowCard({
     // equal. Measuring then would decide the text fits and unmount the button
     // that collapses it again, stranding the reader in the expanded state.
     const update = () => {
-      if (!node || isExpanded) return;
+      if (isExpanded) return;
       setCanToggle(node.scrollHeight > node.clientHeight + 1);
     };
 
@@ -85,12 +70,7 @@ export function ShowCard({
   );
 
   return (
-    <Card
-      className={cn(
-        "group flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg",
-        className,
-      )}
-    >
+    <Card className="group flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg">
       <div className="relative">
         {posterLink ? posterLink(poster) : poster}
         {statusBadge ? <div className="absolute left-0 top-0">{statusBadge}</div> : null}
@@ -106,7 +86,7 @@ export function ShowCard({
             <div className="text-xs text-muted-foreground sm:text-sm">{genresText}</div>
           ) : null}
 
-          {episodeMeta ?? null}
+          {episodeMeta}
 
           {overview ? (
             <div className="space-y-1">
@@ -122,7 +102,7 @@ export function ShowCard({
                 <button
                   type="button"
                   className="cursor-pointer text-xs font-semibold text-primary/80 underline underline-offset-2 transition hover:text-primary"
-                  onClick={handleToggle}
+                  onClick={() => setIsExpanded((prev) => !prev)}
                   aria-expanded={isExpanded}
                 >
                   {isExpanded ? "Show less" : "Show more"}
@@ -135,11 +115,7 @@ export function ShowCard({
         {metaBadges || footer ? (
           <div className="mt-auto space-y-2">
             {metaBadges ? (
-              <div
-                className={cn("grid w-full gap-2 text-xs", metaBadgesClassName ?? "grid-cols-2")}
-              >
-                {metaBadges}
-              </div>
+              <div className="grid w-full grid-cols-2 gap-2 text-xs">{metaBadges}</div>
             ) : null}
             {footer ? <div>{footer}</div> : null}
           </div>

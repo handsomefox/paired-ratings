@@ -1,5 +1,5 @@
 import { ApiError, type SearchResponse } from "@/lib/api";
-import { onShowAdded, onShowDeleted, queryKeys, shouldRetry } from "@/lib/queries";
+import { listState, onShowAdded, onShowDeleted, queryKeys, shouldRetry } from "@/lib/queries";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
@@ -34,6 +34,37 @@ describe("shouldRetry", () => {
   it("does not retry an answer that will not change", () => {
     expect(shouldRetry(0, new ApiError(404, "not found"))).toBe(false);
     expect(shouldRetry(0, new ApiError(401, "unauthorized"))).toBe(false);
+  });
+});
+
+describe("listState", () => {
+  const idle = { isPending: false, isFetching: false, isError: false };
+
+  it("is loading while a query waits to be enabled", () => {
+    expect(listState({ ...idle, isPending: true }, 0)).toMatchObject({
+      isInitialLoading: true,
+      isEmpty: false,
+    });
+  });
+
+  // keepPreviousData keeps an empty previous answer on screen while the next
+  // one loads. That is not yet an answer for the new filters.
+  it("is not empty while the next query loads over an empty answer", () => {
+    expect(listState({ ...idle, isFetching: true }, 0)).toEqual({
+      isInitialLoading: true,
+      isEmpty: false,
+      isError: false,
+    });
+  });
+
+  it("is empty only once a fetch has finished with no rows", () => {
+    expect(listState(idle, 0)).toMatchObject({ isEmpty: true });
+    expect(listState(idle, 3)).toMatchObject({ isEmpty: false, isInitialLoading: false });
+  });
+
+  it("shows an error only when there are no rows to fall back on", () => {
+    expect(listState({ ...idle, isError: true }, 0)).toMatchObject({ isError: true });
+    expect(listState({ ...idle, isError: true }, 3)).toMatchObject({ isError: false });
   });
 });
 

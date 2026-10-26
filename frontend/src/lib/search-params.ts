@@ -18,15 +18,15 @@ export function parseSearchString(value: unknown): string | undefined {
   return undefined;
 }
 
-/** Keeps the listed keys that hold a non-empty value, as strings. */
-export function pickSearch<K extends string>(
-  search: Record<string, unknown>,
-  keys: readonly K[],
-): Partial<Record<K, string>> {
-  const next: Partial<Record<K, string>> = {};
-  for (const key of keys) {
-    const value = parseSearchString(search[key]);
-    if (value) next[key] = value;
-  }
-  return next;
+/** A page number above 1 as a string, or undefined for page 1 and junk. */
+export function cleanPage(value: unknown): string | undefined {
+  const raw = parseSearchString(value);
+  if (!raw || !/^\d+$/.test(raw)) return undefined;
+  const page = Number(raw);
+  return page > 1 ? String(page) : undefined;
+}
+
+/** The page number a cleaned `page` param stands for. */
+export function pageNumber(page: string | undefined): number {
+  return page ? Number(page) : 1;
 }

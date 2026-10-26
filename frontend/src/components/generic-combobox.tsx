@@ -14,31 +14,27 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-export type ComboboxOption = {
+type ComboboxOption = {
   code: string;
   name: string;
 };
 
 // cmdk needs a value for the "Any" row. No option code starts with "__".
 const ANY_VALUE = "__any__";
+const ANY_LABEL = "Any";
 
 /** Props shared by the country, language, and genre pickers. */
 export type ComboboxFieldProps = {
   id?: string;
   value: string;
   onValueChange: (value: string) => void;
-  placeholder?: string;
-  anyLabel?: string;
-  className?: string;
-  disabled?: boolean;
 };
 
 type GenericComboboxProps = ComboboxFieldProps & {
   options: ComboboxOption[];
   renderLabel: (option: ComboboxOption) => ReactNode;
-  normalizeOnSelect?: (code: string) => string;
   searchPlaceholder: string;
-  emptyText?: string;
+  emptyText: string;
 };
 
 export function OptionLabel({
@@ -69,13 +65,8 @@ export function GenericCombobox({
   onValueChange,
   options,
   renderLabel,
-  normalizeOnSelect = (code) => code,
   searchPlaceholder,
-  placeholder = "Any",
-  anyLabel = "Any",
-  className,
-  disabled,
-  emptyText = "No results found.",
+  emptyText,
 }: GenericComboboxProps) {
   const [open, setOpen] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 640px)");
@@ -83,7 +74,7 @@ export function GenericCombobox({
   const selected = options.find((option) => option.code === value);
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
+    <Popover open={open} onOpenChange={setOpen} modal>
       <PopoverTrigger asChild>
         <Button
           id={id}
@@ -91,14 +82,10 @@ export function GenericCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn(
-            "w-full min-w-0 max-w-full justify-between overflow-hidden text-left font-normal",
-            className,
-          )}
-          disabled={disabled}
+          className="w-full min-w-0 max-w-full justify-between overflow-hidden text-left font-normal"
         >
           <span className="min-w-0 max-w-full flex-1 overflow-hidden whitespace-nowrap">
-            {selected ? renderLabel(selected) : <span className="truncate">{placeholder}</span>}
+            {selected ? renderLabel(selected) : <span className="truncate">{ANY_LABEL}</span>}
           </span>
 
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -116,14 +103,14 @@ export function GenericCombobox({
             <CommandGroup>
               <CommandItem
                 value={ANY_VALUE}
-                keywords={[anyLabel]}
+                keywords={[ANY_LABEL]}
                 onSelect={() => {
                   onValueChange("");
                   setOpen(false);
                 }}
                 className="flex items-center"
               >
-                <span className="min-w-0 flex-1 truncate">{anyLabel}</span>
+                <span className="min-w-0 flex-1 truncate">{ANY_LABEL}</span>
                 <Check
                   className={cn("ml-2 h-4 w-4 shrink-0", value ? "opacity-0" : "opacity-100")}
                 />
@@ -134,7 +121,7 @@ export function GenericCombobox({
                   key={option.code}
                   value={`${option.code} ${option.name}`.toLowerCase()}
                   onSelect={() => {
-                    onValueChange(normalizeOnSelect(option.code));
+                    onValueChange(option.code);
                     setOpen(false);
                   }}
                   className="flex items-center"

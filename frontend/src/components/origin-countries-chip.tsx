@@ -1,7 +1,7 @@
 import { badgeVariants } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useCountries } from "@/lib/queries";
+import { useCountryName } from "@/lib/queries";
 import { cn, flagEmoji } from "@/lib/utils";
 
 type OriginCountriesChipProps = {
@@ -18,8 +18,7 @@ export function OriginCountriesChip({
   const originCountries = codes.filter(Boolean);
   const primary = originCountries[0];
 
-  const countryNames = useCountries().data?.countries ?? [];
-  const labelFor = (code: string) => countryNames.find((c) => c.code === code)?.name ?? code;
+  const labelFor = useCountryName();
 
   if (!primary) return null;
 
@@ -32,10 +31,14 @@ export function OriginCountriesChip({
       <Popover>
         <PopoverTrigger
           className={cn(badgeVariants({ variant: "outline" }), "cursor-pointer", badgeClassName)}
-          aria-label={`Origin countries: ${originCountries.map(labelFor).join(", ")}`}
         >
-          {flagEmoji(primary)} {primary}
+          <span aria-hidden="true">{flagEmoji(primary)}</span> {primary}
           {extra > 0 ? ` +${extra}` : ""}
+          {/* Added to the visible text, not replacing it, so the name a
+              screen reader announces still contains what is on screen. */}
+          <span className="sr-only">
+            . Origin countries: {originCountries.map(labelFor).join(", ")}
+          </span>
         </PopoverTrigger>
         <PopoverContent className="w-64 p-3">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

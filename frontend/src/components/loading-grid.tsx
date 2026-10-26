@@ -1,4 +1,4 @@
-import CardGrid from "@/components/card-grid";
+import { CardGrid } from "@/components/card-grid";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 

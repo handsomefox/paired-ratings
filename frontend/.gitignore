@@ -2,9 +2,6 @@
 *.log
 
 node_modules
-coverage
-# Old local build output. The build now writes to ../backend/web/dist.
-dist
 *.local
 
 # Editor directories and files

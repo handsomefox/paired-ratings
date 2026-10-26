@@ -30,10 +30,12 @@ const PaginationItem = React.forwardRef<HTMLLIElement, React.ComponentProps<"li"
 );
 PaginationItem.displayName = "PaginationItem";
 
+// A button rather than shadcn's <a href="#">. The pager calls back to change
+// the page, so an anchor would only add a dead "#" target.
 type PaginationLinkProps = {
   isActive?: boolean;
 } & Pick<ButtonProps, "size"> &
-  React.ComponentProps<"a">;
+  React.ComponentProps<"button">;
 
 const PaginationLink = ({
   className,
@@ -42,7 +44,8 @@ const PaginationLink = ({
   children,
   ...props
 }: PaginationLinkProps) => (
-  <a
+  <button
+    type="button"
     aria-current={isActive ? "page" : undefined}
     className={cn(
       buttonVariants({
@@ -54,7 +57,7 @@ const PaginationLink = ({
     {...props}
   >
     {children}
-  </a>
+  </button>
 );
 PaginationLink.displayName = "PaginationLink";
 

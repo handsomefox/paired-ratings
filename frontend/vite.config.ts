@@ -1,7 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
-import path from "path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -15,7 +15,7 @@ export default defineConfig({
       // Prompt instead of reloading on its own, so an update never discards
       // unsaved edits. main.tsx shows the prompt.
       registerType: "prompt",
-      includeAssets: ["favicon.ico", "assets/apple-touch-icon.png", "assets/logo.png"],
+      includeAssets: ["favicon.ico", "icons/apple-touch-icon.png", "icons/logo.png"],
       manifest: {
         name: "Paired Ratings",
         short_name: "Paired Ratings",
@@ -26,9 +26,9 @@ export default defineConfig({
         theme_color: "#0B3B38",
         background_color: "#0E131D",
         icons: [
-          { src: "/assets/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "/icons/pwa-192x192.png", sizes: "192x192", type: "image/png" },
           {
-            src: "/assets/pwa-512x512.png",
+            src: "/icons/pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable",
@@ -36,10 +36,14 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // The default patterns leave out the self-hosted Inter files, so the
+        // app would fall back to the system font when offline.
+        globPatterns: ["**/*.{js,css,html,woff2}"],
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [
           /^\/api\//,
           /^\/assets\//,
+          /^\/icons\//,
           /^\/manifest\.webmanifest$/,
           /^\/sw\.js$/,
           /^\/workbox-.*\.js$/,
@@ -54,17 +58,13 @@ export default defineConfig({
               expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
-            handler: "NetworkOnly",
-          },
         ],
       },
     }),
   ],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
   server: {
@@ -76,7 +76,8 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: path.resolve(__dirname, "../backend/web/dist"),
+    // The build script in package.json passes the same path to precompress.
+    outDir: fileURLToPath(new URL("../backend/web/dist", import.meta.url)),
     emptyOutDir: true,
     rolldownOptions: {
       output: {

@@ -1,28 +1,15 @@
 import * as pb from "../gen/paired_ratings";
 
-export type SessionResponse = pb.SessionResponse;
 export type ApiShow = pb.Show;
 export type ApiShowDetail = pb.ShowDetail;
-export type ListResponse = pb.ListResponse;
 export type SearchResult = pb.SearchResult;
 export type SearchResponse = pb.SearchResponse;
-export type SearchGenresResponse = pb.SearchGenresResponse;
-export type SearchCountriesResponse = pb.SearchCountriesResponse;
-export type SearchLanguagesResponse = pb.SearchLanguagesResponse;
-export type SearchResolveResponse = pb.SearchResolveResponse;
-export type LoginRequest = pb.LoginRequest;
-export type AddShowRequest = pb.AddShowRequest;
-export type RatingsRequest = pb.RatingsRequest;
-export type RefreshResponse = pb.RefreshResponse;
-export type ReorderRequest = pb.ReorderRequest;
-export type SetStatusRequest = pb.SetStatusRequest;
 export type GetRelatedResponse = pb.GetRelatedResponse;
 export type EpisodesResponse = pb.EpisodesResponse;
 export type ApiEpisode = pb.Episode;
 export type ApiGenre = pb.Genre;
 export type ApiCountry = pb.Country;
 export type ApiLanguage = pb.Language;
-export type ToggleEpisodeRequest = pb.ToggleEpisodeRequest;
 
 /** A non-2xx response. `message` is the backend's ErrorResponse text. */
 export class ApiError extends Error {
@@ -35,9 +22,9 @@ export class ApiError extends Error {
   }
 }
 
-let _onUnauthorized: (() => void) | undefined;
+let onUnauthorized: (() => void) | undefined;
 export const registerUnauthorizedHandler = (fn: () => void) => {
-  _onUnauthorized = fn;
+  onUnauthorized = fn;
 };
 
 type RequestOptions = {
@@ -71,7 +58,7 @@ async function request(input: string, options: RequestOptions = {}): Promise<Res
   });
   if (!res.ok) {
     if (res.status === 401 && notifyUnauthorized) {
-      _onUnauthorized?.();
+      onUnauthorized?.();
     }
     throw new ApiError(res.status, await errorMessage(res));
   }
@@ -95,7 +82,7 @@ type Signal = { signal?: AbortSignal };
 
 export const api = {
   session: ({ signal }: Signal = {}) => jsonRequest(pb.SessionResponse, "/api/session", { signal }),
-  login: (payload: LoginRequest) =>
+  login: (payload: pb.LoginRequest) =>
     jsonRequest(pb.SessionResponse, "/api/login", {
       method: "POST",
       body: payload,
@@ -106,20 +93,20 @@ export const api = {
     jsonRequest(pb.ListResponse, `/api/shows?${params.toString()}`, { signal }),
   getShow: (id: number, { signal }: Signal = {}) =>
     jsonRequest(pb.ShowDetail, `/api/shows/${id}`, { signal }),
-  addShow: (payload: AddShowRequest) =>
+  addShow: (payload: pb.AddShowRequest) =>
     jsonRequest(pb.ShowDetail, "/api/shows", { method: "POST", body: payload }),
   deleteShow: (id: number) => emptyRequest(`/api/shows/${id}`, { method: "DELETE" }),
-  updateRatings: (id: number, payload: RatingsRequest) =>
+  updateRatings: (id: number, payload: pb.RatingsRequest) =>
     jsonRequest(pb.ShowDetail, `/api/shows/${id}/ratings`, { method: "POST", body: payload }),
   reorderShows: (orderedIds: number[]) =>
     emptyRequest("/api/shows/reorder", {
       method: "POST",
-      body: { ordered_ids: orderedIds } satisfies ReorderRequest,
+      body: { ordered_ids: orderedIds } satisfies pb.ReorderRequest,
     }),
   setStatus: (id: number, status: string) =>
     jsonRequest(pb.ShowDetail, `/api/shows/${id}/set-status`, {
       method: "POST",
-      body: { status } satisfies SetStatusRequest,
+      body: { status } satisfies pb.SetStatusRequest,
     }),
   clearRatings: (id: number) =>
     jsonRequest(pb.ShowDetail, `/api/shows/${id}/clear-ratings`, { method: "POST" }),
@@ -134,12 +121,12 @@ export const api = {
   toggleEpisode: (episodeId: number, watched: boolean) =>
     emptyRequest(`/api/shows/episodes/${episodeId}/toggle`, {
       method: "POST",
-      body: { watched } satisfies ToggleEpisodeRequest,
+      body: { watched } satisfies pb.ToggleEpisodeRequest,
     }),
   toggleSeason: (showId: number, seasonNumber: number, watched: boolean) =>
     emptyRequest(`/api/shows/${showId}/episodes/season/${seasonNumber}/toggle`, {
       method: "POST",
-      body: { watched } satisfies ToggleEpisodeRequest,
+      body: { watched } satisfies pb.ToggleEpisodeRequest,
     }),
   addToWatchOrder: (id: number) =>
     jsonRequest(pb.ShowDetail, `/api/shows/${id}/watch-order`, { method: "POST" }),

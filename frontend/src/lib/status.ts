@@ -2,9 +2,13 @@ export const showStatusOptions = [
   { value: "planned", label: "Planned" },
   { value: "watching", label: "Watching" },
   { value: "watched", label: "Watched" },
-];
+] as const;
 
-export const statusFilterOptions = [{ value: "all", label: "All" }, ...showStatusOptions];
+export type ShowStatus = (typeof showStatusOptions)[number]["value"];
+
+export function isShowStatus(value: string | undefined): value is ShowStatus {
+  return showStatusOptions.some((option) => option.value === value);
+}
 
 type StatusStyle = {
   /** Solid ribbon on a library card poster. */
@@ -13,7 +17,7 @@ type StatusStyle = {
   chip: string;
 };
 
-const statusStyles: Record<string, StatusStyle> = {
+const statusStyles: Record<ShowStatus, StatusStyle> = {
   planned: {
     ribbon: "bg-gf/75",
     chip: "border-gf/40 bg-gf/10 text-gf hover:bg-gf/20",
@@ -29,6 +33,10 @@ const statusStyles: Record<string, StatusStyle> = {
 };
 
 /** A show without a status is treated as planned, which is the default on add. */
+export function displayStatus(status: string): ShowStatus {
+  return isShowStatus(status) ? status : "planned";
+}
+
 export function statusStyle(status: string): StatusStyle {
-  return statusStyles[status] ?? statusStyles.planned;
+  return statusStyles[displayStatus(status)];
 }

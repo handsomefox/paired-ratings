@@ -1,4 +1,4 @@
-import CardGrid from "@/components/card-grid";
+import { CardGrid } from "@/components/card-grid";
 import { LanguageBadge } from "@/components/language-badge";
 import { LoadingGrid } from "@/components/loading-grid";
 import { InLibraryLink, MediaTypeBadge } from "@/components/result-badges";
@@ -16,21 +16,20 @@ import type { MediaType } from "@/features/search/search-constants";
 import { resultKey } from "@/features/search/search-utils";
 import type { ApiLanguage, SearchResult } from "@/lib/api";
 import { shortGenres } from "@/lib/utils";
-import { Search as SearchIcon } from "lucide-react";
+import { CircleAlert, Search as SearchIcon } from "lucide-react";
 
-export type SearchResultsProps = {
+type SearchResultsProps = {
   isInitialLoading: boolean;
+  isEmpty: boolean;
+  isError: boolean;
   isFetching: boolean;
   results: SearchResult[];
   availableLanguages: ApiLanguage[];
   imageBase: string;
-  expandedOverviews: Set<string>;
-  onToggleOverview: (key: string) => void;
-  onOpenImdb: (item: SearchResult) => void;
-  onAdd: (item: SearchResult, status: string) => void;
+  onOpenExternal: (item: SearchResult) => void;
+  onAdd: (item: SearchResult, status: "planned" | "watched") => void;
   /** The result being added, if any. Only its buttons are disabled. */
   pendingKey?: string;
-  fromLocation: string;
   query?: string;
   mediaType: MediaType;
   onSwitchMediaType: (type: MediaType) => void;
@@ -38,25 +37,37 @@ export type SearchResultsProps = {
 
 export function SearchResults({
   isInitialLoading,
+  isEmpty,
+  isError,
   isFetching,
   results,
   availableLanguages,
   imageBase,
-  expandedOverviews,
-  onToggleOverview,
-  onOpenImdb,
+  onOpenExternal,
   onAdd,
   pendingKey,
-  fromLocation,
   query,
   mediaType,
   onSwitchMediaType,
 }: SearchResultsProps) {
+  const otherType = mediaType === "movie" ? "tv" : "movie";
   return (
     <>
       {isInitialLoading ? <LoadingGrid /> : null}
 
-      {!isInitialLoading && results.length === 0 ? (
+      {isError ? (
+        <Empty className="border-border/60 bg-card/30">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <CircleAlert />
+            </EmptyMedia>
+            <EmptyTitle>Could not search TMDB</EmptyTitle>
+            <EmptyDescription>Pull down or reload the page to try again.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : null}
+
+      {isEmpty ? (
         <Empty className="border-border/60 bg-card/30">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -71,9 +82,9 @@ export function SearchResults({
                   <button
                     type="button"
                     className="cursor-pointer font-medium text-primary underline-offset-2 hover:underline"
-                    onClick={() => onSwitchMediaType(mediaType === "movie" ? "tv" : "movie")}
+                    onClick={() => onSwitchMediaType(otherType)}
                   >
-                    Try {mediaType === "movie" ? "TV shows" : "movies"} instead?
+                    Try {otherType === "tv" ? "TV shows" : "movies"} instead?
                   </button>
                 </>
               ) : (
@@ -83,6 +94,7 @@ export function SearchResults({
           </EmptyHeader>
         </Empty>
       ) : null}
+
       <CardGrid className={`transition-opacity ${isFetching ? "opacity-60" : "opacity-100"}`}>
         {results.map((item) => {
           const key = resultKey(item);
@@ -102,8 +114,8 @@ export function SearchResults({
                 <button
                   type="button"
                   className="block w-full cursor-pointer text-left"
-                  onClick={() => onOpenImdb(item)}
-                  aria-label={`Open ${item.title} on IMDb`}
+                  onClick={() => onOpenExternal(item)}
+                  aria-label={`Open ${item.title} on IMDb or TMDB`}
                 >
                   {node}
                 </button>
@@ -119,14 +131,11 @@ export function SearchResults({
                   <MediaTypeBadge mediaType={item.media_type} fullWidth={!item.original_language} />
                 </>
               }
-              metaBadgesClassName="grid-cols-2"
               genresText={shortGenres(item.genres)}
               overview={item.overview}
-              overviewExpanded={expandedOverviews.has(key)}
-              onToggleOverview={() => onToggleOverview(key)}
               footer={
                 item.library_id ? (
-                  <InLibraryLink libraryId={item.library_id} from={fromLocation} />
+                  <InLibraryLink libraryId={item.library_id} />
                 ) : (
                   <div className="grid w-full grid-cols-2 gap-2">
                     <Button
@@ -135,6 +144,7 @@ export function SearchResults({
                       className="w-full"
                       onClick={() => onAdd(item, "planned")}
                       disabled={adding}
+                      aria-label={`Plan ${item.title}`}
                     >
                       Plan
                     </Button>
@@ -144,6 +154,7 @@ export function SearchResults({
                       className="w-full"
                       onClick={() => onAdd(item, "watched")}
                       disabled={adding}
+                      aria-label={`Watched ${item.title}`}
                     >
                       Watched
                     </Button>

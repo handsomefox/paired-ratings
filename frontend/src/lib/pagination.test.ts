@@ -21,4 +21,15 @@ describe("getPageItems", () => {
   it("has no trailing ellipsis near the end", () => {
     expect(getPageItems(20, 19, 1, 1)).toEqual([1, "ellipsis", 18, 19, 20]);
   });
+
+  // An ellipsis takes a slot of its own, so hiding one page behind it saves
+  // nothing and only makes that page harder to reach.
+  it("shows a single hidden page instead of an ellipsis", () => {
+    expect(getPageItems(9, 5, 2, 1)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(getPageItems(9, 5, 1, 1)).toEqual([1, "ellipsis", 4, 5, 6, "ellipsis", 9]);
+  });
+
+  it("returns nothing when there are no pages", () => {
+    expect(getPageItems(0, 1)).toEqual([]);
+  });
 });

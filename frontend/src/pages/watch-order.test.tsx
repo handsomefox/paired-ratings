@@ -19,8 +19,8 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   },
 }));
 
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children }: { children: ReactNode }) => <span>{children}</span>,
+vi.mock("@/components/show-link", () => ({
+  ShowLink: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));

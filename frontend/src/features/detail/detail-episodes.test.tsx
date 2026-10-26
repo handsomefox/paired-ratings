@@ -93,7 +93,7 @@ describe("DetailEpisodes", () => {
     expect(screen.getByText("1/2 watched")).toBeInTheDocument();
   });
 
-  it("warns and leaves the count alone when the toggle fails", async () => {
+  it("warns and leaves the count alone when marking a season fails", async () => {
     toggleSeason.mockRejectedValue(new Error("offline"));
     const user = userEvent.setup();
     renderWithQuery(<DetailEpisodes showId={5} />);

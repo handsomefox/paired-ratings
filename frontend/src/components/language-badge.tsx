@@ -30,9 +30,7 @@ export function LanguageBadge({ code, label, className }: LanguageBadgeProps) {
           {showCode ? <span className="sr-only">({upperCode})</span> : null}
         </Badge>
       </TooltipTrigger>
-      <TooltipContent>
-        <span className="max-w-[220px] truncate">{showCode ? `${text} (${upperCode})` : text}</span>
-      </TooltipContent>
+      <TooltipContent>{showCode ? `${text} (${upperCode})` : text}</TooltipContent>
     </Tooltip>
   );
 }

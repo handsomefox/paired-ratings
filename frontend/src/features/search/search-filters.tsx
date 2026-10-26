@@ -1,8 +1,7 @@
 import { CountryCombobox } from "@/components/country-combobox";
-import FilterField from "@/components/filter-field";
+import { FilterField } from "@/components/filter-field";
 import { LanguageCombobox } from "@/components/language-combobox";
 import { YearRangeFields } from "@/components/year-range-fields";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,13 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { sortOptions, type Sort } from "@/features/search/search-constants";
+import type { GenreMode } from "@/features/search/search-utils";
 import type { ApiCountry, ApiGenre, ApiLanguage } from "@/lib/api";
 
 type SearchFiltersProps = {
-  genreMode: "all" | "any";
-  onGenreModeChange: (value: "all" | "any") => void;
+  genreMode: GenreMode;
+  onGenreModeChange: (value: GenreMode) => void;
   selectedGenres: string[];
   onSelectedGenresChange: (next: string[]) => void;
   availableGenres: ApiGenre[];
@@ -40,7 +39,6 @@ type SearchFiltersProps = {
   onMinVotesChange: (value: string) => void;
   sort: Sort;
   onSortChange: (value: Sort) => void;
-  onReset: () => void;
 };
 
 export function SearchFilters({
@@ -66,7 +64,6 @@ export function SearchFilters({
   onMinVotesChange,
   sort,
   onSortChange,
-  onReset,
 }: SearchFiltersProps) {
   return (
     <div className="space-y-5">
@@ -74,7 +71,7 @@ export function SearchFilters({
         <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-3">
           <Select
             value={genreMode}
-            onValueChange={(value) => onGenreModeChange(value as "all" | "any")}
+            onValueChange={(value) => onGenreModeChange(value as GenreMode)}
           >
             <SelectTrigger aria-label="Genre match">
               <SelectValue placeholder="Match" />
@@ -122,8 +119,6 @@ export function SearchFilters({
               value={originCountry}
               onValueChange={onOriginCountryChange}
               options={availableCountries}
-              placeholder="Any"
-              anyLabel="Any"
             />
           </div>
         )}
@@ -137,8 +132,6 @@ export function SearchFilters({
               value={originalLanguage}
               onValueChange={onOriginalLanguageChange}
               options={availableLanguages}
-              placeholder="Any"
-              anyLabel="Any"
             />
           </div>
         )}
@@ -197,12 +190,6 @@ export function SearchFilters({
           </Select>
         )}
       </FilterField>
-
-      <Separator />
-
-      <Button type="button" variant="ghost" onClick={onReset}>
-        Reset
-      </Button>
     </div>
   );
 }

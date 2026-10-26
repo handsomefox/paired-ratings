@@ -52,12 +52,23 @@ episodes.
 
 ## Frontend state goes through the router and the query keys
 
-Pages keep their filters in the URL through the router: read them with
-`Route.useSearch()` and change them with `navigate({ search })`. Do not read or
-write `window.location` directly, because the router then shows stale search
-params. Build query keys with `queryKeys` in `frontend/src/lib/queries.ts`, and
-update the cache after a change with the helpers there, so every page that
-shows a title sees the change.
+The URL holds each page's filters. Read them with `getRouteApi(...).useSearch()`
+and change them with `navigate({ search, replace: true })`. Do not read or write
+`window.location` directly, because the router then shows stale search params.
+
+- A route's `validateSearch` turns unknown values into defaults. `/api/shows`
+  answers 400 for an unknown sort or page size, so a stale link must never reach
+  it unchanged.
+- Navigate only when the search actually changes. Every navigation gives the
+  history entry a new key, and the router restores scroll positions by that
+  key.
+- Build query keys with `queryKeys` in `frontend/src/lib/queries.ts`, and update
+  the cache after a change with the helpers there, so every page that shows a
+  title sees the change.
+
+Files in `frontend/public/` keep their names, so put them under `icons/` or the
+root, never under `assets/`. The server caches `/assets/` for a year, which is
+only safe for the hashed names Vite generates there.
 
 ## Build the frontend before the Go build
 

@@ -1,8 +1,9 @@
-import CardGrid from "@/components/card-grid";
+import { CardGrid } from "@/components/card-grid";
 import { LoadingGrid } from "@/components/loading-grid";
 import { OriginCountriesChip } from "@/components/origin-countries-chip";
-import RatingChips from "@/components/rating-chips";
+import { RatingChips } from "@/components/rating-chips";
 import { ShowCard } from "@/components/show-card";
+import { ShowLink } from "@/components/show-link";
 import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
 import {
   Empty,
@@ -12,29 +13,30 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { ApiShow } from "@/lib/api";
-import { statusStyle } from "@/lib/status";
+import { displayStatus, statusStyle } from "@/lib/status";
 import { cn, shortGenres } from "@/lib/utils";
-import { Link } from "@tanstack/react-router";
 import { CircleAlert, Film } from "lucide-react";
 
-export type LibraryResultsProps = {
+type LibraryResultsProps = {
   shows: ApiShow[];
   imageBase: string;
+  bfName: string;
+  gfName: string;
   isInitialLoading: boolean;
   isEmpty: boolean;
   isError: boolean;
   hasFilters: boolean;
-  fromLocation: string;
 };
 
 export function LibraryResults({
   shows,
   imageBase,
+  bfName,
+  gfName,
   isInitialLoading,
   isEmpty,
   isError,
   hasFilters,
-  fromLocation,
 }: LibraryResultsProps) {
   return (
     <>
@@ -76,19 +78,11 @@ export function LibraryResults({
       <CardGrid>
         {shows.map((show) => {
           const originCountries = show.origin_country;
-          const status = show.status || "planned";
+          const status = displayStatus(show.status);
           return (
             <ShowCard
               key={show.id}
-              title={
-                <Link
-                  to="/show/$showId"
-                  params={{ showId: String(show.id) }}
-                  search={{ from: fromLocation }}
-                >
-                  {show.title}
-                </Link>
-              }
+              title={<ShowLink showId={show.id}>{show.title}</ShowLink>}
               year={show.year}
               posterAlt={show.title}
               posterPath={show.poster_path}
@@ -96,15 +90,9 @@ export function LibraryResults({
               posterLink={(node) => (
                 // The title link is the one in the tab order. This one only
                 // makes the poster clickable.
-                <Link
-                  to="/show/$showId"
-                  params={{ showId: String(show.id) }}
-                  search={{ from: fromLocation }}
-                  tabIndex={-1}
-                  aria-hidden="true"
-                >
+                <ShowLink showId={show.id} hidden>
                   {node}
-                </Link>
+                </ShowLink>
               )}
               statusBadge={
                 <div
@@ -135,7 +123,14 @@ export function LibraryResults({
                   />
                 </>
               }
-              footer={<RatingChips bfRating={show.bf_rating} gfRating={show.gf_rating} />}
+              footer={
+                <RatingChips
+                  bfName={bfName}
+                  gfName={gfName}
+                  bfRating={show.bf_rating}
+                  gfRating={show.gf_rating}
+                />
+              }
               genresText={shortGenres(show.genres)}
               episodeMeta={
                 show.media_type === "tv" &&

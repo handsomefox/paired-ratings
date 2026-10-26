@@ -10,9 +10,27 @@ gzip and Zstandard through Node's built-in support. It writes to
 into the server binary. `npm run preview` serves the same directory for a local
 look at the production build.
 
+The server caches everything under `/assets/` for a year as immutable, so that
+directory holds only Vite's hashed output. Put a static file that keeps its
+name, such as an icon, in `public/icons/` instead. Inter is self-hosted through
+`@fontsource-variable/inter`, so the service worker precaches it.
+
 `npm test` runs Vitest in jsdom. A test file sits next to the module it covers
 and adds `.test` before the extension. Shared setup and render helpers live in
-[`src/test`](src/test).
+[`src/test`](src/test). `renderApp` renders the real routes on a memory
+history, for tests that depend on the URL.
+
+## Page state lives in the URL
+
+The library and search pages read their filters from the route with
+`getRouteApi(...).useSearch()` and change them with `navigate({ search,
+replace: true })`. Each route's `validateSearch` turns old or hand-edited links
+into valid values, because `GET /api/shows` answers 400 for an unknown sort,
+page or page size. Only the text of a typed field, such as a year, stays in
+local state until the reader pauses: see
+[`use-typed-search-value.ts`](src/lib/use-typed-search-value.ts). Do not
+navigate when nothing changed. Every navigation gives the history entry a new
+key, and the router then loses the scroll position it saved for the page.
 
 `npm run dev` proxies `/api` to `http://localhost:8080`. The target is set in
 [`vite.config.ts`](vite.config.ts).

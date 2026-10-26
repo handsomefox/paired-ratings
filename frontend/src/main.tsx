@@ -2,7 +2,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
 import { registerSW } from "virtual:pwa-register";
-import App from "./App";
+import { App } from "./App";
+import "@fontsource-variable/inter";
 import "./index.css";
 
 // A new build waits until the reader chooses to reload, so a background update

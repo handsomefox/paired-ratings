@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 
-const THRESHOLD = 80; // px pull distance to trigger refresh
-const MAX_PULL = 120; // px max visual pull distance
+// Pull distances in pixels: how far starts a refresh, and how far the content
+// moves at most.
+const THRESHOLD = 80;
+const MAX_PULL = 120;
 
 type PullToRefreshProps = {
   onRefresh: () => Promise<void> | void;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
@@ -13,15 +15,11 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
   const [refreshing, setRefreshing] = useState(false);
   const startYRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  // The listeners are attached once, so they read the live values from refs
-  // instead of from the render that attached them.
+  // The listeners are attached once and fire several times between renders,
+  // so they keep the live values in refs rather than reading state.
   const pullRef = useRef(0);
   const refreshingRef = useRef(false);
-  const onRefreshRef = useRef(onRefresh);
-
-  useEffect(() => {
-    onRefreshRef.current = onRefresh;
-  }, [onRefresh]);
+  const refresh = useEffectEvent(() => onRefresh());
 
   useEffect(() => {
     const el = containerRef.current;
@@ -33,7 +31,6 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      // Only activate when at the top of the page
       if (window.scrollY > 0) return;
       startYRef.current = e.touches[0].clientY;
     };
@@ -50,7 +47,7 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
         setPull(0);
         return;
       }
-      // Rubber-band resistance
+      // Half speed, so the pull feels like it resists.
       const distance = Math.min(delta * 0.5, MAX_PULL);
       setPull(distance);
       if (distance > 0) e.preventDefault();
@@ -65,7 +62,7 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
         setRefreshing(true);
         setPull(0);
         try {
-          await onRefreshRef.current();
+          await refresh();
         } finally {
           refreshingRef.current = false;
           setRefreshing(false);

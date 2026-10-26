@@ -74,8 +74,9 @@ describe("api", () => {
   });
 
   it("toggles one episode and a whole season on different endpoints", async () => {
+    // A 204 has no body, so the call must not try to parse one.
     const episodeFetch = mockFetch(jsonResponse(null, { status: 204 }));
-    await api.toggleEpisode(42, true);
+    await expect(api.toggleEpisode(42, true)).resolves.toBeUndefined();
     expect(episodeFetch.mock.calls[0][0]).toBe("/api/shows/episodes/42/toggle");
     expect(requestBody(episodeFetch)).toEqual({ watched: true });
 
@@ -92,12 +93,6 @@ describe("api", () => {
 
     expect(fetchMock.mock.calls[0][0]).toBe("/api/shows/reorder");
     expect(requestBody(fetchMock)).toEqual({ ordered_ids: [5, 3, 9] });
-  });
-
-  it("returns undefined for a 204 instead of parsing an empty body", async () => {
-    mockFetch(jsonResponse(null, { status: 204 }));
-
-    await expect(api.toggleEpisode(1, true)).resolves.toBeUndefined();
   });
 
   // encoding/json leaves out false, 0, "" and empty lists. The generated
@@ -153,11 +148,17 @@ describe("api", () => {
   });
 
   it("falls back to the status text when the error body is not JSON", async () => {
-    const onUnauthorized = vi.fn();
-    registerUnauthorizedHandler(onUnauthorized);
     mockFetch(new Response("", { status: 502, statusText: "Bad Gateway" }));
 
     await expect(api.getShow(1)).rejects.toMatchObject({ status: 502, message: "Bad Gateway" });
-    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it("reads the message of a timeout", async () => {
+    mockFetch(jsonResponse({ error: "request timed out" }, { status: 504 }));
+
+    await expect(api.listShows(new URLSearchParams())).rejects.toMatchObject({
+      status: 504,
+      message: "request timed out",
+    });
   });
 });

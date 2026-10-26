@@ -12,17 +12,14 @@ const flag = (region: string) =>
   String.fromCodePoint(...[...region].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
 
 describe("flagEmoji", () => {
-  it.each([
-    ["IN", "IN"],
-    ["PT", "PT"],
-    ["AR", "AR"],
-    ["ET", "ET"],
-    ["AM", "AM"],
-    ["SV", "SV"],
-    ["GB", "GB"],
-  ])("shows the flag of country %s itself", (code, region) => {
-    expect(flagEmoji(code)).toBe(flag(region));
-  });
+  // These are also language codes for other places, such as IN for
+  // Indonesian. As country codes they must keep their own flag.
+  it.each(["IN", "PT", "AR", "ET", "AM", "SV", "GB"])(
+    "shows the flag of country %s itself",
+    (code) => {
+      expect(flagEmoji(code)).toBe(flag(code));
+    },
+  );
 
   it("maps codes for countries that no longer exist", () => {
     expect(flagEmoji("YU")).toBe(flag("RS"));

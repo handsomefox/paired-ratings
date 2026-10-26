@@ -1,3 +1,7 @@
+function range(from: number, to: number): number[] {
+  return Array.from({ length: Math.max(0, to - from + 1) }, (_, i) => from + i);
+}
+
 /**
  * Page numbers to show in a pager: the first and last `boundaryCount` pages,
  * `siblingCount` pages either side of the current one, and "ellipsis" for
@@ -9,32 +13,24 @@ export function getPageItems(
   siblingCount = 2,
   boundaryCount = 1,
 ): Array<number | "ellipsis"> {
-  const clamp = (n: number) => Math.max(1, Math.min(totalPages, n));
-
-  const startPages = Array.from({ length: Math.min(boundaryCount, totalPages) }, (_, i) => i + 1);
-  const endPages = Array.from(
-    { length: Math.min(boundaryCount, totalPages) },
-    (_, i) => totalPages - (Math.min(boundaryCount, totalPages) - 1) + i,
-  );
-
-  const siblingsStart = clamp(currentPage - siblingCount);
-  const siblingsEnd = clamp(currentPage + siblingCount);
-
-  const innerStart = Math.max(siblingsStart, boundaryCount + 1);
-  const innerEnd = Math.min(siblingsEnd, totalPages - boundaryCount);
+  const shown = new Set([
+    ...range(1, Math.min(boundaryCount, totalPages)),
+    ...range(
+      Math.max(currentPage - siblingCount, 1),
+      Math.min(currentPage + siblingCount, totalPages),
+    ),
+    ...range(Math.max(totalPages - boundaryCount + 1, 1), totalPages),
+  ]);
 
   const items: Array<number | "ellipsis"> = [];
-
-  startPages.forEach((page) => items.push(page));
-
-  if (innerStart > boundaryCount + 1) items.push("ellipsis");
-  for (let page = innerStart; page <= innerEnd; page += 1) items.push(page);
-
-  if (innerEnd < totalPages - boundaryCount) items.push("ellipsis");
-
-  endPages.forEach((page) => {
-    if (!items.includes(page)) items.push(page);
-  });
-
+  let previous = 0;
+  for (const page of [...shown].sort((a, b) => a - b)) {
+    // An ellipsis takes a slot of its own, so it would hide a single page
+    // without saving any room. Show that page instead.
+    if (page - previous === 2) items.push(previous + 1);
+    else if (page - previous > 2) items.push("ellipsis");
+    items.push(page);
+    previous = page;
+  }
   return items;
 }

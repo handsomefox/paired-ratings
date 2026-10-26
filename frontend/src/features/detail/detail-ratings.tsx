@@ -2,21 +2,22 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DetailRatingPanel } from "@/features/detail/detail-rating-panel";
 
-export type DetailRatingsProps = {
-  bfName: string;
-  gfName: string;
-  bfRating: number | null;
-  gfRating: number | null;
-  bfComment: string;
-  gfComment: string;
-  bfEditing: boolean;
-  gfEditing: boolean;
-  onBfRatingChange: (value: number) => void;
-  onGfRatingChange: (value: number) => void;
-  onBfCommentChange: (value: string) => void;
-  onGfCommentChange: (value: string) => void;
-  onBfEditingChange: (next: boolean) => void;
-  onGfEditingChange: (next: boolean) => void;
+export type Person = "bf" | "gf";
+
+/** One person's rating as edited on the detail page. */
+export type RatingForm = {
+  rating: number | null;
+  comment: string;
+  /** Whether the comment shows as an editor rather than as text. */
+  editing: boolean;
+};
+
+export type RatingForms = Record<Person, RatingForm>;
+
+type DetailRatingsProps = {
+  names: Record<Person, string>;
+  forms: RatingForms;
+  onChange: (person: Person, patch: Partial<RatingForm>) => void;
   average: string;
   onClearRatings: () => void;
   clearPending: boolean;
@@ -25,21 +26,12 @@ export type DetailRatingsProps = {
   savePending: boolean;
 };
 
+const people: Person[] = ["bf", "gf"];
+
 export function DetailRatings({
-  bfName,
-  gfName,
-  bfRating,
-  gfRating,
-  bfComment,
-  gfComment,
-  bfEditing,
-  gfEditing,
-  onBfRatingChange,
-  onGfRatingChange,
-  onBfCommentChange,
-  onGfCommentChange,
-  onBfEditingChange,
-  onGfEditingChange,
+  names,
+  forms,
+  onChange,
   average,
   onClearRatings,
   clearPending,
@@ -51,7 +43,7 @@ export function DetailRatings({
     <div className="rounded-2xl border border-border/60 bg-card/70 p-6 shadow-lg lg:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-lg">Ratings</h2>
+          <h2 className="text-lg">Ratings</h2>
           <p className="text-xs text-muted-foreground">1–10, add a note if you want</p>
         </div>
         <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs">
@@ -63,26 +55,19 @@ export function DetailRatings({
       <Separator className="my-6" />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <DetailRatingPanel
-          tone="bf"
-          name={bfName}
-          rating={bfRating}
-          onRatingChange={onBfRatingChange}
-          comment={bfComment}
-          onCommentChange={onBfCommentChange}
-          editing={bfEditing}
-          onEditingChange={onBfEditingChange}
-        />
-        <DetailRatingPanel
-          tone="gf"
-          name={gfName}
-          rating={gfRating}
-          onRatingChange={onGfRatingChange}
-          comment={gfComment}
-          onCommentChange={onGfCommentChange}
-          editing={gfEditing}
-          onEditingChange={onGfEditingChange}
-        />
+        {people.map((person) => (
+          <DetailRatingPanel
+            key={person}
+            tone={person}
+            name={names[person]}
+            rating={forms[person].rating}
+            onRatingChange={(rating) => onChange(person, { rating })}
+            comment={forms[person].comment}
+            onCommentChange={(comment) => onChange(person, { comment })}
+            editing={forms[person].editing}
+            onEditingChange={(editing) => onChange(person, { editing })}
+          />
+        ))}
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">

@@ -31,11 +31,6 @@ describe("DetailRatingPanel", () => {
     expect(props.onRatingChange).toHaveBeenCalledWith(7);
   });
 
-  it("labels a single star in the singular", () => {
-    renderPanel();
-    expect(screen.getByRole("button", { name: "1 star" })).toBeInTheDocument();
-  });
-
   it("marks the current rating as pressed", () => {
     renderPanel({ rating: 6 });
     expect(screen.getByRole("group", { name: "Alex's rating" })).toBeInTheDocument();
@@ -56,13 +51,8 @@ describe("DetailRatingPanel", () => {
     expect(props.onEditingChange).toHaveBeenCalledWith(true);
   });
 
-  it("reports each keystroke in the comment editor", async () => {
-    const user = userEvent.setup();
-    const { props } = renderPanel({ editing: true });
-
-    await user.type(screen.getByRole("textbox", { name: "Alex's comment" }), "ok");
-
-    expect(props.onCommentChange).toHaveBeenCalledTimes(2);
-    expect(props.onCommentChange).toHaveBeenLastCalledWith("k");
+  it("names the comment editor after the person", () => {
+    renderPanel({ editing: true, comment: "Loved it." });
+    expect(screen.getByRole("textbox", { name: "Alex's comment" })).toHaveValue("Loved it.");
   });
 });

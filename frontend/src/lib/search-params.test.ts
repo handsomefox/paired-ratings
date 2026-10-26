@@ -1,4 +1,4 @@
-import { parseSearch, pickSearch, stringifySearch } from "@/lib/search-params";
+import { cleanPage, pageNumber, parseSearch, stringifySearch } from "@/lib/search-params";
 import { describe, expect, it } from "vitest";
 
 describe("search params", () => {
@@ -17,23 +17,29 @@ describe("search params", () => {
 
   it("reads back what it wrote, spaces and ampersands included", () => {
     const decoded = parseSearch(stringifySearch(search));
-    expect(pickSearch(decoded, ["year_from", "genre", "q", "unrated"] as const)).toEqual(search);
+    expect(decoded).toMatchObject({ genre: "Action & Adventure", q: "star wars" });
   });
 
   it("reads an href built with URLSearchParams the same way", () => {
     const href = new URLSearchParams(search).toString();
-    expect(pickSearch(parseSearch(`?${href}`), ["year_from", "genre", "q"] as const)).toEqual({
-      year_from: "2015",
-      genre: "Action & Adventure",
-      q: "star wars",
-    });
+    expect(parseSearch(`?${href}`)).toMatchObject({ genre: "Action & Adventure", q: "star wars" });
+  });
+});
+
+describe("cleanPage", () => {
+  it("keeps a page past the first, decoded as a number or not", () => {
+    expect(cleanPage("3")).toBe("3");
+    expect(cleanPage(3)).toBe("3");
   });
 
-  it("keeps a query that the decoder would turn into a boolean", () => {
-    expect(pickSearch(parseSearch("?q=true"), ["q"] as const)).toEqual({ q: "true" });
+  it("drops page 1 and anything that is not a positive whole number", () => {
+    for (const junk of [1, "1", 0, "0", "-2", "2.5", "two", true, undefined]) {
+      expect(cleanPage(junk)).toBeUndefined();
+    }
   });
 
-  it("drops empty and unknown keys", () => {
-    expect(pickSearch(parseSearch("?q=&other=1"), ["q"] as const)).toEqual({});
+  it("reads a missing page as page 1", () => {
+    expect(pageNumber(undefined)).toBe(1);
+    expect(pageNumber("4")).toBe(4);
   });
 });

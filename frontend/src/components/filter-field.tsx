@@ -20,7 +20,7 @@ type FilterFieldProps = {
     }
 );
 
-const FilterField = ({ label, className, ...rest }: FilterFieldProps) => {
+export function FilterField({ label, className, ...rest }: FilterFieldProps) {
   const id = useId();
 
   if (rest.group) {
@@ -43,6 +43,4 @@ const FilterField = ({ label, className, ...rest }: FilterFieldProps) => {
       {rest.children(id)}
     </div>
   );
-};
-
-export default FilterField;
+}
