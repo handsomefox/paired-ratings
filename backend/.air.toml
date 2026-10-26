@@ -5,7 +5,10 @@ root = ".."
 tmp_dir = "tmp"
 
 [build]
-cmd = "go run ./backend"
+# Air restarts bin after each build. `go run` would never exit, so a change
+# would never restart the server.
+cmd = "go build -o ./tmp/server ./backend"
+bin = "./tmp/server"
 delay = 1000
 include_dir = ["backend"]
 # .sql covers the embedded migrations and the sqlc queries.

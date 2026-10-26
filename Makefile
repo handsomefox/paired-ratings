@@ -48,7 +48,7 @@ dev: frontend/node_modules
 	@DB_PATH=$${DB_PATH:-$(DEV_DB)} go run ./backend
 
 watch-backend:
-	@DB_PATH=$${DB_PATH:-$(DEV_DB)} DISABLE_STATIC=true air -c backend/.air.toml
+	@DB_PATH=$${DB_PATH:-$(DEV_DB)} DISABLE_STATIC=true $(GO_TOOL) air -c backend/.air.toml
 
 watch-frontend: frontend/node_modules
 	cd frontend && npm run dev

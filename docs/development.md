@@ -8,7 +8,8 @@ the reload loop, the generated code, and deployment.
 `make dev` rebuilds and restarts everything, which gets slow. To iterate, run the
 backend under Air and the frontend under Vite in two terminals instead.
 
-Install Air and put `air` on `PATH`. Build the frontend once, because
+`make watch-backend` runs Air at the version pinned in `tools/go.mod`, so there
+is nothing to install. Build the frontend once, because
 `backend/web/web.go` embeds `backend/web/dist` and the Go build fails while that
 directory is empty:
 
