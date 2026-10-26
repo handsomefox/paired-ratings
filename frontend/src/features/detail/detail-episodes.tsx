@@ -201,14 +201,18 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
                         })
                       }
                       aria-label={`Mark all Season ${group.season} as watched`}
+                      // The pseudo-element widens the target for a finger.
+                      className="relative after:absolute after:-inset-2 after:content-['']"
                     />
                   </div>
                   {isExpanded && (
                     <div className="border-t border-border/40">
                       {group.episodes.map((ep) => (
-                        <div
+                        // The whole row toggles the checkbox, which alone is
+                        // too small a target for a finger.
+                        <label
                           key={ep.id}
-                          className="flex items-center gap-3 border-b border-border/20 px-3 py-2 last:border-b-0"
+                          className="flex cursor-pointer items-center gap-3 border-b border-border/20 px-3 py-2.5 last:border-b-0 hover:bg-muted/30"
                         >
                           <span className="w-6 shrink-0 text-center text-xs text-muted-foreground">
                             {ep.episode_number}
@@ -232,7 +236,7 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
                             }
                             aria-label={`Mark episode ${ep.episode_number} as watched`}
                           />
-                        </div>
+                        </label>
                       ))}
                     </div>
                   )}

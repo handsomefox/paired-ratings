@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { Pencil } from "lucide-react";
 
 const ratingValues = Array.from({ length: 10 }, (_, index) => index + 1);
 
@@ -14,7 +15,9 @@ type StarRatingProps = {
 
 function StarRating({ value, onChange, tone, label }: StarRatingProps) {
   return (
-    <div role="group" aria-label={label} className="flex items-center gap-1 pr-1">
+    // Each star stretches to an equal share of the row, so a phone gets
+    // targets as wide as the screen allows rather than 22 px glyphs.
+    <div role="group" aria-label={label} className="flex max-w-sm items-center">
       {ratingValues.map((rating) => {
         const active = value !== null && rating <= value;
         const toneClass = tone === "bf" ? "text-bf" : "text-gf";
@@ -25,7 +28,7 @@ function StarRating({ value, onChange, tone, label }: StarRatingProps) {
             type="button"
             onClick={() => onChange(rating)}
             className={cn(
-              "cursor-pointer text-[22px] leading-none transition hover:-translate-y-0.5",
+              "flex h-10 flex-1 cursor-pointer items-center justify-center text-[24px] leading-none transition hover:-translate-y-0.5",
               active ? toneClass : idleClass,
             )}
             aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
@@ -73,8 +76,11 @@ export function DetailRatingPanel({
         <span className={cn(isBf ? "text-bf" : "text-gf")}>{name}</span>
       </div>
       <div className="space-y-2">
-        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="flex items-baseline justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Rating
+          <span className="normal-case tabular-nums">
+            {rating === null ? "Not rated" : `${rating}/10`}
+          </span>
         </div>
         <StarRating
           value={rating}
@@ -99,14 +105,14 @@ export function DetailRatingPanel({
           />
         ) : (
           <div className="flex items-start justify-between gap-3 rounded-xl border border-dashed border-border/60 bg-card/60 px-3 py-2 text-sm text-muted-foreground">
-            <p className="leading-relaxed">{comment}</p>
+            <p className="min-w-0 whitespace-pre-line break-words leading-relaxed">{comment}</p>
             <button
               type="button"
               onClick={() => onEditingChange(true)}
               aria-label={`Edit ${name}'s comment`}
-              className="cursor-pointer rounded-lg border border-border/60 px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
+              className="-my-1 shrink-0 cursor-pointer rounded-lg border border-border/60 p-2 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
             >
-              <span aria-hidden="true">✎</span>
+              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
         )}

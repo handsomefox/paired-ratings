@@ -167,9 +167,9 @@ export function DetailContent({
   });
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-4 sm:space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="ghost" onClick={() => void onBack()}>
+        <Button variant="ghost" className="-ml-3" onClick={() => void onBack()}>
           ← {backLabel}
         </Button>
       </div>

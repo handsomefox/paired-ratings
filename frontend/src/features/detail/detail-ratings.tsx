@@ -40,7 +40,7 @@ export function DetailRatings({
   savePending,
 }: DetailRatingsProps) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/70 p-6 shadow-lg lg:p-8">
+    <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-lg sm:p-6 lg:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg">Ratings</h2>
@@ -52,9 +52,9 @@ export function DetailRatings({
         </div>
       </div>
 
-      <Separator className="my-6" />
+      <Separator className="my-4 sm:my-6" />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         {people.map((person) => (
           <DetailRatingPanel
             key={person}
@@ -70,7 +70,7 @@ export function DetailRatings({
         ))}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 sm:mt-6">
         <Button
           variant="ghost"
           className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
