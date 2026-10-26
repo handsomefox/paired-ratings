@@ -53,7 +53,7 @@ export function ShowCard({
   }, [overview, isExpanded]);
 
   const poster = (
-    <div className="h-[320px] overflow-hidden bg-muted/40 sm:aspect-[2/3] sm:h-auto">
+    <div className="aspect-[2/3] overflow-hidden bg-muted/40">
       {posterPath ? (
         <img
           src={`${imageBase}${posterPath}`}
@@ -78,7 +78,7 @@ export function ShowCard({
       <CardContent className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4 lg:gap-4 lg:p-5">
         <div className="space-y-2">
           <div>
-            <div className="text-base font-semibold leading-tight sm:text-lg">{title}</div>
+            <div className="text-sm font-semibold leading-tight sm:text-lg">{title}</div>
             {year ? <div className="text-xs text-muted-foreground sm:text-sm">{year}</div> : null}
           </div>
 
@@ -88,8 +88,10 @@ export function ShowCard({
 
           {episodeMeta}
 
+          {/* Two columns on a phone leave too little width for the overview to
+              be worth its height. The detail page shows it in full. */}
           {overview ? (
-            <div className="space-y-1">
+            <div className="hidden space-y-1 sm:block">
               <p
                 ref={overviewRef}
                 className={`text-xs text-muted-foreground sm:text-sm ${

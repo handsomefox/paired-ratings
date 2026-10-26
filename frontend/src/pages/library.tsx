@@ -181,39 +181,46 @@ export function LibraryPage() {
 
   const { isInitialLoading, isEmpty, isError } = listState(showsQuery, shows.length);
 
+  const toolbar = (
+    <div className="flex items-center justify-between gap-2">
+      <div className="text-sm text-muted-foreground">
+        {isInitialLoading ? "" : `Shows (${totalCount})`}
+      </div>
+      {!isInitialLoading && totalCount > 0 && (
+        <div role="group" aria-label="Shows per page" className="flex items-center gap-1">
+          {pageSizes.map((size) => (
+            <button
+              key={size}
+              type="button"
+              aria-pressed={pageSize === size}
+              onClick={() =>
+                void updateSearch({
+                  page_size:
+                    size === DEFAULT_PAGE_SIZE ? undefined : (String(size) as "50" | "100"),
+                })
+              }
+              className={`h-8 min-w-9 cursor-pointer rounded-md px-2 text-xs transition-colors ${
+                pageSize === size
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: queryKeys.shows })}>
-      <FiltersPane filters={filters} headerAction={resetAction}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-xs text-muted-foreground sm:text-sm">
-            {isInitialLoading ? "" : `Shows (${totalCount})`}
-          </div>
-          {!isInitialLoading && totalCount > 0 && (
-            <div role="group" aria-label="Shows per page" className="flex items-center gap-1">
-              {pageSizes.map((size) => (
-                <button
-                  key={size}
-                  type="button"
-                  aria-pressed={pageSize === size}
-                  onClick={() =>
-                    void updateSearch({
-                      page_size:
-                        size === DEFAULT_PAGE_SIZE ? undefined : (String(size) as "50" | "100"),
-                    })
-                  }
-                  className={`cursor-pointer rounded-md px-2 py-0.5 text-xs transition-colors ${
-                    pageSize === size
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
+      <FiltersPane
+        filters={filters}
+        headerAction={resetAction}
+        activeCount={activeFilterCount}
+        toolbar={toolbar}
+      >
         <LibraryResults
           shows={shows}
           imageBase={imageBase}

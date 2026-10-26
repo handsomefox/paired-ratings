@@ -26,8 +26,19 @@ export function LanguageBadge({ code, label, className }: LanguageBadgeProps) {
               {emoji}
             </span>
           ) : null}
-          <span className="truncate">{text}</span>
-          {showCode ? <span className="sr-only">({upperCode})</span> : null}
+          {showCode ? (
+            <>
+              {/* A two-column phone card fits the code but not the name. */}
+              <span className="sm:hidden" aria-hidden="true">
+                {upperCode}
+              </span>
+              <span className="sr-only sm:hidden">{text}</span>
+              <span className="truncate max-sm:hidden">{text}</span>
+              <span className="sr-only">({upperCode})</span>
+            </>
+          ) : (
+            <span className="truncate">{text}</span>
+          )}
         </Badge>
       </TooltipTrigger>
       <TooltipContent>{showCode ? `${text} (${upperCode})` : text}</TooltipContent>

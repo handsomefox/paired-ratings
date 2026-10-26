@@ -185,13 +185,12 @@ export function SearchPage() {
     }
   };
 
-  const resultsCount = () => {
-    if (isInitialLoading) return "";
-    if (totalResults && totalResults !== results.length) {
-      return `Total results ${totalResults}, showing ${results.length}`;
-    }
-    return `Total results ${results.length}`;
-  };
+  // The backend reports TMDB's total, which can be larger than what it pages
+  // through. Fall back to the page's results when it reports none.
+  const total = totalResults || results.length;
+  const resultsCount = isInitialLoading
+    ? ""
+    : `${total.toLocaleString()} ${total === 1 ? "result" : "results"}`;
 
   // The search text, media type and sort sit outside the pane, so Reset keeps
   // them, as the library keeps its sort. The typed fields count as soon as
@@ -268,23 +267,29 @@ export function SearchPage() {
     <PullToRefresh
       onRefresh={() => queryClient.invalidateQueries({ queryKey: queryKeys.searchAll })}
     >
-      <FiltersPane filters={filters} headerAction={resetAction}>
-        <form
-          role="search"
-          className="flex w-full justify-center"
-          onSubmit={(event) => event.preventDefault()}
-        >
-          <Input
-            type="search"
-            name="q"
-            aria-label="Search TMDB"
-            placeholder="Search TMDB"
-            value={queryText}
-            onChange={(event) => setQueryText(event.target.value)}
-            className="w-full max-w-md md:max-w-lg lg:max-w-xl"
-          />
-        </form>
-
+      <FiltersPane
+        filters={filters}
+        headerAction={resetAction}
+        activeCount={activeFilterCount}
+        toolbar={
+          <form
+            role="search"
+            className="flex w-full justify-center"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <Input
+              type="search"
+              name="q"
+              aria-label="Search TMDB"
+              placeholder="Search TMDB"
+              enterKeyHint="search"
+              value={queryText}
+              onChange={(event) => setQueryText(event.target.value)}
+              className="w-full lg:max-w-xl"
+            />
+          </form>
+        }
+      >
         <div className="flex items-center justify-between gap-4">
           <div
             role="group"
@@ -297,7 +302,7 @@ export function SearchPage() {
                 type="button"
                 aria-pressed={mediaType === option.value}
                 onClick={() => handleMediaTypeChange(option.value)}
-                className={`cursor-pointer rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                className={`cursor-pointer whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
                   mediaType === option.value
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -307,7 +312,7 @@ export function SearchPage() {
               </button>
             ))}
           </div>
-          <div className="text-xs text-muted-foreground sm:text-sm">{resultsCount()}</div>
+          <div className="text-right text-sm text-muted-foreground">{resultsCount}</div>
         </div>
 
         <SearchResults
