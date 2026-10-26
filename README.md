@@ -21,8 +21,8 @@ search, posters, and metadata. The library lives in a SQLite file.
 
 You need Go, Node.js, npm, Make, and a TMDB API Read Access Token. `go.mod`
 pins the Go version, `frontend/.nvmrc` pins Node, and `frontend/package.json`
-pins npm under `engines`. Run `nvm use` in `frontend` to pick up the pinned
-Node.
+sets the minimum npm under `engines`. Run `nvm use` in `frontend` to pick up the
+pinned Node.
 
 Write `.env` in the repository root:
 
@@ -57,8 +57,9 @@ make test
 
 The Go tools run through `go tool` at the versions pinned in `tools/go.mod`, so
 there is nothing to install. Each target runs over the Go code and then the
-frontend, so `make test` covers the Go tests and the Vitest suite. To report formatting without rewriting files, run
-`make fmt-check`. That is the check CI runs.
+frontend, so `make test` covers the Go tests and the Vitest suite. To report
+formatting without rewriting files, run `make fmt-check`. That is the check CI
+runs.
 
 Run the frontend build once before the Go commands, because
 `backend/web/web.go` embeds `backend/web/dist` and the Go build fails while that
