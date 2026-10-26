@@ -17,6 +17,7 @@ import (
 	"github.com/handsomefox/paired-ratings/backend/gen/db"
 	"github.com/handsomefox/paired-ratings/backend/logger"
 
+	// Registers the "sqlite" database/sql driver.
 	_ "modernc.org/sqlite"
 )
 

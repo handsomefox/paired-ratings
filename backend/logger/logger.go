@@ -12,7 +12,7 @@ func New(level slog.Level) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 		AddSource: true,
 		Level:     level,
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			if a.Key == "source" {
 				if v, ok := a.Value.Any().(*slog.Source); ok {
 					v.Function = strings.TrimPrefix(v.Function, "github.com/handsomefox/paired-ratings/backend")
@@ -29,31 +29,31 @@ func New(level slog.Level) *slog.Logger {
 }
 
 const (
-	KeyRequestID = "request_id"
-	KeyMethod    = "http_method"
-	KeyPath      = "http_path"
-	KeyStatus    = "status"
-	KeyDuration  = "duration"
+	keyRequestID = "request_id"
+	keyMethod    = "http_method"
+	keyPath      = "http_path"
+	keyStatus    = "status"
+	keyDuration  = "duration"
 )
 
 func RequestID(id string) slog.Attr {
-	return slog.String(KeyRequestID, id)
+	return slog.String(keyRequestID, id)
 }
 
 func Method(method string) slog.Attr {
-	return slog.String(KeyMethod, method)
+	return slog.String(keyMethod, method)
 }
 
 func Path(path string) slog.Attr {
-	return slog.String(KeyPath, path)
+	return slog.String(keyPath, path)
 }
 
 func Status(status int) slog.Attr {
-	return slog.Int(KeyStatus, status)
+	return slog.Int(keyStatus, status)
 }
 
 func Duration(d time.Duration) slog.Attr {
-	return slog.Duration(KeyDuration, d)
+	return slog.Duration(keyDuration, d)
 }
 
 func Error(err error) slog.Attr {
