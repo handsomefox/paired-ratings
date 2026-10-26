@@ -17,7 +17,7 @@ function StarRating({ value, onChange, tone, label }: StarRatingProps) {
   return (
     // Each star stretches to an equal share of the row, so a phone gets
     // targets as wide as the screen allows rather than 22 px glyphs.
-    <div role="group" aria-label={label} className="flex max-w-sm items-center">
+    <div role="group" aria-label={label} className="flex items-center">
       {ratingValues.map((rating) => {
         const active = value !== null && rating <= value;
         const toneClass = tone === "bf" ? "text-bf" : "text-gf";
@@ -75,7 +75,8 @@ export function DetailRatingPanel({
         </Badge>
         <span className={cn(isBf ? "text-bf" : "text-gf")}>{name}</span>
       </div>
-      <div className="space-y-2">
+      {/* Capped with the stars, so the number sits at their end. */}
+      <div className="max-w-sm space-y-2">
         <div className="flex items-baseline justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Rating
           <span className="normal-case tabular-nums">

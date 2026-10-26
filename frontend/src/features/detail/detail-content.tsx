@@ -167,7 +167,9 @@ export function DetailContent({
   });
 
   return (
-    <section className="space-y-4 sm:space-y-6">
+    // The page reads as one document, so it keeps a readable width rather
+    // than stretching to the edges of a wide screen.
+    <section className="mx-auto max-w-6xl space-y-4 sm:space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button variant="ghost" className="-ml-3" onClick={() => void onBack()}>
           ← {backLabel}

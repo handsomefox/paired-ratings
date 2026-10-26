@@ -12,7 +12,12 @@ import { onShowAdded, queryKeys } from "@/lib/queries";
 import { shortGenres, tmdbUrl } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
+
+// Two rows at the widest layout. TMDB sends up to 20 recommendations, and
+// showing them all makes the related section most of the page.
+const INITIAL_COUNT = 10;
 
 type DetailRelatedProps = {
   showId: number;
@@ -50,6 +55,8 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
     },
   });
 
+  const [showAll, setShowAll] = useState(false);
+
   if (relatedQuery.isLoading) {
     return (
       <Card>
@@ -69,6 +76,7 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
   if (results.length === 0) return null;
 
   const pendingKey = addMutation.isPending ? resultKey(addMutation.variables) : undefined;
+  const shown = showAll ? results : results.slice(0, INITIAL_COUNT);
 
   return (
     <Card>
@@ -76,8 +84,8 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
         <CardTitle className="text-base">{collectionName || "Related"}</CardTitle>
       </CardHeader>
       <CardContent>
-        <CardGrid className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-          {results.map((item) => (
+        <CardGrid columns="grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {shown.map((item) => (
             <ShowCard
               key={resultKey(item)}
               title={item.title}
@@ -132,6 +140,13 @@ export function DetailRelated({ showId, imageBase }: DetailRelatedProps) {
             />
           ))}
         </CardGrid>
+        {shown.length < results.length ? (
+          <div className="mt-4 flex justify-center sm:mt-6">
+            <Button variant="outline" onClick={() => setShowAll(true)}>
+              Show all {results.length}
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
