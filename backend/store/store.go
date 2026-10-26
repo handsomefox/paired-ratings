@@ -74,7 +74,7 @@ func prepare(ctx context.Context, sqldb *sql.DB) error {
 	}
 	if legacy {
 		return errors.New("the database uses the schema from before the 001_schema baseline; " +
-			"convert it to a new file first (see docs/development.md)")
+			"check out commit 8799861 and convert it with `go run ./backend/cmd/convert-legacy`")
 	}
 
 	migrations, err := fs.Sub(migrationFS, "migrations")
@@ -108,12 +108,6 @@ func isLegacySchema(ctx context.Context, sqldb *sql.DB) (bool, error) {
 // inTx runs fn in a transaction. fn must use only the Queries it receives: the
 // pool has a single connection, which the transaction holds until it ends.
 func (s *Store) inTx(ctx context.Context, fn func(q *db.Queries) error) error {
-	return s.withTx(ctx, func(tx *sql.Tx) error {
-		return fn(s.q.WithTx(tx))
-	})
-}
-
-func (s *Store) withTx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := s.sqldb.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -124,7 +118,7 @@ func (s *Store) withTx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 		}
 	}()
 
-	if err := fn(tx); err != nil {
+	if err := fn(s.q.WithTx(tx)); err != nil {
 		return err
 	}
 	return tx.Commit()
