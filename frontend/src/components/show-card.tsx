@@ -75,10 +75,10 @@ export function ShowCard({
         {posterLink ? posterLink(poster) : poster}
         {statusBadge ? <div className="absolute left-0 top-0">{statusBadge}</div> : null}
       </div>
-      <CardContent className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4 lg:gap-4 lg:p-5">
+      <CardContent className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4">
         <div className="space-y-2">
           <div>
-            <div className="text-sm font-semibold leading-tight sm:text-lg">{title}</div>
+            <div className="text-sm font-semibold leading-tight sm:text-base">{title}</div>
             {year ? <div className="text-xs text-muted-foreground sm:text-sm">{year}</div> : null}
           </div>
 

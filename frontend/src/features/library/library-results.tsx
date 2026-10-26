@@ -144,7 +144,6 @@ export function LibraryResults({
                   </div>
                 ) : undefined
               }
-              overview={show.overview}
             />
           );
         })}

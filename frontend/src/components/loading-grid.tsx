@@ -12,7 +12,7 @@ export function LoadingGrid() {
           key={id}
           className="flex flex-col overflow-hidden border-border/60 bg-card/70 shadow-lg"
         >
-          <Skeleton className="h-[320px] w-full rounded-none sm:aspect-[2/3] sm:h-auto" />
+          <Skeleton className="aspect-[2/3] w-full rounded-none" />
           <CardContent className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4">
             <div className="space-y-2">
               <Skeleton className="h-4 w-3/4" />

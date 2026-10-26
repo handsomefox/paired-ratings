@@ -65,18 +65,6 @@
     scrollbar-color: hsl(var(--border)) transparent;
   }
 
-  @media (min-width: 1024px) {
-    html {
-      font-size: 17px;
-    }
-  }
-
-  @media (min-width: 1536px) {
-    html {
-      font-size: 18px;
-    }
-  }
-
   input[type="number"] {
     appearance: textfield;
     -moz-appearance: textfield;
