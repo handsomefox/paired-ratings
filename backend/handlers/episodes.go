@@ -6,14 +6,16 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
-
-	"github.com/go-chi/chi/v5"
+	"sync"
 
 	"github.com/handsomefox/paired-ratings/backend/gen/pb"
 	"github.com/handsomefox/paired-ratings/backend/logger"
 	"github.com/handsomefox/paired-ratings/backend/store"
+	"github.com/handsomefox/paired-ratings/backend/tmdb"
 )
+
+// seasonConcurrency bounds the parallel TMDB season requests of one sync.
+const seasonConcurrency = 4
 
 // tvShow loads the TV show in the URL.
 func (h *Handler) tvShow(r *http.Request) (store.Show, error) {
@@ -78,7 +80,7 @@ func (h *Handler) writeEpisodes(ctx context.Context, w http.ResponseWriter, show
 	if err != nil {
 		return err
 	}
-	seasons, err := h.store.CountSeasons(ctx, showID)
+	seasons, err := h.store.LastSeason(ctx, showID)
 	if err != nil {
 		return err
 	}
@@ -110,9 +112,9 @@ func (h *Handler) postSeasonToggle(w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return err
 	}
-	season, err := strconv.ParseInt(chi.URLParam(r, "season"), 10, 64)
-	if err != nil || season < 1 {
-		return badRequest("invalid season number")
+	season, err := idParam(r, "season")
+	if err != nil {
+		return err
 	}
 	var req pb.ToggleEpisodeRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -125,28 +127,38 @@ func (h *Handler) postSeasonToggle(w http.ResponseWriter, r *http.Request) error
 	return nil
 }
 
-// syncAllSeasons stores every season's episodes. A failed season does not stop
-// the others; the error reports each one that failed.
+// syncAllSeasons stores every season's episodes. The seasons are fetched in
+// parallel and written in order. A failed season does not stop the others;
+// the error names each one that failed.
 func (h *Handler) syncAllSeasons(ctx context.Context, showID, tmdbID int64, totalSeasons int, refresh bool) error {
 	fetchSeason := h.tmdb.FetchSeason
 	if refresh {
 		fetchSeason = h.tmdb.RefreshSeason
 	}
 
+	seasons := make([]tmdb.Season, totalSeasons)
+	errs := make([]error, totalSeasons)
+	var wg sync.WaitGroup
+	slots := make(chan struct{}, seasonConcurrency)
+	for i := range totalSeasons {
+		slots <- struct{}{}
+		wg.Go(func() {
+			defer func() { <-slots }()
+			seasons[i], errs[i] = fetchSeason(ctx, tmdbID, i+1)
+		})
+	}
+	wg.Wait()
+
 	var fetchErr error
-	for s := 1; s <= totalSeasons; s++ {
-		season, err := fetchSeason(ctx, tmdbID, s)
-		if err != nil {
+	for i := range seasons {
+		if errs[i] != nil {
 			slog.Warn("episodes: fetch season failed",
-				slog.Int("season", s),
-				logger.Error(err))
-			fetchErr = errors.Join(fetchErr, fmt.Errorf("season %d: %w", s, err))
-			if ctx.Err() != nil {
-				break
-			}
+				slog.Int("season", i+1),
+				logger.Error(errs[i]))
+			fetchErr = errors.Join(fetchErr, fmt.Errorf("season %d: %w", i+1, errs[i]))
 			continue
 		}
-		if err := h.store.SyncEpisodes(ctx, showID, episodesFromSeason(&season)); err != nil {
+		if err := h.store.SyncEpisodes(ctx, showID, episodesFromSeason(&seasons[i])); err != nil {
 			return errors.Join(fetchErr, err)
 		}
 	}

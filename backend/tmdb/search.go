@@ -3,7 +3,6 @@ package tmdb
 import (
 	"cmp"
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"slices"
@@ -18,8 +17,8 @@ func (c *Client) SearchPage(ctx context.Context, query, mediaType string, page i
 	}
 
 	mediaType = strings.TrimSpace(mediaType)
-	if mediaType != "movie" && mediaType != "tv" {
-		return SearchPage{}, errors.New("invalid media type")
+	if !validMediaType(mediaType) {
+		return SearchPage{}, errMediaType
 	}
 
 	if page < 1 {
@@ -31,13 +30,13 @@ func (c *Client) SearchPage(ctx context.Context, query, mediaType string, page i
 	values.Set("include_adult", "false")
 	values.Set("page", strconv.Itoa(page))
 
-	endpoint := baseURL + "/search/" + mediaType + "?" + values.Encode()
+	endpoint := c.baseURL + "/search/" + mediaType + "?" + values.Encode()
 	return c.fetchSearch(ctx, endpoint, mediaType)
 }
 
 func (c *Client) DiscoverPage(ctx context.Context, mediaType string, filters *DiscoverFilters, page int) (SearchPage, error) {
-	if mediaType != "movie" && mediaType != "tv" {
-		return SearchPage{}, errors.New("invalid media type")
+	if !validMediaType(mediaType) {
+		return SearchPage{}, errMediaType
 	}
 	if page < 1 {
 		page = 1
@@ -82,16 +81,16 @@ func (c *Client) DiscoverPage(ctx context.Context, mediaType string, filters *Di
 		values.Set(dateToKey, fmt.Sprintf("%04d-12-31", *filters.YearTo))
 	}
 
-	endpoint := baseURL + "/discover/" + mediaType + "?" + values.Encode()
+	endpoint := c.baseURL + "/discover/" + mediaType + "?" + values.Encode()
 	return c.fetchSearch(ctx, endpoint, mediaType)
 }
 
 func (c *Client) FetchGenres(ctx context.Context, mediaType string) ([]Genre, error) {
-	if mediaType != "movie" && mediaType != "tv" {
-		return nil, errors.New("invalid media type")
+	if !validMediaType(mediaType) {
+		return nil, errMediaType
 	}
 
-	endpoint := baseURL + "/genre/" + mediaType + "/list"
+	endpoint := c.baseURL + "/genre/" + mediaType + "/list"
 
 	var payload genreResponse
 	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
@@ -101,7 +100,7 @@ func (c *Client) FetchGenres(ctx context.Context, mediaType string) ([]Genre, er
 }
 
 func (c *Client) FetchCountries(ctx context.Context) ([]Country, error) {
-	endpoint := baseURL + "/configuration/countries"
+	endpoint := c.baseURL + "/configuration/countries"
 
 	var payload countryResponse
 	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
@@ -122,7 +121,7 @@ func (c *Client) FetchCountries(ctx context.Context) ([]Country, error) {
 }
 
 func (c *Client) FetchLanguages(ctx context.Context) ([]Language, error) {
-	endpoint := baseURL + "/configuration/languages"
+	endpoint := c.baseURL + "/configuration/languages"
 
 	var payload languageResponse
 	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
@@ -159,7 +158,8 @@ func sortByName[T any](items []T, key func(T) (name, code string)) {
 	})
 }
 
-func (c *Client) fetchSearch(ctx context.Context, endpoint, mediaTypeOverride string) (SearchPage, error) {
+// fetchSearch reads a search or discover page for one media type.
+func (c *Client) fetchSearch(ctx context.Context, endpoint, mediaType string) (SearchPage, error) {
 	var payload searchResponse
 	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
 		return SearchPage{}, err
@@ -168,15 +168,6 @@ func (c *Client) fetchSearch(ctx context.Context, endpoint, mediaTypeOverride st
 	out := make([]SearchResult, 0, len(payload.Results))
 	for i := range payload.Results {
 		r := payload.Results[i]
-
-		mediaType := r.MediaType
-		if mediaTypeOverride != "" {
-			mediaType = mediaTypeOverride
-		}
-		if mediaType != "movie" && mediaType != "tv" {
-			continue
-		}
-
 		res := SearchResult{
 			ID:               r.ID,
 			MediaType:        mediaType,
@@ -203,7 +194,7 @@ func (c *Client) fetchSearch(ctx context.Context, endpoint, mediaTypeOverride st
 	return SearchPage{
 		Results:      out,
 		Page:         payload.Page,
-		TotalPages:   min(payload.TotalPages, 500),
+		TotalPages:   min(payload.TotalPages, MaxPage),
 		TotalResults: payload.TotalResults,
 	}, nil
 }

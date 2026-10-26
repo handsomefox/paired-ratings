@@ -28,11 +28,11 @@ func (s Status) Valid() bool {
 	return s == StatusPlanned || s == StatusWatching || s == StatusWatched
 }
 
-// Sort orders the library. The zero value lists the newest additions first.
+// Sort orders the library. The zero value means SortCreated: newest first.
 type Sort string
 
 const (
-	SortCreated  Sort = ""
+	SortCreated  Sort = "created"
 	SortAverage  Sort = "avg"
 	SortBf       Sort = "bf"
 	SortGf       Sort = "gf"
@@ -44,7 +44,7 @@ const (
 
 func (s Sort) Valid() bool {
 	switch s {
-	case SortCreated, SortAverage, SortBf, SortGf, SortYear, SortTitle, SortPriority, SortUpdated:
+	case "", SortCreated, SortAverage, SortBf, SortGf, SortYear, SortTitle, SortPriority, SortUpdated:
 		return true
 	}
 	return false
@@ -74,16 +74,15 @@ func (m *Metadata) TMDBRef() TMDBRef {
 type Show struct {
 	Metadata
 
-	ID              int64
-	Status          Status
-	WatchPriority   *int64
-	BfRating        *int64
-	GfRating        *int64
-	BfComment       *string
-	GfComment       *string
-	CreatedAt       string
-	UpdatedAt       string
-	TMDBRefreshedAt string
+	ID            int64
+	Status        Status
+	WatchPriority *int64
+	BfRating      *int64
+	GfRating      *int64
+	BfComment     *string
+	GfComment     *string
+	CreatedAt     string
+	UpdatedAt     string
 }
 
 // ListFilters selects and orders library shows. Empty fields match everything,
@@ -127,7 +126,6 @@ type StaleShow struct {
 
 type Episode struct {
 	ID            int64
-	ShowID        int64
 	SeasonNumber  int64
 	EpisodeNumber int64
 	Title         *string

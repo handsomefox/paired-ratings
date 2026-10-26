@@ -82,8 +82,9 @@ func parseListFilters(r *http.Request) (*store.ListFilters, error) {
 		return nil, badRequest("invalid status")
 	}
 
-	if sort := store.Sort(q.Get("sort")); sort.Valid() {
-		f.Sort = sort
+	f.Sort = store.Sort(q.Get("sort"))
+	if !f.Sort.Valid() {
+		return nil, badRequest("invalid sort")
 	}
 
 	var err error
@@ -93,17 +94,22 @@ func parseListFilters(r *http.Request) (*store.ListFilters, error) {
 	if f.YearTo, err = optionalInt(q.Get("year_to")); err != nil {
 		return nil, badRequest("invalid year_to")
 	}
-	if page, err := strconv.Atoi(q.Get("page")); err == nil && page > 1 {
-		f.Page = page
+	if raw := q.Get("page"); raw != "" {
+		if f.Page, err = strconv.Atoi(raw); err != nil || f.Page < 1 {
+			return nil, badRequest("invalid page")
+		}
 	}
 
 	switch q.Get("page_size") {
+	case "", "20":
 	case "50":
 		f.PageSize = 50
 	case "100":
 		f.PageSize = 100
 	case "all":
 		f.PageSize = 0
+	default:
+		return nil, badRequest("invalid page_size: use 20, 50, 100, or all")
 	}
 	return &f, nil
 }
@@ -278,22 +284,27 @@ func (h *Handler) postShowRefreshTMDB(w http.ResponseWriter, r *http.Request) er
 		if err != nil {
 			return err
 		}
-		return h.refreshShow(ctx, show.ID, show.TMDBRef(), show.MediaType == store.MediaTV)
+		detail, err := h.tmdb.RefreshDetails(ctx, show.TMDBID, string(show.MediaType))
+		if err != nil {
+			return badGateway(err)
+		}
+		episodes, err := h.store.CountEpisodes(ctx, id)
+		if err != nil {
+			return err
+		}
+		return h.applyRefresh(ctx, id, detail, episodes > 0)
 	})
 }
 
-// refreshShow pulls the show's TMDB metadata again, and its episodes when
-// syncEpisodes is set.
-func (h *Handler) refreshShow(ctx context.Context, id int64, ref store.TMDBRef, syncEpisodes bool) error {
-	detail, err := h.tmdb.RefreshDetails(ctx, ref.ID, string(ref.MediaType))
-	if err != nil {
-		return badGateway(err)
-	}
+// applyRefresh stores freshly fetched TMDB metadata. A show whose episodes are
+// tracked also gets its episode list refreshed; the others load theirs when
+// someone first opens the episode list.
+func (h *Handler) applyRefresh(ctx context.Context, showID int64, detail *tmdb.Detail, tracksEpisodes bool) error {
 	if err := h.store.RefreshShow(ctx, metadataFromDetail(detail)); err != nil {
 		return err
 	}
-	if syncEpisodes && detail.NumberOfSeasons > 0 {
-		return h.syncAllSeasons(ctx, id, ref.ID, detail.NumberOfSeasons, true)
+	if tracksEpisodes && detail.NumberOfSeasons > 0 {
+		return h.syncAllSeasons(ctx, showID, detail.TMDBID, detail.NumberOfSeasons, true)
 	}
 	return nil
 }

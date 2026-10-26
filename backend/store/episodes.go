@@ -15,7 +15,6 @@ func (s *Store) ListEpisodes(ctx context.Context, showID int64) ([]Episode, erro
 	for _, r := range rows {
 		out = append(out, Episode{
 			ID:            r.ID,
-			ShowID:        r.ShowID,
 			SeasonNumber:  r.SeasonNumber,
 			EpisodeNumber: r.EpisodeNumber,
 			Title:         r.Title,
@@ -57,9 +56,9 @@ func (s *Store) CountEpisodes(ctx context.Context, showID int64) (int64, error) 
 	return s.q.CountEpisodes(ctx, showID)
 }
 
-// CountSeasons returns the highest stored season number.
-func (s *Store) CountSeasons(ctx context.Context, showID int64) (int64, error) {
-	return s.q.CountSeasons(ctx, showID)
+// LastSeason returns the highest stored season number, or 0 without episodes.
+func (s *Store) LastSeason(ctx context.Context, showID int64) (int64, error) {
+	return s.q.LastSeason(ctx, showID)
 }
 
 func (s *Store) SetEpisodeWatched(ctx context.Context, episodeID int64, watched bool) error {

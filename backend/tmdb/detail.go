@@ -2,7 +2,6 @@ package tmdb
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -15,14 +14,14 @@ func (c *Client) RefreshDetails(ctx context.Context, id int64, mediaType string)
 }
 
 func (c *Client) FetchDetails(ctx context.Context, id int64, mediaType string) (*Detail, error) {
-	if mediaType != "movie" && mediaType != "tv" {
-		return nil, errors.New("invalid media type")
+	if !validMediaType(mediaType) {
+		return nil, errMediaType
 	}
 
 	values := url.Values{}
 	values.Set("append_to_response", "external_ids")
 
-	endpoint := fmt.Sprintf("%s/%s/%d?%s", baseURL, mediaType, id, values.Encode())
+	endpoint := fmt.Sprintf("%s/%s/%d?%s", c.baseURL, mediaType, id, values.Encode())
 
 	var payload detailResponse
 	if err := c.doJSON(ctx, endpoint, &payload); err != nil {

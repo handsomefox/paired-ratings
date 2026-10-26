@@ -2,12 +2,11 @@ package tmdb
 
 import (
 	"context"
-	"errors"
 	"fmt"
 )
 
 func (c *Client) FetchCollection(ctx context.Context, collectionID int64) ([]SearchResult, error) {
-	endpoint := fmt.Sprintf("%s/collection/%d", baseURL, collectionID)
+	endpoint := fmt.Sprintf("%s/collection/%d", c.baseURL, collectionID)
 
 	var payload collectionResponse
 	if err := c.doJSON(ctx, endpoint, &payload); err != nil {
@@ -32,10 +31,10 @@ func (c *Client) FetchCollection(ctx context.Context, collectionID int64) ([]Sea
 }
 
 func (c *Client) FetchRecommendations(ctx context.Context, id int64, mediaType string) ([]SearchResult, error) {
-	if mediaType != "movie" && mediaType != "tv" {
-		return nil, errors.New("invalid media type")
+	if !validMediaType(mediaType) {
+		return nil, errMediaType
 	}
-	endpoint := fmt.Sprintf("%s/%s/%d/recommendations", baseURL, mediaType, id)
+	endpoint := fmt.Sprintf("%s/%s/%d/recommendations", c.baseURL, mediaType, id)
 
 	var payload recommendationsResponse
 	if err := c.doJSON(ctx, endpoint, &payload); err != nil {

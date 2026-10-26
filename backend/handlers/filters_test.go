@@ -67,7 +67,7 @@ func TestParseSearchFilters(t *testing.T) {
 	f = parseSearchFilters(url.Values{"media_type": {"book"}, "sort": {"chaos"}, "page": {"9999"}, "min_votes": {"-3"}})
 	assert.Empty(t, f.MediaType)
 	assert.Equal(t, sortRelevance, f.Sort)
-	assert.Equal(t, maxPage, f.Page)
+	assert.Equal(t, tmdb.MaxPage, f.Page)
 	assert.Nil(t, f.MinVotes)
 	assert.False(t, f.narrows())
 }
@@ -123,11 +123,15 @@ func TestParseListFilters(t *testing.T) {
 	assert.Equal(t, store.SortAverage, f.Sort)
 	assert.Equal(t, new(int64(2000)), f.YearFrom)
 
-	f = parse("status=all&page_size=all&sort=chaos&page=-1")
+	f = parse("status=all&page_size=all&sort=created")
 	assert.Empty(t, f.Status)
 	assert.Zero(t, f.PageSize)
 	assert.Equal(t, store.SortCreated, f.Sort)
 	assert.Equal(t, 1, f.Page)
 
-	assert.Equal(t, 20, parse("page_size=7").PageSize)
+	for _, query := range []string{"sort=chaos", "page=0", "page=two", "page_size=7", "status=dropped", "year_to=soon"} {
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/shows?"+query, http.NoBody)
+		_, err := parseListFilters(r)
+		assert.Error(t, err, query)
+	}
 }

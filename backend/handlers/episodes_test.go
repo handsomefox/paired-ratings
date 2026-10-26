@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 
@@ -20,10 +21,10 @@ func TestSyncAllSeasonsReportsPartialFailure(t *testing.T) {
 	st := newTestStore(t)
 	showID := addTestShow(t, st, 1, store.MediaTV)
 	fetchErr := errors.New("TMDB unavailable")
-	var calls []int
+	var calls atomic.Int32
 	h := newTestHandler(t, st, &tmdbtest.Mock{
 		FetchSeasonFunc: func(_ context.Context, _ int64, season int) (tmdb.Season, error) {
-			calls = append(calls, season)
+			calls.Add(1)
 			if season == 1 {
 				return tmdb.Season{}, fetchErr
 			}
@@ -31,29 +32,32 @@ func TestSyncAllSeasonsReportsPartialFailure(t *testing.T) {
 		},
 	})
 
-	err := h.syncAllSeasons(t.Context(), showID, 1, 2, false)
+	err := h.syncAllSeasons(t.Context(), showID, 1, 3, false)
 	require.ErrorIs(t, err, fetchErr)
 	require.ErrorContains(t, err, "season 1")
-	assert.Equal(t, []int{1, 2}, calls)
+	assert.Equal(t, int32(3), calls.Load())
 	episodes, err := st.ListEpisodes(t.Context(), showID)
 	require.NoError(t, err)
-	require.Len(t, episodes, 1)
+	require.Len(t, episodes, 2)
 	assert.Equal(t, int64(2), episodes[0].SeasonNumber)
+	assert.Equal(t, int64(3), episodes[1].SeasonNumber)
 }
 
 func TestSyncAllSeasonsStopsOnCancellation(t *testing.T) {
+	st := newTestStore(t)
+	showID := addTestShow(t, st, 1, store.MediaTV)
 	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	calls := 0
-	h := &Handler{tmdb: &tmdbtest.Mock{
-		FetchSeasonFunc: func(context.Context, int64, int) (tmdb.Season, error) {
-			calls++
-			cancel()
+	cancel()
+	h := newTestHandler(t, st, &tmdbtest.Mock{
+		FetchSeasonFunc: func(ctx context.Context, _ int64, _ int) (tmdb.Season, error) {
 			return tmdb.Season{}, ctx.Err()
 		},
-	}}
-	require.ErrorIs(t, h.syncAllSeasons(ctx, 1, 1, 10, false), context.Canceled)
-	assert.Equal(t, 1, calls)
+	})
+
+	require.ErrorIs(t, h.syncAllSeasons(ctx, showID, 1, 10, false), context.Canceled)
+	episodes, err := st.ListEpisodes(t.Context(), showID)
+	require.NoError(t, err)
+	assert.Empty(t, episodes)
 }
 
 func TestEpisodesStayReadableWhileTMDBIsDown(t *testing.T) {

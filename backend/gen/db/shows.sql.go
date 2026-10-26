@@ -522,6 +522,8 @@ type SetWatchPriorityParams struct {
 	ID            int64
 }
 
+// Reordering leaves updated_at alone, so it does not reshuffle the "Recently
+// updated" sort. Adding and removing a show are edits and do move it.
 func (q *Queries) SetWatchPriority(ctx context.Context, arg SetWatchPriorityParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, setWatchPriority, arg.WatchPriority, arg.ID)
 	if err != nil {

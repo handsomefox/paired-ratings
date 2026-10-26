@@ -91,7 +91,7 @@ func (m *Mock) FetchRecommendations(ctx context.Context, id int64, mediaType str
 
 func (m *Mock) FetchSeason(ctx context.Context, showID int64, seasonNumber int) (tmdb.Season, error) {
 	if m.FetchSeasonFunc == nil {
-		return tmdb.Season{SeasonNumber: seasonNumber}, nil
+		return tmdb.Season{}, nil
 	}
 	return m.FetchSeasonFunc(ctx, showID, seasonNumber)
 }

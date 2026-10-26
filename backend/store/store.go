@@ -49,8 +49,10 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 		return nil, err
 	}
 
-	// One connection serializes every write, which is what SQLite allows anyway,
-	// and keeps transactions from waiting on each other.
+	// SQLite takes one writer at a time. A single connection queues requests
+	// in the pool instead of failing them with SQLITE_BUSY. It also means a
+	// long statement, such as the VACUUM INTO of a backup, holds up every
+	// other request until it finishes.
 	sqldb.SetMaxOpenConns(1)
 
 	if err := prepare(ctx, sqldb); err != nil {

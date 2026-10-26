@@ -42,13 +42,14 @@ type appConfig struct {
 }
 
 // trustedOrigins may send state-changing requests besides the server's own
-// origin. Vite's dev server proxies /api, so it counts as a second origin
-// locally. Production serves the app and the API from one origin.
-func trustedOrigins(port string) []string {
+// origin. Production serves the app and the API from one origin. Locally, the
+// Vite dev server proxies /api; browsers that send Sec-Fetch-Site pass anyway,
+// and this entry covers the ones that send only Origin.
+func trustedOrigins() []string {
 	if !env.IsLocal() {
 		return nil
 	}
-	return []string{"http://localhost:" + port, "http://localhost:5173"}
+	return []string{"http://localhost:5173"}
 }
 
 func main() {
@@ -68,22 +69,12 @@ func main() {
 }
 
 // newRouter mounts the API under /api and, unless disabled, the app at /.
-// Cross-origin protection rejects state-changing requests from other sites,
-// which is what keeps the cookie session safe from CSRF.
 func newRouter(app *handlers.Handler, cfg *appConfig) (http.Handler, error) {
-	csrf := http.NewCrossOriginProtection()
-	for _, origin := range trustedOrigins(cfg.Port) {
-		if err := csrf.AddTrustedOrigin(origin); err != nil {
-			return nil, err
-		}
-	}
-
 	r := chi.NewRouter()
 	r.Use(
 		middleware.Recoverer,
 		middleware.Heartbeat("/ping"),
 		middleware.RequestID,
-		csrf.Handler,
 		middleware.CleanPath,
 	)
 	r.Route("/api", app.RegisterRoutes)
@@ -138,6 +129,8 @@ func run(ctx context.Context) error {
 		ImageBase:  cfg.ImageBase,
 		BfName:     cfg.BFName,
 		GfName:     cfg.GFName,
+
+		TrustedOrigins: trustedOrigins(),
 	})
 	if err != nil {
 		return fmt.Errorf("init handlers: %w", err)

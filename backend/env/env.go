@@ -12,7 +12,7 @@ const (
 	Local      Environment = "local"
 	Production Environment = "production"
 
-	Key string = "ENV"
+	key string = "ENV"
 )
 
 func (e Environment) Valid() bool {
@@ -20,7 +20,7 @@ func (e Environment) Valid() bool {
 }
 
 var (
-	raw = os.Getenv(Key)
+	raw = os.Getenv(key)
 
 	// Current is the mode. An unset ENV means Local; Check rejects any other
 	// unknown value, so a typo cannot quietly run production in local mode.
@@ -36,7 +36,7 @@ func init() {
 // Check reports an ENV value that is set but not recognized.
 func Check() error {
 	if raw != "" && !Environment(raw).Valid() {
-		return fmt.Errorf("%s=%q is not %q or %q", Key, raw, Local, Production)
+		return fmt.Errorf("%s=%q is not %q or %q", key, raw, Local, Production)
 	}
 	return nil
 }

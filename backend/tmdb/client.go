@@ -4,6 +4,7 @@ package tmdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -14,12 +15,23 @@ import (
 )
 
 const (
-	baseURL               = "https://api.themoviedb.org/3"
-	defaultRequestTimeout = 8 * time.Second
+	defaultBaseURL = "https://api.themoviedb.org/3"
+	requestTimeout = 10 * time.Second
+
+	// MaxPage is the last result page TMDB serves.
+	MaxPage = 500
 )
+
+var errMediaType = errors.New("invalid media type")
+
+// validMediaType reports whether mediaType names a TMDB movie or tv endpoint.
+func validMediaType(mediaType string) bool {
+	return mediaType == "movie" || mediaType == "tv"
+}
 
 type Client struct {
 	http        *http.Client
+	baseURL     string
 	accessToken string
 }
 
@@ -28,23 +40,12 @@ type Client struct {
 func New(accessToken string) *Client {
 	return &Client{
 		accessToken: strings.TrimSpace(accessToken),
-		http: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		baseURL:     defaultBaseURL,
+		http:        &http.Client{Timeout: requestTimeout},
 	}
-}
-
-func withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	if _, ok := ctx.Deadline(); ok {
-		return ctx, func() {}
-	}
-	return context.WithTimeout(ctx, defaultRequestTimeout)
 }
 
 func (c *Client) doJSON(ctx context.Context, endpoint string, dst any) error {
-	ctx, cancel := withTimeout(ctx)
-	defer cancel()
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, http.NoBody)
 	if err != nil {
 		return err

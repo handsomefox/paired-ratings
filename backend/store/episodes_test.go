@@ -32,7 +32,7 @@ func TestSyncEpisodesPreservesProgress(t *testing.T) {
 	assert.Equal(t, new("Updated"), stored[0].Title)
 	assert.True(t, stored[0].Watched)
 
-	seasons, err := st.CountSeasons(ctx, showID)
+	seasons, err := st.LastSeason(ctx, showID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), seasons)
 

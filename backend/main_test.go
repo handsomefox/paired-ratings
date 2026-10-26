@@ -31,13 +31,15 @@ func TestRouterRejectsCrossSiteWrites(t *testing.T) {
 	router, err := newRouter(app, &appConfig{Port: "8080", DisableStaticContent: true})
 	require.NoError(t, err)
 
-	logout := func(fetchSite string) int {
+	logout := func(fetchSite string) *httptest.ResponseRecorder {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/logout", http.NoBody)
 		req.Header.Set("Sec-Fetch-Site", fetchSite)
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
-		return rec.Code
+		return rec
 	}
-	assert.Equal(t, http.StatusForbidden, logout("cross-site"))
-	assert.Equal(t, http.StatusOK, logout("same-origin"))
+	rejected := logout("cross-site")
+	assert.Equal(t, http.StatusForbidden, rejected.Code)
+	assert.JSONEq(t, `{"error":"cross-origin request rejected"}`, rejected.Body.String())
+	assert.Equal(t, http.StatusOK, logout("same-origin").Code)
 }

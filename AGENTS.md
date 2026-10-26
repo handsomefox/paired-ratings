@@ -77,9 +77,10 @@ the session cookie. In `production`, the cookie is `Secure`, so sign-in fails
 over plain HTTP. The cookie is `SameSite=Lax` in both modes, because the app and
 the API share one origin.
 
-`http.CrossOriginProtection` in `backend/main.go` rejects state-changing
-requests from other sites. Keep the trusted origins in `backend/main.go`. Do not
-read `ENV` anywhere else.
+`handlers.RegisterRoutes` puts `http.CrossOriginProtection` in front of every
+API route, so a state-changing request from another site gets a 403. Keep the
+trusted origins in `backend/main.go`, which passes them in through
+`handlers.Config`. Do not read `ENV` anywhere else.
 
 ## Authentication is one shared password
 

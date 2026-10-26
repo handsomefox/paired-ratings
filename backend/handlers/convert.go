@@ -25,7 +25,7 @@ func optional(s string) *string {
 }
 
 // positive returns nil for zero, which TMDB uses for "unknown".
-func positive[T int | int64 | float64](v T) *T {
+func positive[T int64 | float64](v T) *T {
 	if v <= 0 {
 		return nil
 	}
@@ -36,7 +36,7 @@ func imdbURL(imdbID *string) *string {
 	if imdbID == nil {
 		return nil
 	}
-	return optional("https://www.imdb.com/title/" + *imdbID + "/")
+	return new("https://www.imdb.com/title/" + *imdbID + "/")
 }
 
 func tmdbURL(mediaType string, tmdbID int64) string {

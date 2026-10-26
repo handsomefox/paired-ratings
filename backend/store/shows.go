@@ -9,8 +9,13 @@ import (
 	"github.com/handsomefox/paired-ratings/backend/gen/db"
 )
 
+// Timestamps are stored as RFC 3339 text in UTC, which sorts in time order.
+func formatTime(t time.Time) string {
+	return t.UTC().Format(time.RFC3339)
+}
+
 func nowUTC() string {
-	return time.Now().UTC().Format(time.RFC3339)
+	return formatTime(time.Now())
 }
 
 // UpsertShow adds a show with the given status. Adding a show that is already
@@ -216,16 +221,15 @@ func showFromRow(r *db.Show) Show {
 			CollectionID:   r.CollectionID,
 			CollectionName: r.CollectionName,
 		},
-		ID:              r.ID,
-		Status:          Status(r.Status),
-		WatchPriority:   r.WatchPriority,
-		BfRating:        r.BfRating,
-		GfRating:        r.GfRating,
-		BfComment:       r.BfComment,
-		GfComment:       r.GfComment,
-		CreatedAt:       r.CreatedAt,
-		UpdatedAt:       r.UpdatedAt,
-		TMDBRefreshedAt: r.TMDBRefreshedAt,
+		ID:            r.ID,
+		Status:        Status(r.Status),
+		WatchPriority: r.WatchPriority,
+		BfRating:      r.BfRating,
+		GfRating:      r.GfRating,
+		BfComment:     r.BfComment,
+		GfComment:     r.GfComment,
+		CreatedAt:     r.CreatedAt,
+		UpdatedAt:     r.UpdatedAt,
 	}
 }
 
@@ -342,9 +346,9 @@ func (s *Store) DeleteShow(ctx context.Context, id int64) error {
 }
 
 // ListStaleShows returns the shows whose TMDB metadata was pulled before the
-// given RFC 3339 time.
-func (s *Store) ListStaleShows(ctx context.Context, before string) ([]StaleShow, error) {
-	rows, err := s.q.ListStaleShows(ctx, before)
+// given time.
+func (s *Store) ListStaleShows(ctx context.Context, before time.Time) ([]StaleShow, error) {
+	rows, err := s.q.ListStaleShows(ctx, formatTime(before))
 	if err != nil {
 		return nil, err
 	}

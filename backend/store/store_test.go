@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -240,10 +241,10 @@ func TestLibraryIDsAndStaleShows(t *testing.T) {
 
 	// The upsert stamped tmdb_refreshed_at, and a rating edit must not move it.
 	require.NoError(t, st.UpdateRatings(ctx, tv, &RatingsUpdate{BfRating: Change[int64]{Set: true, Value: new(int64(8))}}))
-	fresh, err := st.ListStaleShows(ctx, "2000-01-01T00:00:00Z")
+	fresh, err := st.ListStaleShows(ctx, time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
 	require.NoError(t, err)
 	assert.Empty(t, fresh)
-	stale, err := st.ListStaleShows(ctx, "2999-01-01T00:00:00Z")
+	stale, err := st.ListStaleShows(ctx, time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC))
 	require.NoError(t, err)
 	assert.Len(t, stale, 2)
 }
@@ -270,4 +271,45 @@ func TestSchemaRejectsInvalidValues(t *testing.T) {
 	require.Error(t, st.UpdateStatus(ctx, id, "dropped"))
 	_, err = st.UpsertShow(ctx, &Metadata{TMDBID: 2, MediaType: "book", Title: "x"}, StatusPlanned)
 	require.Error(t, err)
+}
+
+func TestListShowsSorts(t *testing.T) {
+	ctx := t.Context()
+	st := openTestStore(t)
+
+	zebra := addShow(t, st, &Metadata{TMDBID: 1, Title: "zebra"}, StatusWatched)
+	apple := addShow(t, st, &Metadata{TMDBID: 2, Title: "Apple"}, StatusWatched)
+	mango := addShow(t, st, &Metadata{TMDBID: 3, Title: "mango"}, StatusWatched)
+	rate := func(id, bf, gf int64) {
+		t.Helper()
+		update := RatingsUpdate{BfRating: Change[int64]{Set: true, Value: &bf}}
+		if gf > 0 {
+			update.GfRating = Change[int64]{Set: true, Value: &gf}
+		}
+		require.NoError(t, st.UpdateRatings(ctx, id, &update))
+	}
+	// The average counts only the ratings that exist: zebra averages 9.
+	rate(apple, 6, 8)
+	rate(zebra, 9, 0)
+	rate(mango, 5, 6)
+
+	ids := func(sort Sort) []int64 {
+		t.Helper()
+		shows, _, err := st.ListShows(ctx, &ListFilters{Sort: sort})
+		require.NoError(t, err)
+		out := make([]int64, 0, len(shows))
+		for i := range shows {
+			out = append(out, shows[i].ID)
+		}
+		return out
+	}
+	assert.Equal(t, []int64{zebra, apple, mango}, ids(SortAverage))
+	assert.Equal(t, []int64{apple, mango, zebra}, ids(SortTitle))
+
+	// Timestamps have one-second resolution, so set them apart directly.
+	for id, at := range map[int64]string{zebra: "2026-01-02T00:00:00Z", apple: "2026-01-01T00:00:00Z", mango: "2026-01-03T00:00:00Z"} {
+		_, err := st.sqldb.ExecContext(ctx, "UPDATE shows SET updated_at = ? WHERE id = ?", at, id)
+		require.NoError(t, err)
+	}
+	assert.Equal(t, []int64{mango, zebra, apple}, ids(SortUpdated))
 }

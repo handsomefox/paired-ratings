@@ -6,18 +6,18 @@ import (
 )
 
 type SearchResult struct {
-	MediaType        string   `json:"media_type"`
-	Title            string   `json:"title"`
-	Year             string   `json:"year"`
-	PosterPath       string   `json:"poster_path"`
-	Overview         string   `json:"overview"`
-	ID               int64    `json:"id"`
-	VoteAverage      float64  `json:"vote_average"`
-	VoteCount        int      `json:"vote_count"`
-	Popularity       float64  `json:"popularity"`
-	GenreIDs         []int    `json:"genre_ids"`
-	OriginCountry    []string `json:"origin_country"`
-	OriginalLanguage string   `json:"original_language"`
+	MediaType        string
+	Title            string
+	Year             string
+	PosterPath       string
+	Overview         string
+	ID               int64
+	VoteAverage      float64
+	VoteCount        int
+	Popularity       float64
+	GenreIDs         []int
+	OriginCountry    []string
+	OriginalLanguage string
 }
 
 type SearchPage struct {
@@ -61,18 +61,17 @@ type Genre struct {
 }
 
 type Country struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
+	Code string
+	Name string
 }
 
 type Language struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
+	Code string
+	Name string
 }
 
 type searchResponse struct {
 	Results []struct {
-		MediaType        string   `json:"media_type"`
 		Title            string   `json:"title"`
 		Name             string   `json:"name"`
 		ReleaseDate      string   `json:"release_date"`
@@ -120,8 +119,6 @@ type detailResponse struct {
 }
 
 type collectionResponse struct {
-	ID    int64  `json:"id"`
-	Name  string `json:"name"`
 	Parts []struct {
 		ID          int64   `json:"id"`
 		Title       string  `json:"title"`
@@ -169,15 +166,13 @@ type languageResponse []struct {
 }
 
 type Season struct {
-	SeasonNumber int
-	Episodes     []Episode
+	Episodes []Episode
 }
 
 type Episode struct {
 	SeasonNumber  int
 	EpisodeNumber int
 	Title         string
-	Overview      string
 	AirDate       string
 	Runtime       int
 }
@@ -187,7 +182,6 @@ type seasonResponse struct {
 	Episodes     []struct {
 		EpisodeNumber int    `json:"episode_number"`
 		Name          string `json:"name"`
-		Overview      string `json:"overview"`
 		AirDate       string `json:"air_date"`
 		Runtime       int    `json:"runtime"`
 	} `json:"episodes"`

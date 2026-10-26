@@ -149,6 +149,8 @@ WHERE id = sqlc.arg(id);
 SELECT id FROM shows WHERE watch_priority IS NOT NULL ORDER BY watch_priority, id;
 
 -- name: SetWatchPriority :execrows
+-- Reordering leaves updated_at alone, so it does not reshuffle the "Recently
+-- updated" sort. Adding and removing a show are edits and do move it.
 UPDATE shows SET watch_priority = sqlc.arg(watch_priority) WHERE id = sqlc.arg(id);
 
 -- name: AddToWatchOrder :execrows

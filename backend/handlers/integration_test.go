@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -60,14 +61,19 @@ func newTestHandler(t *testing.T, st *store.Store, api tmdb.Interface) *Handler 
 	return h
 }
 
-// newClient returns a signed-in client.
-func newClient(t *testing.T, st *store.Store, api tmdb.Interface) *client {
+// newAnonymousClient returns a client without a session.
+func newAnonymousClient(t *testing.T, st *store.Store, api tmdb.Interface) *client {
 	t.Helper()
 	h := newTestHandler(t, st, api)
 	r := chi.NewRouter()
 	h.RegisterRoutes(r)
-	c := &client{t: t, h: h, router: r}
+	return &client{t: t, h: h, router: r}
+}
 
+// newClient returns a signed-in client.
+func newClient(t *testing.T, st *store.Store, api tmdb.Interface) *client {
+	t.Helper()
+	c := newAnonymousClient(t, st, api)
 	rec := c.do(http.MethodPost, "/login", &pb.LoginRequest{Password: testPassword})
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	cookies := rec.Result().Cookies()
@@ -138,6 +144,37 @@ func TestAdaptErrors(t *testing.T) {
 
 	body = decode[pb.ErrorResponse](t, serve(badGateway(errors.New("tmdb /3/movie/1: 500"))), http.StatusBadGateway)
 	assert.Equal(t, "TMDB request failed", body.Error)
+
+	// A deadline wins over the status it is wrapped in.
+	body = decode[pb.ErrorResponse](t, serve(badGateway(context.DeadlineExceeded)), http.StatusGatewayTimeout)
+	assert.Equal(t, "request timed out", body.Error)
+
+	rec := httptest.NewRecorder()
+	panics := logRequests(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("boom") }))
+	panics.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody))
+	body = decode[pb.ErrorResponse](t, rec, http.StatusInternalServerError)
+	assert.Equal(t, "internal server error", body.Error)
+}
+
+func TestRequestBodyLimit(t *testing.T) {
+	c := newAnonymousClient(t, newTestStore(t), nil)
+	huge := &pb.LoginRequest{Password: strings.Repeat("x", maxBodyBytes)}
+	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodPost, "/login", huge).Code)
+}
+
+func TestReorderShows(t *testing.T) {
+	st := newTestStore(t)
+	first := addTestShow(t, st, 1, store.MediaMovie)
+	second := addTestShow(t, st, 2, store.MediaMovie)
+	c := newClient(t, st, nil)
+
+	assert.Equal(t, http.StatusNoContent, c.do(http.MethodPost, "/shows/reorder", &pb.ReorderRequest{OrderedIds: []int64{second, first}}).Code)
+	list := decode[pb.ListResponse](t, c.do(http.MethodGet, "/shows/?sort=priority", nil), http.StatusOK)
+	require.Len(t, list.Shows, 2)
+	assert.Equal(t, []int64{second, first}, []int64{list.Shows[0].Id, list.Shows[1].Id})
+
+	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodPost, "/shows/reorder", &pb.ReorderRequest{}).Code)
+	assert.Equal(t, http.StatusNotFound, c.do(http.MethodPost, "/shows/reorder", &pb.ReorderRequest{OrderedIds: []int64{999}}).Code)
 }
 
 func TestAuth(t *testing.T) {
@@ -175,11 +212,7 @@ func TestAuth(t *testing.T) {
 }
 
 func TestLoginRateLimit(t *testing.T) {
-	c := &client{t: t}
-	c.h = newTestHandler(t, newTestStore(t), nil)
-	r := chi.NewRouter()
-	c.h.RegisterRoutes(r)
-	c.router = r
+	c := newAnonymousClient(t, newTestStore(t), nil)
 
 	for range loginFailureLimit {
 		rec := c.do(http.MethodPost, "/login", &pb.LoginRequest{Password: "wrong"})
@@ -393,6 +426,57 @@ func TestRelatedSkipsTheShowItself(t *testing.T) {
 	assert.Len(t, cached, 2)
 }
 
+func TestRelatedUsesTheCollection(t *testing.T) {
+	st := newTestStore(t)
+	id, err := st.UpsertShow(t.Context(), &store.Metadata{
+		TMDBID: 1, MediaType: store.MediaMovie, Title: "Part One",
+		CollectionID: new(int64(77)), CollectionName: new("Saga"),
+	}, store.StatusPlanned)
+	require.NoError(t, err)
+	c := newClient(t, st, &tmdbtest.Mock{
+		FetchCollectionFunc: func(_ context.Context, collectionID int64) ([]tmdb.SearchResult, error) {
+			require.Equal(t, int64(77), collectionID)
+			return []tmdb.SearchResult{{ID: 1, MediaType: "movie"}, {ID: 2, MediaType: "movie"}}, nil
+		},
+		FetchRecommendationsFunc: func(context.Context, int64, string) ([]tmdb.SearchResult, error) {
+			t.Error("a movie in a collection must not ask for recommendations")
+			return nil, nil
+		},
+	})
+
+	related := decode[pb.GetRelatedResponse](t, c.do(http.MethodGet, showPath(id, "/related"), nil), http.StatusOK)
+	assert.Equal(t, new("Saga"), related.CollectionName)
+	require.Len(t, related.Results, 1)
+	assert.Equal(t, int64(2), related.Results[0].Id)
+}
+
+func TestRefreshAllStopsAtTheDeadline(t *testing.T) {
+	st := newTestStore(t)
+	addTestShow(t, st, 1, store.MediaMovie)
+	h := newTestHandler(t, st, &tmdbtest.Mock{
+		FetchDetailsFunc: func(ctx context.Context, _ int64, _ string) (*tmdb.Detail, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	})
+	h.refreshInterval = -time.Hour
+
+	// After the deadline a worker may drop its result instead of sending it,
+	// which ends the loop without an error result. Each run takes that path
+	// with even odds, so 50 runs make a missed check fail reliably.
+	for range 50 {
+		ctx, cancel := context.WithTimeout(t.Context(), time.Millisecond)
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/refresh-tmdb", http.NoBody)
+		logRequests(Adapt(h.postRefreshTMDBAll)).ServeHTTP(rec, req)
+		cancel()
+
+		// Partial counts would claim a finished run, so the deadline is an error.
+		body := decode[pb.ErrorResponse](t, rec, http.StatusGatewayTimeout)
+		require.Equal(t, "request timed out", body.Error)
+	}
+}
+
 func TestRefreshTMDBAndExport(t *testing.T) {
 	st := newTestStore(t)
 	id := addTestShow(t, st, 7, store.MediaTV)
@@ -426,7 +510,7 @@ func TestRefreshTMDBAndExport(t *testing.T) {
 	assert.Equal(t, "Refreshed", show.Title)
 	assert.Equal(t, store.StatusWatching, show.Status)
 	// Tracked episodes picked up the new season.
-	seasons, err := st.CountSeasons(t.Context(), id)
+	seasons, err := st.LastSeason(t.Context(), id)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), seasons)
 

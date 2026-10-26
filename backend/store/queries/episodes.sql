@@ -14,7 +14,7 @@ ON CONFLICT (show_id, season_number, episode_number) DO UPDATE SET
 -- name: CountEpisodes :one
 SELECT count(*) FROM episodes WHERE show_id = ?;
 
--- name: CountSeasons :one
+-- name: LastSeason :one
 SELECT CAST(coalesce(max(season_number), 0) AS INTEGER) FROM episodes WHERE show_id = ?;
 
 -- name: SetEpisodeWatched :execrows

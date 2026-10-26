@@ -67,7 +67,8 @@ message SearchResult {
   string overview = 6 [json_name = "overview"];
   double vote_average = 7 [json_name = "vote_average"];
   int32 vote_count = 8 [json_name = "vote_count"];
-  // Field 9 was the in_library flag, which library_id replaces.
+  // Field 9 was the in_library flag, which library_id replaces. Field 11 was
+  // origin_country.
   reserved 9, 11;
   repeated string genres = 10 [json_name = "genres"];
   // The library show's id when the title is already in the library.
@@ -132,8 +133,9 @@ message RatingsRequest {
   optional string gf_comment = 4 [json_name = "gf_comment"];
 }
 
-// ReorderRequest sends the full ordered list of show IDs for planned shows.
-// The backend assigns positions 1..N in the given order.
+// ReorderRequest puts the listed shows at the front of the watch order, in the
+// given order. Shows already in the watch order but not listed keep their
+// relative order after them.
 message ReorderRequest {
   repeated int64 ordered_ids = 1 [json_name = "ordered_ids"];
 }

@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/handsomefox/paired-ratings/backend/logger"
 	"github.com/handsomefox/paired-ratings/backend/store"
@@ -22,11 +22,15 @@ const (
 	// longRequestTimeout bounds the library-wide refresh and the database
 	// download, which outgrow requestTimeout as the library grows.
 	longRequestTimeout = 2 * time.Minute
+	// maxBodyBytes bounds a request body. The largest is a reorder of every
+	// show id, far below this.
+	maxBodyBytes = 64 << 10
 )
 
 type Handler struct {
 	store        *store.Store
 	tmdb         tmdb.Interface
+	csrf         *http.CrossOriginProtection
 	logins       loginLimiter
 	password     string
 	sessionToken string
@@ -48,8 +52,9 @@ type Config struct {
 	BfName     string
 	GfName     string
 
-	// RefreshInterval overrides how long TMDB metadata counts as current.
-	RefreshInterval time.Duration
+	// TrustedOrigins may send state-changing requests besides the server's own
+	// origin.
+	TrustedOrigins []string
 }
 
 func New(cfg *Config) (*Handler, error) {
@@ -66,32 +71,40 @@ func New(cfg *Config) (*Handler, error) {
 		return nil, errors.New("both display names are required")
 	}
 
-	interval := cfg.RefreshInterval
-	if interval == 0 {
-		interval = defaultRefreshInterval
+	// Cross-origin protection rejects state-changing requests from other
+	// sites, which is what keeps the cookie session safe from CSRF.
+	csrf := http.NewCrossOriginProtection()
+	for _, origin := range cfg.TrustedOrigins {
+		if err := csrf.AddTrustedOrigin(origin); err != nil {
+			return nil, err
+		}
 	}
+	csrf.SetDenyHandler(Adapt(func(http.ResponseWriter, *http.Request) error {
+		return &Error{Status: http.StatusForbidden, Message: "cross-origin request rejected"}
+	}))
 
 	return &Handler{
 		store:           cfg.Store,
 		tmdb:            cfg.TMDB,
+		csrf:            csrf,
 		password:        cfg.Password,
 		sessionToken:    sessionToken(cfg.SessionKey, cfg.Password),
 		imageBase:       cfg.ImageBase,
 		bfName:          strings.TrimSpace(cfg.BfName),
 		gfName:          strings.TrimSpace(cfg.GfName),
-		refreshInterval: interval,
+		refreshInterval: defaultRefreshInterval,
 	}, nil
 }
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
-	r.Use(logRequests)
+	r.Use(logRequests, limitBody, h.csrf.Handler)
 	r.NotFound(Adapt(func(http.ResponseWriter, *http.Request) error { return notFound() }).ServeHTTP)
 	r.MethodNotAllowed(Adapt(func(http.ResponseWriter, *http.Request) error {
 		return &Error{Status: http.StatusMethodNotAllowed, Message: "method not allowed"}
 	}).ServeHTTP)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.Timeout(requestTimeout))
+		r.Use(withTimeout(requestTimeout))
 
 		r.Method(http.MethodGet, "/session", Adapt(h.getSession))
 		r.Method(http.MethodPost, "/login", Adapt(h.postLogin))
@@ -135,10 +148,30 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(h.requireAuth, middleware.Timeout(longRequestTimeout), extendWriteDeadline)
+		r.Use(h.requireAuth, withTimeout(longRequestTimeout), extendWriteDeadline)
 
 		r.Method(http.MethodGet, "/export/db", Adapt(h.getExportDB))
 		r.Method(http.MethodPost, "/refresh-tmdb", Adapt(h.postRefreshTMDBAll))
+	})
+}
+
+// withTimeout gives the request context a deadline. A handler that runs past
+// it returns the context error, which writeError turns into a 504.
+func withTimeout(d time.Duration) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, cancel := context.WithTimeout(r.Context(), d)
+			defer cancel()
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// limitBody caps the request body at maxBodyBytes.
+func limitBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+		next.ServeHTTP(w, r)
 	})
 }
 

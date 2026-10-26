@@ -45,3 +45,37 @@ func TestSPACompression(t *testing.T) {
 		})
 	}
 }
+
+func TestSPARouting(t *testing.T) {
+	dist := fstest.MapFS{
+		"index.html":         {Data: []byte("index")},
+		"assets/app-1a2b.js": {Data: []byte("app")},
+		"icons/logo.png":     {Data: []byte("png")},
+	}
+	handler, err := SPA(dist)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		path, body, cacheControl string
+		status                   int
+	}{
+		{"/", "index", "no-cache", http.StatusOK},
+		// A client-side route gets the app.
+		{"/show/12", "index", "no-cache", http.StatusOK},
+		// Vite's hashed output never changes under one name.
+		{"/assets/app-1a2b.js", "app", "public, max-age=31536000, immutable", http.StatusOK},
+		{"/icons/logo.png", "png", "public, max-age=3600", http.StatusOK},
+		// A missing file is a 404, not the app.
+		{"/assets/gone.js", "", "", http.StatusNotFound},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, tc.path, http.NoBody))
+			require.Equal(t, tc.status, rec.Code)
+			if tc.status == http.StatusOK {
+				require.Equal(t, tc.body, rec.Body.String())
+				require.Equal(t, tc.cacheControl, rec.Header().Get("Cache-Control"))
+			}
+		})
+	}
+}

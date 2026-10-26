@@ -24,9 +24,7 @@ const (
 	searchPageSize = 20
 	// maxScanPages bounds the TMDB pages one filtered or merged search reads.
 	// Matches past that window are not reachable.
-	maxScanPages = 10
-	// maxPage is the last page TMDB serves.
-	maxPage         = 500
+	maxScanPages    = 10
 	scanConcurrency = 4
 )
 
@@ -221,7 +219,7 @@ func parseSearchFilters(q url.Values) searchFilters {
 		// results, so a client cannot ask for it.
 	}
 	if page, err := strconv.Atoi(q.Get("page")); err == nil && page > 1 {
-		f.Page = min(page, maxPage)
+		f.Page = min(page, tmdb.MaxPage)
 	}
 
 	f.YearFrom = positiveInt(q.Get("year_from"))

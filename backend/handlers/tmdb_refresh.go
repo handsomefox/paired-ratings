@@ -37,8 +37,7 @@ func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) err
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	cutoff := time.Now().UTC().Add(-h.refreshInterval).Format(time.RFC3339)
-	stale, err := h.store.ListStaleShows(ctx, cutoff)
+	stale, err := h.store.ListStaleShows(ctx, time.Now().Add(-h.refreshInterval))
 	if err != nil {
 		return err
 	}
@@ -47,7 +46,7 @@ func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) err
 	for result := range h.fetchDetails(ctx, stale) {
 		err := result.err
 		if err == nil {
-			err = h.saveRefresh(ctx, &result)
+			err = h.applyRefresh(ctx, result.show.ShowID, result.detail, result.show.HasEpisodes)
 		}
 		if err != nil {
 			if ctx.Err() != nil {
@@ -63,6 +62,11 @@ func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) err
 		}
 		updated++
 	}
+	// The workers stop early when the deadline passes, which ends the loop
+	// without an error result. Partial counts would then read as a full run.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	slog.Info("refresh: finished",
 		slog.Int("updated", updated),
@@ -73,16 +77,6 @@ func (h *Handler) postRefreshTMDBAll(w http.ResponseWriter, r *http.Request) err
 		Updated: clampInt32(updated),
 		Failed:  clampInt32(failed),
 	})
-	return nil
-}
-
-func (h *Handler) saveRefresh(ctx context.Context, result *refreshResult) error {
-	if err := h.store.RefreshShow(ctx, metadataFromDetail(result.detail)); err != nil {
-		return err
-	}
-	if result.show.HasEpisodes && result.detail.NumberOfSeasons > 0 {
-		return h.syncAllSeasons(ctx, result.show.ShowID, result.show.Ref.ID, result.detail.NumberOfSeasons, true)
-	}
 	return nil
 }
 

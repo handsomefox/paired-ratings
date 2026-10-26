@@ -21,17 +21,6 @@ func (q *Queries) CountEpisodes(ctx context.Context, showID int64) (int64, error
 	return count, err
 }
 
-const countSeasons = `-- name: CountSeasons :one
-SELECT CAST(coalesce(max(season_number), 0) AS INTEGER) FROM episodes WHERE show_id = ?
-`
-
-func (q *Queries) CountSeasons(ctx context.Context, showID int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countSeasons, showID)
-	var column_1 int64
-	err := row.Scan(&column_1)
-	return column_1, err
-}
-
 const episodeCounts = `-- name: EpisodeCounts :many
 SELECT
 	show_id,
@@ -79,6 +68,17 @@ func (q *Queries) EpisodeCounts(ctx context.Context, showIds []int64) ([]Episode
 		return nil, err
 	}
 	return items, nil
+}
+
+const lastSeason = `-- name: LastSeason :one
+SELECT CAST(coalesce(max(season_number), 0) AS INTEGER) FROM episodes WHERE show_id = ?
+`
+
+func (q *Queries) LastSeason(ctx context.Context, showID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, lastSeason, showID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const listEpisodes = `-- name: ListEpisodes :many

@@ -135,8 +135,9 @@ export interface RatingsRequest {
 }
 
 /**
- * ReorderRequest sends the full ordered list of show IDs for planned shows.
- * The backend assigns positions 1..N in the given order.
+ * ReorderRequest puts the listed shows at the front of the watch order, in the
+ * given order. Shows already in the watch order but not listed keep their
+ * relative order after them.
  */
 export interface ReorderRequest {
   ordered_ids: number[];

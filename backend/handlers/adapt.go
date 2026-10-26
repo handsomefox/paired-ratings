@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -38,6 +41,11 @@ func writeError(w http.ResponseWriter, err error) {
 	if e, ok := errors.AsType[*Error](err); ok {
 		status, message = e.Status, e.Message
 	}
+	// A request deadline can surface through any error, including a wrapped
+	// TMDB failure, so it wins over the status the error carries.
+	if errors.Is(err, context.DeadlineExceeded) {
+		status, message = http.StatusGatewayTimeout, "request timed out"
+	}
 	writeJSON(w, status, &pb.ErrorResponse{Error: message})
 }
 
@@ -49,10 +57,12 @@ type responseRecorder struct {
 	wroteHeader bool
 }
 
+// WriteHeader keeps the first status. net/http ignores a later one anyway.
 func (r *responseRecorder) WriteHeader(status int) {
-	if !r.wroteHeader {
-		r.status, r.wroteHeader = status, true
+	if r.wroteHeader {
+		return
 	}
+	r.status, r.wroteHeader = status, true
 	r.ResponseWriter.WriteHeader(status)
 }
 
@@ -67,11 +77,12 @@ func (r *responseRecorder) Write(b []byte) (int, error) {
 func (r *responseRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
 
 // logRequests writes one log line per request with the status that was sent.
+// It also turns a panic into a 500, so the client still gets an ErrorResponse.
 func logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		rec := &responseRecorder{ResponseWriter: w, status: http.StatusOK}
-		next.ServeHTTP(rec, r)
+		serveRecovered(next, rec, r)
 
 		attrs := []slog.Attr{
 			logger.Status(rec.status),
@@ -92,4 +103,18 @@ func logRequests(next http.Handler) http.Handler {
 		}
 		slog.LogAttrs(r.Context(), level, message, attrs...)
 	})
+}
+
+func serveRecovered(next http.Handler, w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		v := recover()
+		if v == nil {
+			return
+		}
+		if v == http.ErrAbortHandler { //nolint:errorlint // net/http compares the sentinel the same way.
+			panic(v)
+		}
+		writeError(w, fmt.Errorf("panic: %v\n%s", v, debug.Stack()))
+	}()
+	next.ServeHTTP(w, r)
 }

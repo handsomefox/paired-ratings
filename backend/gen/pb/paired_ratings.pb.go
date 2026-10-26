@@ -1196,8 +1196,9 @@ func (x *RatingsRequest) GetGfComment() string {
 	return ""
 }
 
-// ReorderRequest sends the full ordered list of show IDs for planned shows.
-// The backend assigns positions 1..N in the given order.
+// ReorderRequest puts the listed shows at the front of the watch order, in the
+// given order. Shows already in the watch order but not listed keep their
+// relative order after them.
 type ReorderRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrderedIds    []int64                `protobuf:"varint,1,rep,packed,name=ordered_ids,proto3" json:"ordered_ids,omitempty"`
