@@ -73,7 +73,7 @@ only safe for the hashed names Vite generates there.
 ## Build the frontend before the Go build
 
 `backend/web/web.go` embeds `backend/web/dist`. A fresh checkout has no such
-directory, so `go build` and `go test` fail until `npm --prefix frontend run
+directory, so `go build` and `go test` fail until `pnpm --dir frontend run
 build` has run once. This is the usual reason a first build fails.
 
 ## Environment mode is read once, at init

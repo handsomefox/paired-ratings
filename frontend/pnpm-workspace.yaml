@@ -1,0 +1,24 @@
+# Supply-chain policy for every install, including CI and the Railway build.
+# See https://pnpm.io/supply-chain-security.
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 43200
+
+# eslint-plugin-jsx-a11y 6.10 declares ESLint up to 9 as a peer, but works with
+# the ESLint 10 this project pins.
+peerDependencyRules:
+  allowedVersions:
+    eslint-plugin-jsx-a11y>eslint: "10"
+
+# workbox-build 7.4.1, the latest release, asks for glob ^11, and glob fixed
+# GHSA-3g3m-2fjr-6pw4 only in 14.0.2. workbox-build calls only globSync, which
+# glob 14 keeps. Remove this once workbox-build depends on a fixed glob.
+overrides:
+  workbox-build>glob: ^14.0.2
+
+audit:
+  ignore:
+    # minimatch ReDoS. ESLint, up to 10.14.0, still requires minimatch ^10, and
+    # it matches only the patterns in this project's own ESLint config. Remove
+    # this once an ESLint release moves to minimatch 11.0.1 or later.
+    - GHSA-g3hv-75wg-m249

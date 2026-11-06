@@ -7,7 +7,7 @@
 - [ ] `make fmt-check`
 - [ ] `make lint`
 - [ ] `make test`
-- [ ] `npm --prefix frontend run build` ran first, so the Go build has
+- [ ] `pnpm --dir frontend run build` ran first, so the Go build has
       `backend/web/dist` to embed
 
 ## API and schema impact

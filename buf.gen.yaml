@@ -1,5 +1,5 @@
 # `make proto` runs buf with this file. Every plugin is pinned: protoc-gen-go in
-# tools/go.mod and protoc-gen-ts_proto in frontend/package-lock.json.
+# tools/go.mod and protoc-gen-ts_proto in frontend/pnpm-lock.yaml.
 version: v2
 clean: true
 inputs:

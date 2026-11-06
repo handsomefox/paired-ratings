@@ -19,9 +19,9 @@ search, posters, and metadata. The library lives in a SQLite file.
 
 ## Run it locally
 
-You need Go, Node.js, npm, Make, and a TMDB API Read Access Token. `go.mod`
-pins the Go version, `frontend/.nvmrc` pins Node, and `frontend/package.json`
-sets the minimum npm under `engines`. Run `nvm use` in `frontend` to pick up the
+You need Go, Node.js, pnpm, Make, and a TMDB API Read Access Token. `go.mod`
+pins the Go version, `frontend/.nvmrc` pins Node, and `packageManager` in
+`frontend/package.json` pins pnpm. Run `nvm use` in `frontend` to pick up the
 pinned Node.
 
 Write `.env` in the repository root:

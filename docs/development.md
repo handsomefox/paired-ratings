@@ -14,8 +14,8 @@ is nothing to install. Build the frontend once, because
 directory is empty:
 
 ```sh
-npm --prefix frontend ci
-npm --prefix frontend run build
+pnpm --dir frontend install --frozen-lockfile
+pnpm --dir frontend run build
 ```
 
 Start the backend with static serving off, so Vite serves the pages:
@@ -74,9 +74,10 @@ commit `8799861` and run `go run ./backend/cmd/convert-legacy` there.
 ### Build on a host that builds from source
 
 `go.mod` sits at the repository root, so Railpack, the builder Railway uses,
-reads the repository as a Go project and installs no Node. `make build` then
-stops at `npm ci` with `npm: not found`. The root [`mise.toml`](../mise.toml)
-fixes that by naming both toolchains, and Railpack installs what it lists.
+reads the repository as a Go project and installs no Node or pnpm. `make build`
+then stops at `pnpm install` with `pnpm: not found`. The root
+[`mise.toml`](../mise.toml) fixes that by naming every toolchain, and Railpack
+installs what it lists.
 
-Keep `mise.toml` in step with `go.mod` and `frontend/.nvmrc`. CI compares the
-three and fails when they disagree.
+Keep `mise.toml` in step with `go.mod`, `frontend/.nvmrc`, and `packageManager`
+in `frontend/package.json`. CI compares them and fails when they disagree.
