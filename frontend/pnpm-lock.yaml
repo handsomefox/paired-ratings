@@ -163,7 +163,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  workbox-build>glob: ^14.0.2
+  workbox-build>glob: 14.0.3
 
 importers:
 

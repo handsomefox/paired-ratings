@@ -14,7 +14,7 @@ peerDependencyRules:
 # GHSA-3g3m-2fjr-6pw4 only in 14.0.2. workbox-build calls only globSync, which
 # glob 14 keeps. Remove this once workbox-build depends on a fixed glob.
 overrides:
-  workbox-build>glob: ^14.0.2
+  workbox-build>glob: 14.0.3
 
 audit:
   ignore:
