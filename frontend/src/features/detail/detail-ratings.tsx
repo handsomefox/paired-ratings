@@ -44,7 +44,7 @@ export function DetailRatings({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg">Ratings</h2>
-          <p className="text-xs text-muted-foreground">1–10, add a note if you want</p>
+          <p className="text-xs text-muted-foreground">0.5–10, add a note if you want</p>
         </div>
         <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs">
           <span className="uppercase tracking-wide text-muted-foreground">Avg</span>

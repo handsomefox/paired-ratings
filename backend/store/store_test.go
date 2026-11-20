@@ -3,10 +3,12 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -52,23 +54,23 @@ func TestStoreLifecycle(t *testing.T) {
 	assert.Equal(t, []string{"US", "FR"}, got.Countries)
 
 	require.NoError(t, st.UpdateRatings(ctx, id, &RatingsUpdate{
-		BfRating:  Change[int64]{Set: true, Value: new(int64(7))},
+		BfRating:  Change[float64]{Set: true, Value: new(float64(7))},
 		GfComment: Change[string]{Set: true, Value: new("Loved it")},
 	}))
 	rated, err := st.GetShow(ctx, id)
 	require.NoError(t, err)
-	assert.Equal(t, new(int64(7)), rated.BfRating)
+	assert.Equal(t, new(float64(7)), rated.BfRating)
 	assert.Nil(t, rated.GfRating)
 	assert.Equal(t, new("Loved it"), rated.GfComment)
 
 	// A change that is not Set leaves the stored value alone.
 	require.NoError(t, st.UpdateRatings(ctx, id, &RatingsUpdate{
-		GfRating: Change[int64]{Set: true, Value: new(int64(9))},
+		GfRating: Change[float64]{Set: true, Value: new(float64(9))},
 	}))
 	rated, err = st.GetShow(ctx, id)
 	require.NoError(t, err)
-	assert.Equal(t, new(int64(7)), rated.BfRating)
-	assert.Equal(t, new(int64(9)), rated.GfRating)
+	assert.Equal(t, new(float64(7)), rated.BfRating)
+	assert.Equal(t, new(float64(9)), rated.GfRating)
 
 	require.NoError(t, st.ClearRatings(ctx, id))
 	cleared, err := st.GetShow(ctx, id)
@@ -97,7 +99,7 @@ func TestUpsertShowKeepsWhatPeopleChanged(t *testing.T) {
 	meta := Metadata{TMDBID: 7, MediaType: MediaTV, Title: "Old title", Genres: []string{"Drama"}}
 	id := addShow(t, st, &meta, StatusPlanned)
 	require.NoError(t, st.UpdateStatus(ctx, id, StatusWatching))
-	require.NoError(t, st.UpdateRatings(ctx, id, &RatingsUpdate{BfRating: Change[int64]{Set: true, Value: new(int64(8))}}))
+	require.NoError(t, st.UpdateRatings(ctx, id, &RatingsUpdate{BfRating: Change[float64]{Set: true, Value: new(float64(8))}}))
 	require.NoError(t, st.AddToWatchOrder(ctx, id))
 	before, err := st.GetShow(ctx, id)
 	require.NoError(t, err)
@@ -145,11 +147,11 @@ func TestListShowsFiltersAndPages(t *testing.T) {
 	fantasy := addShow(t, st, &Metadata{TMDBID: 2, Title: "The Princess Bride", Year: new(int64(2010)), TMDBRating: new(7.5), Genres: []string{"Fantasy"}, Countries: []string{"US"}}, StatusPlanned)
 	plain := addShow(t, st, &Metadata{TMDBID: 3, Title: "100% Wolf", Year: new(int64(2020))}, StatusPlanned)
 	require.NoError(t, st.UpdateRatings(ctx, sciFi, &RatingsUpdate{
-		BfRating: Change[int64]{Set: true, Value: new(int64(5))},
-		GfRating: Change[int64]{Set: true, Value: new(int64(5))},
+		BfRating: Change[float64]{Set: true, Value: new(float64(5))},
+		GfRating: Change[float64]{Set: true, Value: new(float64(5))},
 	}))
 	require.NoError(t, st.UpdateRatings(ctx, plain, &RatingsUpdate{
-		BfRating: Change[int64]{Set: true, Value: new(int64(6))},
+		BfRating: Change[float64]{Set: true, Value: new(float64(6))},
 	}))
 
 	ids := func(f ListFilters) []int64 {
@@ -254,13 +256,59 @@ func TestLibraryIDsAndStaleShows(t *testing.T) {
 	assert.NotContains(t, library, TMDBRef{ID: 3, MediaType: MediaTV})
 
 	// The upsert stamped tmdb_refreshed_at, and a rating edit must not move it.
-	require.NoError(t, st.UpdateRatings(ctx, tv, &RatingsUpdate{BfRating: Change[int64]{Set: true, Value: new(int64(8))}}))
+	require.NoError(t, st.UpdateRatings(ctx, tv, &RatingsUpdate{BfRating: Change[float64]{Set: true, Value: new(float64(8))}}))
 	fresh, err := st.ListStaleShows(ctx, time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
 	require.NoError(t, err)
 	assert.Empty(t, fresh)
 	stale, err := st.ListStaleShows(ctx, time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC))
 	require.NoError(t, err)
 	assert.Len(t, stale, 2)
+}
+
+// Migration 002 turns the whole-star ratings into half-star ones. It must keep
+// every rating and every row that hangs off a show.
+func TestHalfStarMigrationKeepsData(t *testing.T) {
+	ctx := t.Context()
+	path := filepath.Join(t.TempDir(), "v1.db")
+	old, err := sql.Open("sqlite", path+connectionPragmas)
+	require.NoError(t, err)
+	migrations, err := fs.Sub(migrationFS, "migrations")
+	require.NoError(t, err)
+	provider, err := goose.NewProvider(goose.DialectSQLite3, old, migrations)
+	require.NoError(t, err)
+	_, err = provider.UpTo(ctx, 1)
+	require.NoError(t, err)
+	_, err = old.ExecContext(ctx, `
+		INSERT INTO shows (id, tmdb_id, media_type, title, status, bf_rating, gf_rating, created_at, updated_at, tmdb_refreshed_at)
+		VALUES (1, 10, 'tv', 'Rated', 'watched', 7, NULL, 't', 't', 't'),
+			(2, 11, 'movie', 'Unrated', 'planned', NULL, NULL, 't', 't', 't');
+		INSERT INTO show_genres (show_id, position, name) VALUES (1, 0, 'Drama');
+		INSERT INTO show_countries (show_id, position, code) VALUES (1, 0, 'US');
+		INSERT INTO episodes (show_id, season_number, episode_number, updated_at) VALUES (1, 1, 1, 't');`)
+	require.NoError(t, err)
+	require.NoError(t, old.Close())
+
+	st, err := Open(ctx, path)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, st.Close()) })
+
+	rated, err := st.GetShow(ctx, 1)
+	require.NoError(t, err)
+	assert.Equal(t, new(float64(7)), rated.BfRating)
+	assert.Nil(t, rated.GfRating)
+	assert.Equal(t, []string{"Drama"}, rated.Genres)
+	assert.Equal(t, []string{"US"}, rated.Countries)
+	episodes, err := st.ListEpisodes(ctx, 1)
+	require.NoError(t, err)
+	assert.Len(t, episodes, 1)
+	unrated, err := st.GetShow(ctx, 2)
+	require.NoError(t, err)
+	assert.Nil(t, unrated.BfRating)
+
+	require.NoError(t, st.UpdateRatings(ctx, 1, &RatingsUpdate{GfRating: Change[float64]{Set: true, Value: new(9.5)}}))
+	rated, err = st.GetShow(ctx, 1)
+	require.NoError(t, err)
+	assert.Equal(t, new(9.5), rated.GfRating)
 }
 
 func TestOpenRefusesLegacySchema(t *testing.T) {
@@ -280,10 +328,18 @@ func TestSchemaRejectsInvalidValues(t *testing.T) {
 	st := openTestStore(t)
 	id := addShow(t, st, &Metadata{TMDBID: 1}, StatusPlanned)
 
-	err := st.UpdateRatings(ctx, id, &RatingsUpdate{BfRating: Change[int64]{Set: true, Value: new(int64(11))}})
-	require.Error(t, err)
+	for _, rating := range []float64{0, 0.25, 9.75, 10.5, 11} {
+		err := st.UpdateRatings(ctx, id, &RatingsUpdate{BfRating: Change[float64]{Set: true, Value: &rating}})
+		require.Error(t, err, "rating %v", rating)
+	}
+	for _, rating := range []float64{0.5, 9.5, 10} {
+		require.NoError(t, st.UpdateRatings(ctx, id, &RatingsUpdate{GfRating: Change[float64]{Set: true, Value: &rating}}))
+		show, err := st.GetShow(ctx, id)
+		require.NoError(t, err)
+		require.Equal(t, &rating, show.GfRating)
+	}
 	require.Error(t, st.UpdateStatus(ctx, id, "dropped"))
-	_, err = st.UpsertShow(ctx, &Metadata{TMDBID: 2, MediaType: "book", Title: "x"}, StatusPlanned)
+	_, err := st.UpsertShow(ctx, &Metadata{TMDBID: 2, MediaType: "book", Title: "x"}, StatusPlanned)
 	require.Error(t, err)
 }
 
@@ -294,11 +350,11 @@ func TestListShowsSorts(t *testing.T) {
 	zebra := addShow(t, st, &Metadata{TMDBID: 1, Title: "zebra"}, StatusWatched)
 	apple := addShow(t, st, &Metadata{TMDBID: 2, Title: "Apple"}, StatusWatched)
 	mango := addShow(t, st, &Metadata{TMDBID: 3, Title: "mango"}, StatusWatched)
-	rate := func(id, bf, gf int64) {
+	rate := func(id int64, bf, gf float64) {
 		t.Helper()
-		update := RatingsUpdate{BfRating: Change[int64]{Set: true, Value: &bf}}
+		update := RatingsUpdate{BfRating: Change[float64]{Set: true, Value: &bf}}
 		if gf > 0 {
-			update.GfRating = Change[int64]{Set: true, Value: &gf}
+			update.GfRating = Change[float64]{Set: true, Value: &gf}
 		}
 		require.NoError(t, st.UpdateRatings(ctx, id, &update))
 	}

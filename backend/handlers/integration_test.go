@@ -237,18 +237,25 @@ func TestShowLifecycle(t *testing.T) {
 	c := newClient(t, st, nil)
 
 	detail := decode[pb.ShowDetail](t, c.do(http.MethodPost, showPath(id, "/ratings"),
-		&pb.RatingsRequest{BfRating: new(int32(7)), GfComment: new("  Great  ")}), http.StatusOK)
-	assert.Equal(t, new(int64(7)), detail.Show.BfRating)
+		&pb.RatingsRequest{BfRating: new(float64(7)), GfComment: new("  Great  ")}), http.StatusOK)
+	assert.Equal(t, new(float64(7)), detail.Show.BfRating)
 	assert.Equal(t, new("Great"), detail.Show.GfComment)
 
-	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodPost, showPath(id, "/ratings"), &pb.RatingsRequest{GfRating: new(int32(11))}).Code)
+	for _, rating := range []float64{0, 9.25, 10.5, 11} {
+		rec := c.do(http.MethodPost, showPath(id, "/ratings"), &pb.RatingsRequest{GfRating: &rating})
+		assert.Equal(t, http.StatusBadRequest, rec.Code, "rating %v", rating)
+	}
+	for _, rating := range []float64{0.5, 9.5, 10} {
+		detail = decode[pb.ShowDetail](t, c.do(http.MethodPost, showPath(id, "/ratings"), &pb.RatingsRequest{GfRating: &rating}), http.StatusOK)
+		assert.Equal(t, &rating, detail.Show.GfRating)
+	}
 	assert.Equal(t, http.StatusBadRequest, c.do(http.MethodPost, showPath(id, "/ratings"), &pb.RatingsRequest{}).Code)
 
 	// An empty comment clears it.
 	detail = decode[pb.ShowDetail](t, c.do(http.MethodPost, showPath(id, "/ratings"),
 		&pb.RatingsRequest{GfComment: new("")}), http.StatusOK)
 	assert.Nil(t, detail.Show.GfComment)
-	assert.Equal(t, new(int64(7)), detail.Show.BfRating)
+	assert.Equal(t, new(float64(7)), detail.Show.BfRating)
 
 	detail = decode[pb.ShowDetail](t, c.do(http.MethodPost, showPath(id, "/set-status"), &pb.SetStatusRequest{Status: "watched"}), http.StatusOK)
 	assert.Equal(t, "watched", detail.Show.Status)

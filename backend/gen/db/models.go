@@ -31,13 +31,13 @@ type Show struct {
 	CollectionName  *string
 	Status          string
 	WatchPriority   *int64
-	BfRating        *int64
-	GfRating        *int64
 	BfComment       *string
 	GfComment       *string
 	CreatedAt       string
 	UpdatedAt       string
 	TMDBRefreshedAt string
+	BfRating        *float64
+	GfRating        *float64
 }
 
 type ShowCountry struct {

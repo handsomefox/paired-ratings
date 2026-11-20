@@ -8,12 +8,14 @@ type RatingChipsProps = {
   gfRating: number | undefined;
 };
 
+// Each chip grows from the width of its text, so on a phone "AVG 8.8" gets
+// the room that a short "★ 9" does not need.
 const chipBase =
-  "w-full justify-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold";
+  "min-w-0 flex-auto justify-center gap-0.5 rounded-full border px-1 py-1 text-xs font-semibold tracking-tight sm:px-1.5";
 
 export function RatingChips({ bfName, gfName, bfRating, gfRating }: RatingChipsProps) {
   return (
-    <div className="grid w-full grid-cols-3 gap-2 text-xs">
+    <div className="flex w-full gap-1 text-xs sm:gap-2">
       <Badge variant="bf" className={chipBase}>
         <span aria-hidden="true">★</span>
         <span className="sr-only">{bfName}'s rating</span>

@@ -137,7 +137,7 @@ func (q *Queries) DeleteShowGenres(ctx context.Context, showID int64) error {
 }
 
 const getShow = `-- name: GetShow :one
-SELECT id, tmdb_id, media_type, title, year, overview, poster_path, imdb_id, tmdb_rating, tmdb_votes, collection_id, collection_name, status, watch_priority, bf_rating, gf_rating, bf_comment, gf_comment, created_at, updated_at, tmdb_refreshed_at FROM shows WHERE id = ?
+SELECT id, tmdb_id, media_type, title, year, overview, poster_path, imdb_id, tmdb_rating, tmdb_votes, collection_id, collection_name, status, watch_priority, bf_comment, gf_comment, created_at, updated_at, tmdb_refreshed_at, bf_rating, gf_rating FROM shows WHERE id = ?
 `
 
 func (q *Queries) GetShow(ctx context.Context, id int64) (Show, error) {
@@ -158,13 +158,13 @@ func (q *Queries) GetShow(ctx context.Context, id int64) (Show, error) {
 		&i.CollectionName,
 		&i.Status,
 		&i.WatchPriority,
-		&i.BfRating,
-		&i.GfRating,
 		&i.BfComment,
 		&i.GfComment,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.TMDBRefreshedAt,
+		&i.BfRating,
+		&i.GfRating,
 	)
 	return i, err
 }
@@ -344,7 +344,7 @@ func (q *Queries) ListGenresForShows(ctx context.Context, showIds []int64) ([]Li
 const listShows = `-- name: ListShows :many
 
 WITH params AS (SELECT CAST(?12 AS TEXT) AS sort)
-SELECT shows.id, shows.tmdb_id, shows.media_type, shows.title, shows.year, shows.overview, shows.poster_path, shows.imdb_id, shows.tmdb_rating, shows.tmdb_votes, shows.collection_id, shows.collection_name, shows.status, shows.watch_priority, shows.bf_rating, shows.gf_rating, shows.bf_comment, shows.gf_comment, shows.created_at, shows.updated_at, shows.tmdb_refreshed_at FROM shows, params
+SELECT shows.id, shows.tmdb_id, shows.media_type, shows.title, shows.year, shows.overview, shows.poster_path, shows.imdb_id, shows.tmdb_rating, shows.tmdb_votes, shows.collection_id, shows.collection_name, shows.status, shows.watch_priority, shows.bf_comment, shows.gf_comment, shows.created_at, shows.updated_at, shows.tmdb_refreshed_at, shows.bf_rating, shows.gf_rating FROM shows, params
 WHERE (CAST(?1 AS TEXT) = '' OR shows.status = ?1)
 	AND (CAST(?2 AS INTEGER) IS NULL OR shows.year >= ?2)
 	AND (CAST(?3 AS INTEGER) IS NULL OR shows.year <= ?3)
@@ -436,13 +436,13 @@ func (q *Queries) ListShows(ctx context.Context, arg ListShowsParams) ([]Show, e
 			&i.CollectionName,
 			&i.Status,
 			&i.WatchPriority,
-			&i.BfRating,
-			&i.GfRating,
 			&i.BfComment,
 			&i.GfComment,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.TMDBRefreshedAt,
+			&i.BfRating,
+			&i.GfRating,
 		); err != nil {
 			return nil, err
 		}
@@ -609,8 +609,8 @@ func (q *Queries) ShowsByTMDBIDs(ctx context.Context, tmdbIds []int64) ([]ShowsB
 
 const updateRatings = `-- name: UpdateRatings :execrows
 UPDATE shows SET
-	bf_rating = CASE WHEN CAST(?1 AS INTEGER) THEN CAST(?2 AS INTEGER) ELSE bf_rating END,
-	gf_rating = CASE WHEN CAST(?3 AS INTEGER) THEN CAST(?4 AS INTEGER) ELSE gf_rating END,
+	bf_rating = CASE WHEN CAST(?1 AS INTEGER) THEN CAST(?2 AS REAL) ELSE bf_rating END,
+	gf_rating = CASE WHEN CAST(?3 AS INTEGER) THEN CAST(?4 AS REAL) ELSE gf_rating END,
 	bf_comment = CASE WHEN CAST(?5 AS INTEGER) THEN CAST(?6 AS TEXT) ELSE bf_comment END,
 	gf_comment = CASE WHEN CAST(?7 AS INTEGER) THEN CAST(?8 AS TEXT) ELSE gf_comment END,
 	updated_at = ?9
@@ -619,9 +619,9 @@ WHERE id = ?10
 
 type UpdateRatingsParams struct {
 	SetBfRating  int64
-	BfRating     *int64
+	BfRating     *float64
 	SetGfRating  int64
-	GfRating     *int64
+	GfRating     *float64
 	SetBfComment int64
 	BfComment    *string
 	SetGfComment int64

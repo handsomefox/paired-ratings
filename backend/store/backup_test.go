@@ -15,8 +15,8 @@ func TestBackupIncludesCommittedWALData(t *testing.T) {
 	_, err = st.sqldb.ExecContext(ctx, "PRAGMA wal_autocheckpoint = 0")
 	require.NoError(t, err)
 	id := addShow(t, st, &Metadata{TMDBID: 1, MediaType: MediaTV, Title: "Saved in WAL"}, StatusPlanned)
-	rating := new(int64(8))
-	require.NoError(t, st.UpdateRatings(ctx, id, &RatingsUpdate{BfRating: Change[int64]{Set: true, Value: rating}}))
+	rating := new(8.5)
+	require.NoError(t, st.UpdateRatings(ctx, id, &RatingsUpdate{BfRating: Change[float64]{Set: true, Value: rating}}))
 	require.NoError(t, st.SyncEpisodes(ctx, id, []EpisodeMetadata{{SeasonNumber: 1, EpisodeNumber: 1, Title: new("Pilot")}}))
 	require.NoError(t, st.SetSeasonWatched(ctx, id, 1, true))
 

@@ -77,8 +77,8 @@ type Show struct {
 	ID            int64
 	Status        Status
 	WatchPriority *int64
-	BfRating      *int64
-	GfRating      *int64
+	BfRating      *float64
+	GfRating      *float64
 	BfComment     *string
 	GfComment     *string
 	CreatedAt     string
@@ -129,8 +129,8 @@ type Change[T any] struct {
 }
 
 type RatingsUpdate struct {
-	BfRating  Change[int64]
-	GfRating  Change[int64]
+	BfRating  Change[float64]
+	GfRating  Change[float64]
 	BfComment Change[string]
 	GfComment Change[string]
 }

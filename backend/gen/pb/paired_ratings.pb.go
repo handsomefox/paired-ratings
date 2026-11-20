@@ -148,9 +148,10 @@ type Show struct {
 	TmdbRating *float64 `protobuf:"fixed64,10,opt,name=tmdb_rating,proto3,oneof" json:"tmdb_rating,omitempty"`
 	TmdbVotes  *int64   `protobuf:"varint,11,opt,name=tmdb_votes,proto3,oneof" json:"tmdb_votes,omitempty"`
 	// "planned", "watching", or "watched".
-	Status          string   `protobuf:"bytes,12,opt,name=status,proto3" json:"status,omitempty"`
-	BfRating        *int64   `protobuf:"varint,13,opt,name=bf_rating,proto3,oneof" json:"bf_rating,omitempty"`
-	GfRating        *int64   `protobuf:"varint,14,opt,name=gf_rating,proto3,oneof" json:"gf_rating,omitempty"`
+	Status string `protobuf:"bytes,12,opt,name=status,proto3" json:"status,omitempty"`
+	// From 0.5 to 10 in steps of 0.5.
+	BfRating        *float64 `protobuf:"fixed64,26,opt,name=bf_rating,proto3,oneof" json:"bf_rating,omitempty"`
+	GfRating        *float64 `protobuf:"fixed64,27,opt,name=gf_rating,proto3,oneof" json:"gf_rating,omitempty"`
 	BfComment       *string  `protobuf:"bytes,15,opt,name=bf_comment,proto3,oneof" json:"bf_comment,omitempty"`
 	GfComment       *string  `protobuf:"bytes,16,opt,name=gf_comment,proto3,oneof" json:"gf_comment,omitempty"`
 	CreatedAt       string   `protobuf:"bytes,17,opt,name=created_at,proto3" json:"created_at,omitempty"`
@@ -279,14 +280,14 @@ func (x *Show) GetStatus() string {
 	return ""
 }
 
-func (x *Show) GetBfRating() int64 {
+func (x *Show) GetBfRating() float64 {
 	if x != nil && x.BfRating != nil {
 		return *x.BfRating
 	}
 	return 0
 }
 
-func (x *Show) GetGfRating() int64 {
+func (x *Show) GetGfRating() float64 {
 	if x != nil && x.GfRating != nil {
 		return *x.GfRating
 	}
@@ -1129,11 +1130,12 @@ func (x *AddShowRequest) GetStatus() string {
 }
 
 type RatingsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BfRating      *int32                 `protobuf:"varint,1,opt,name=bf_rating,proto3,oneof" json:"bf_rating,omitempty"`
-	GfRating      *int32                 `protobuf:"varint,2,opt,name=gf_rating,proto3,oneof" json:"gf_rating,omitempty"`
-	BfComment     *string                `protobuf:"bytes,3,opt,name=bf_comment,proto3,oneof" json:"bf_comment,omitempty"`
-	GfComment     *string                `protobuf:"bytes,4,opt,name=gf_comment,proto3,oneof" json:"gf_comment,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// From 0.5 to 10 in steps of 0.5.
+	BfRating      *float64 `protobuf:"fixed64,5,opt,name=bf_rating,proto3,oneof" json:"bf_rating,omitempty"`
+	GfRating      *float64 `protobuf:"fixed64,6,opt,name=gf_rating,proto3,oneof" json:"gf_rating,omitempty"`
+	BfComment     *string  `protobuf:"bytes,3,opt,name=bf_comment,proto3,oneof" json:"bf_comment,omitempty"`
+	GfComment     *string  `protobuf:"bytes,4,opt,name=gf_comment,proto3,oneof" json:"gf_comment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1168,14 +1170,14 @@ func (*RatingsRequest) Descriptor() ([]byte, []int) {
 	return file_paired_ratings_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *RatingsRequest) GetBfRating() int32 {
+func (x *RatingsRequest) GetBfRating() float64 {
 	if x != nil && x.BfRating != nil {
 		return *x.BfRating
 	}
 	return 0
 }
 
-func (x *RatingsRequest) GetGfRating() int32 {
+func (x *RatingsRequest) GetGfRating() float64 {
 	if x != nil && x.GfRating != nil {
 		return *x.GfRating
 	}
@@ -1655,7 +1657,7 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\n" +
 	"\b_gf_name\"%\n" +
 	"\rErrorResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"\xb1\b\n" +
+	"\x05error\x18\x01 \x01(\tR\x05error\"\xbd\b\n" +
 	"\x04Show\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x18\n" +
 	"\atmdb_id\x18\x02 \x01(\x03R\atmdb_id\x12\x1e\n" +
@@ -1674,8 +1676,8 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"tmdb_votes\x18\v \x01(\x03H\x05R\n" +
 	"tmdb_votes\x88\x01\x01\x12\x16\n" +
 	"\x06status\x18\f \x01(\tR\x06status\x12!\n" +
-	"\tbf_rating\x18\r \x01(\x03H\x06R\tbf_rating\x88\x01\x01\x12!\n" +
-	"\tgf_rating\x18\x0e \x01(\x03H\aR\tgf_rating\x88\x01\x01\x12#\n" +
+	"\tbf_rating\x18\x1a \x01(\x01H\x06R\tbf_rating\x88\x01\x01\x12!\n" +
+	"\tgf_rating\x18\x1b \x01(\x01H\aR\tgf_rating\x88\x01\x01\x12#\n" +
 	"\n" +
 	"bf_comment\x18\x0f \x01(\tH\bR\n" +
 	"bf_comment\x88\x01\x01\x12#\n" +
@@ -1712,7 +1714,7 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\x0e_collection_idB\x12\n" +
 	"\x10_collection_nameB\x13\n" +
 	"\x11_watched_episodesB\x11\n" +
-	"\x0f_total_episodesJ\x04\b\x06\x10\a\"f\n" +
+	"\x0f_total_episodesJ\x04\b\x06\x10\aJ\x04\b\r\x10\x0eJ\x04\b\x0e\x10\x0f\"f\n" +
 	"\n" +
 	"ShowDetail\x12*\n" +
 	"\x04show\x18\x01 \x01(\v2\x16.pairedratings.v1.ShowR\x04show\x12\x1f\n" +
@@ -1777,10 +1779,10 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\n" +
 	"media_type\x18\x02 \x01(\tR\n" +
 	"media_type\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status\"\xda\x01\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\"\xe6\x01\n" +
 	"\x0eRatingsRequest\x12!\n" +
-	"\tbf_rating\x18\x01 \x01(\x05H\x00R\tbf_rating\x88\x01\x01\x12!\n" +
-	"\tgf_rating\x18\x02 \x01(\x05H\x01R\tgf_rating\x88\x01\x01\x12#\n" +
+	"\tbf_rating\x18\x05 \x01(\x01H\x00R\tbf_rating\x88\x01\x01\x12!\n" +
+	"\tgf_rating\x18\x06 \x01(\x01H\x01R\tgf_rating\x88\x01\x01\x12#\n" +
 	"\n" +
 	"bf_comment\x18\x03 \x01(\tH\x02R\n" +
 	"bf_comment\x88\x01\x01\x12#\n" +
@@ -1792,7 +1794,7 @@ const file_paired_ratings_proto_rawDesc = "" +
 	"\n" +
 	"_gf_ratingB\r\n" +
 	"\v_bf_commentB\r\n" +
-	"\v_gf_comment\"2\n" +
+	"\v_gf_commentJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03\"2\n" +
 	"\x0eReorderRequest\x12 \n" +
 	"\vordered_ids\x18\x01 \x03(\x03R\vordered_ids\"*\n" +
 	"\x10SetStatusRequest\x12\x16\n" +

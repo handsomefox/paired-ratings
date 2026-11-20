@@ -230,16 +230,16 @@ func (h *Handler) postShowRatings(w http.ResponseWriter, r *http.Request) error 
 
 	var update store.RatingsUpdate
 	for _, rating := range []struct {
-		value  *int32
-		change *store.Change[int64]
+		value  *float64
+		change *store.Change[float64]
 	}{{req.BfRating, &update.BfRating}, {req.GfRating, &update.GfRating}} {
 		if rating.value == nil {
 			continue
 		}
-		if *rating.value < 1 || *rating.value > 10 {
-			return badRequest("ratings go from 1 to 10")
+		if !validRating(*rating.value) {
+			return badRequest("ratings go from 0.5 to 10 in steps of 0.5")
 		}
-		*rating.change = store.Change[int64]{Set: true, Value: new(int64(*rating.value))}
+		*rating.change = store.Change[float64]{Set: true, Value: new(*rating.value)}
 	}
 	// An empty comment clears it.
 	if req.BfComment != nil {
@@ -255,6 +255,12 @@ func (h *Handler) postShowRatings(w http.ResponseWriter, r *http.Request) error 
 	return h.updateShow(w, r, func(ctx context.Context, id int64) error {
 		return h.store.UpdateRatings(ctx, id, &update)
 	})
+}
+
+// validRating reports a rating from 0.5 to 10 in steps of 0.5. NaN fails
+// every comparison, so it is rejected too.
+func validRating(v float64) bool {
+	return v >= 0.5 && v <= 10 && v*2 == math.Trunc(v*2)
 }
 
 func (h *Handler) postShowClearRatings(w http.ResponseWriter, r *http.Request) error {

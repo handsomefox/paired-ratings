@@ -32,8 +32,11 @@ message Show {
   optional int64 tmdb_votes = 11 [json_name = "tmdb_votes"];
   // "planned", "watching", or "watched".
   string status = 12 [json_name = "status"];
-  optional int64 bf_rating = 13 [json_name = "bf_rating"];
-  optional int64 gf_rating = 14 [json_name = "gf_rating"];
+  // Fields 13 and 14 held the ratings as whole numbers, before half stars.
+  reserved 13, 14;
+  // From 0.5 to 10 in steps of 0.5.
+  optional double bf_rating = 26 [json_name = "bf_rating"];
+  optional double gf_rating = 27 [json_name = "gf_rating"];
   optional string bf_comment = 15 [json_name = "bf_comment"];
   optional string gf_comment = 16 [json_name = "gf_comment"];
   string created_at = 17 [json_name = "created_at"];
@@ -127,8 +130,11 @@ message AddShowRequest {
 }
 
 message RatingsRequest {
-  optional int32 bf_rating = 1 [json_name = "bf_rating"];
-  optional int32 gf_rating = 2 [json_name = "gf_rating"];
+  // Fields 1 and 2 held the ratings as whole numbers, before half stars.
+  reserved 1, 2;
+  // From 0.5 to 10 in steps of 0.5.
+  optional double bf_rating = 5 [json_name = "bf_rating"];
+  optional double gf_rating = 6 [json_name = "gf_rating"];
   optional string bf_comment = 3 [json_name = "bf_comment"];
   optional string gf_comment = 4 [json_name = "gf_comment"];
 }

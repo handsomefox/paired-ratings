@@ -63,6 +63,14 @@ describe("combinedRating", () => {
     expect(combinedRating(8, 7)).toBe("7.5");
   });
 
+  // Two half-star ratings can average to a quarter. The card has room for
+  // one decimal.
+  it("rounds an average of half stars to one decimal", () => {
+    expect(combinedRating(9.5, 8)).toBe("8.8");
+    expect(combinedRating(0.5, 0.5)).toBe("0.5");
+    expect(combinedRating(9.5, undefined)).toBe("9.5");
+  });
+
   it("uses the only rating when one is missing", () => {
     expect(combinedRating(9, undefined)).toBe("9");
     expect(combinedRating(null, 4)).toBe("4");

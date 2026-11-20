@@ -144,8 +144,8 @@ SELECT id, tmdb_id, media_type FROM shows WHERE tmdb_id IN (sqlc.slice(tmdb_ids)
 -- Each set_* flag says whether the matching value replaces the stored one, so
 -- two people saving their own rating at the same time cannot undo each other.
 UPDATE shows SET
-	bf_rating = CASE WHEN CAST(sqlc.arg(set_bf_rating) AS INTEGER) THEN CAST(sqlc.narg(bf_rating) AS INTEGER) ELSE bf_rating END,
-	gf_rating = CASE WHEN CAST(sqlc.arg(set_gf_rating) AS INTEGER) THEN CAST(sqlc.narg(gf_rating) AS INTEGER) ELSE gf_rating END,
+	bf_rating = CASE WHEN CAST(sqlc.arg(set_bf_rating) AS INTEGER) THEN CAST(sqlc.narg(bf_rating) AS REAL) ELSE bf_rating END,
+	gf_rating = CASE WHEN CAST(sqlc.arg(set_gf_rating) AS INTEGER) THEN CAST(sqlc.narg(gf_rating) AS REAL) ELSE gf_rating END,
 	bf_comment = CASE WHEN CAST(sqlc.arg(set_bf_comment) AS INTEGER) THEN CAST(sqlc.narg(bf_comment) AS TEXT) ELSE bf_comment END,
 	gf_comment = CASE WHEN CAST(sqlc.arg(set_gf_comment) AS INTEGER) THEN CAST(sqlc.narg(gf_comment) AS TEXT) ELSE gf_comment END,
 	updated_at = sqlc.arg(now)

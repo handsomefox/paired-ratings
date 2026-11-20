@@ -3,8 +3,14 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Pencil } from "lucide-react";
+import { useRef, useState, type KeyboardEvent } from "react";
 
-const ratingValues = Array.from({ length: 10 }, (_, index) => index + 1);
+const stars = Array.from({ length: 10 }, (_, index) => index + 1);
+
+const MIN_RATING = 0.5;
+const MAX_RATING = 10;
+
+const starLabel = (rating: number) => `${rating} star${rating === 1 ? "" : "s"}`;
 
 type StarRatingProps = {
   value: number | null;
@@ -13,29 +19,87 @@ type StarRatingProps = {
   label: string;
 };
 
+/**
+ * Ten stars, each split into a left half and a right half, so a rating goes
+ * from 0.5 to 10 in steps of 0.5. It is a radio group: Tab reaches the
+ * current rating, and the arrow keys move it half a star at a time.
+ */
 function StarRating({ value, onChange, tone, label }: StarRatingProps) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const radios = useRef(new Map<number, HTMLButtonElement>());
+  const shown = hovered ?? value ?? 0;
+  const tabStop = value ?? MIN_RATING;
+  const toneClass = tone === "bf" ? "text-bf" : "text-gf";
+  const idleClass = tone === "bf" ? "text-bf/30" : "text-gf/30";
+
+  const moveTo = (rating: number) => {
+    const next = Math.min(MAX_RATING, Math.max(MIN_RATING, rating));
+    onChange(next);
+    radios.current.get(next)?.focus();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, rating: number) => {
+    const target = {
+      ArrowRight: rating + 0.5,
+      ArrowUp: rating + 0.5,
+      ArrowLeft: rating - 0.5,
+      ArrowDown: rating - 0.5,
+      Home: MIN_RATING,
+      End: MAX_RATING,
+    }[event.key];
+    if (target === undefined) return;
+    event.preventDefault();
+    moveTo(target);
+  };
+
   return (
     // Each star stretches to an equal share of the row, so a phone gets
     // targets as wide as the screen allows rather than 22 px glyphs.
-    <div role="group" aria-label={label} className="flex items-center">
-      {ratingValues.map((rating) => {
-        const active = value !== null && rating <= value;
-        const toneClass = tone === "bf" ? "text-bf" : "text-gf";
-        const idleClass = tone === "bf" ? "text-bf/30" : "text-gf/30";
+    <div role="radiogroup" aria-label={label} className="flex items-center">
+      {stars.map((star) => {
+        const fill = shown >= star ? "100%" : shown >= star - 0.5 ? "50%" : "0%";
         return (
-          <button
-            key={rating}
-            type="button"
-            onClick={() => onChange(rating)}
-            className={cn(
-              "flex h-10 flex-1 cursor-pointer items-center justify-center text-[24px] leading-none transition hover:-translate-y-0.5",
-              active ? toneClass : idleClass,
-            )}
-            aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
-            aria-pressed={value === rating}
+          <div
+            key={star}
+            className="group relative flex h-10 flex-1 items-center justify-center text-[24px] leading-none sm:text-[28px]"
           >
-            ★
-          </button>
+            <span
+              aria-hidden="true"
+              className="relative inline-block transition group-hover:-translate-y-0.5"
+            >
+              <span className={idleClass}>★</span>
+              <span
+                className={cn("absolute inset-y-0 left-0 overflow-hidden", toneClass)}
+                style={{ width: fill }}
+              >
+                ★
+              </span>
+            </span>
+            {[star - 0.5, star].map((rating) => (
+              <button
+                key={rating}
+                ref={(node) => {
+                  if (node) radios.current.set(rating, node);
+                  else radios.current.delete(rating);
+                }}
+                type="button"
+                role="radio"
+                aria-checked={value === rating}
+                aria-label={starLabel(rating)}
+                tabIndex={rating === tabStop ? 0 : -1}
+                onClick={() => onChange(rating)}
+                // Moving between halves leaves one radio and enters the next in
+                // the same frame, so the preview does not flicker.
+                onMouseEnter={() => setHovered(rating)}
+                onMouseLeave={() => setHovered(null)}
+                onKeyDown={(event) => handleKeyDown(event, rating)}
+                className={cn(
+                  "absolute inset-y-0 w-1/2 cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  rating === star ? "right-0" : "left-0",
+                )}
+              />
+            ))}
+          </div>
         );
       })}
     </div>

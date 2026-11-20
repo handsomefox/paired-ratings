@@ -36,6 +36,7 @@ export interface Show {
     | undefined;
   /** "planned", "watching", or "watched". */
   status: string;
+  /** From 0.5 to 10 in steps of 0.5. */
   bf_rating?: number | undefined;
   gf_rating?: number | undefined;
   bf_comment?: string | undefined;
@@ -128,6 +129,7 @@ export interface AddShowRequest {
 }
 
 export interface RatingsRequest {
+  /** From 0.5 to 10 in steps of 0.5. */
   bf_rating?: number | undefined;
   gf_rating?: number | undefined;
   bf_comment?: string | undefined;
