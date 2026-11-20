@@ -8,7 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { DetailHero } from "@/features/detail/detail-hero";
 import {
   DetailRatings,
@@ -60,6 +60,7 @@ export function DetailContent({
   const queryClient = useQueryClient();
   const showId = show.id;
   const [pendingDelete, setPendingDelete] = useState(false);
+  const [pendingClear, setPendingClear] = useState(false);
   const [forms, setForms] = useState<RatingForms>(() => ({
     bf: ratingForm(show.bf_rating, show.bf_comment),
     gf: ratingForm(show.gf_rating, show.gf_comment),
@@ -67,6 +68,9 @@ export function DetailContent({
   // What the server holds, to tell whether Save has anything to send.
   const [savedForms, setSavedForms] = useState(forms);
   const isDirty = !sameRating(forms.bf, savedForms.bf) || !sameRating(forms.gf, savedForms.gf);
+  // Clearing removes what is saved, so it needs a saved rating or comment.
+  const hasSavedRatings =
+    !sameRating(savedForms.bf, clearedForms.bf) || !sameRating(savedForms.gf, clearedForms.gf);
 
   const updateForm = (person: Person, patch: Partial<RatingForm>) =>
     setForms((prev) => ({ ...prev, [person]: { ...prev[person], ...patch } }));
@@ -197,8 +201,8 @@ export function DetailContent({
         forms={forms}
         onChange={updateForm}
         average={combinedRating(forms.bf.rating, forms.gf.rating)}
-        onClearRatings={() => clearRatingsMutation.mutate()}
-        clearPending={clearRatingsMutation.isPending}
+        onClearRatings={() => setPendingClear(true)}
+        clearDisabled={!hasSavedRatings || clearRatingsMutation.isPending}
         onSave={() => updateMutation.mutate()}
         saveDisabled={!isDirty}
         savePending={updateMutation.isPending}
@@ -218,7 +222,32 @@ export function DetailContent({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteMutation.mutate()}>Delete</AlertDialogAction>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
+              onClick={() => deleteMutation.mutate()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={pendingClear} onOpenChange={setPendingClear}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear ratings?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes both ratings and both comments for “{show.title}”.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
+              onClick={() => clearRatingsMutation.mutate()}
+            >
+              Clear
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DetailRatingPanel } from "@/features/detail/detail-rating-panel";
+import { Eraser } from "lucide-react";
 
 export type Person = "bf" | "gf";
 
@@ -19,8 +20,9 @@ type DetailRatingsProps = {
   forms: RatingForms;
   onChange: (person: Person, patch: Partial<RatingForm>) => void;
   average: string;
+  /** Asks to clear both ratings and comments. */
   onClearRatings: () => void;
-  clearPending: boolean;
+  clearDisabled: boolean;
   onSave: () => void;
   saveDisabled: boolean;
   savePending: boolean;
@@ -34,7 +36,7 @@ export function DetailRatings({
   onChange,
   average,
   onClearRatings,
-  clearPending,
+  clearDisabled,
   onSave,
   saveDisabled,
   savePending,
@@ -46,9 +48,22 @@ export function DetailRatings({
           <h2 className="text-lg">Ratings</h2>
           <p className="text-xs text-muted-foreground">0.5–10, add a note if you want</p>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs">
-          <span className="uppercase tracking-wide text-muted-foreground">Avg</span>
-          <strong>{average}</strong>
+        {/* Clear sits up here, away from Save, so a miss does not hit it. */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 rounded-full border-destructive/40 bg-destructive/10 px-3 text-xs text-destructive hover:bg-destructive/20 hover:text-destructive"
+            onClick={onClearRatings}
+            disabled={clearDisabled}
+          >
+            <Eraser className="h-3.5 w-3.5" aria-hidden="true" />
+            Clear
+          </Button>
+          <div className="inline-flex h-7 items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 text-xs">
+            <span className="uppercase tracking-wide text-muted-foreground">Avg</span>
+            <strong>{average}</strong>
+          </div>
         </div>
       </div>
 
@@ -70,15 +85,7 @@ export function DetailRatings({
         ))}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 sm:mt-6">
-        <Button
-          variant="ghost"
-          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          onClick={onClearRatings}
-          disabled={clearPending}
-        >
-          Clear ratings
-        </Button>
+      <div className="mt-4 flex justify-end sm:mt-6">
         <Button variant="gf" onClick={onSave} disabled={saveDisabled || savePending}>
           Save ratings
         </Button>
