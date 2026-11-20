@@ -207,7 +207,9 @@ export function LibraryFilters({
         <Button
           type="button"
           variant="outline"
-          className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+          // An inset ring rather than a border, as on badges, so the rounded
+          // corners are not jagged at a fractional display scale.
+          className="inset-ring inset-ring-primary/40 border-0 bg-primary/10 px-[17px] text-primary hover:bg-primary/20 hover:text-primary"
           onClick={onRefresh}
           disabled={refreshPending}
         >

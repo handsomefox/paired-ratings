@@ -53,14 +53,16 @@ export function DetailRatings({
           <Button
             variant="outline"
             size="sm"
-            className="h-7 rounded-full border-destructive/40 bg-destructive/10 px-3 text-xs text-destructive hover:bg-destructive/20 hover:text-destructive"
+            // An inset ring rather than a border, as on badges, so the pill's
+            // curves are not jagged at a fractional display scale.
+            className="inset-ring inset-ring-destructive/40 h-7 rounded-full border-0 bg-destructive/10 px-[13px] text-xs text-destructive hover:bg-destructive/20 hover:text-destructive"
             onClick={onClearRatings}
             disabled={clearDisabled}
           >
             <Eraser className="h-3.5 w-3.5" aria-hidden="true" />
             Clear
           </Button>
-          <div className="inline-flex h-7 items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 text-xs">
+          <div className="inset-ring inset-ring-border/60 inline-flex h-7 items-center gap-2 rounded-full bg-muted/40 px-[13px] text-xs">
             <span className="uppercase tracking-wide text-muted-foreground">Avg</span>
             <strong>{average}</strong>
           </div>
