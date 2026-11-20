@@ -25,6 +25,11 @@ export function InfoHint({ label, children }: InfoHintProps) {
         aria-label={label}
         onPointerEnter={hover(true)}
         onPointerLeave={hover(false)}
+        // Hovering already opened it, so a mouse click would only toggle it
+        // shut under the pointer. Taps and the keyboard still toggle.
+        onClick={(event) => {
+          if ((event.nativeEvent as PointerEvent).pointerType === "mouse") event.preventDefault();
+        }}
         className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Info className="h-4 w-4" aria-hidden="true" />
