@@ -109,6 +109,25 @@ function UnseenDot() {
   );
 }
 
+/**
+ * The "What's new" label in a menu, with the same dot as the button that
+ * opened the menu, so the dot leads somewhere.
+ */
+function WhatsNewLabel({ unseen }: { unseen: boolean }) {
+  return (
+    <>
+      <Sparkles className="h-4 w-4" />
+      What's new
+      {unseen ? (
+        <>
+          <span aria-hidden="true" className="ml-auto h-2 w-2 shrink-0 rounded-full bg-primary" />
+          <span className="sr-only">, new</span>
+        </>
+      ) : null}
+    </>
+  );
+}
+
 function NavLink({ to, children }: { to: NavTarget; children: ReactNode }) {
   return (
     <Link
@@ -183,8 +202,7 @@ export function Navbar() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
                 <Link to="/whats-new">
-                  <Sparkles className="h-4 w-4" />
-                  What's new
+                  <WhatsNewLabel unseen={hasUnseenChanges} />
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={exportJSON}>
@@ -260,8 +278,7 @@ export function TabBar() {
             <div className="mt-5 grid gap-2">
               <SheetClose asChild>
                 <Link to="/whats-new" className={sheetItemClass}>
-                  <Sparkles className="h-4 w-4" />
-                  What's new
+                  <WhatsNewLabel unseen={hasUnseenChanges} />
                 </Link>
               </SheetClose>
               <SheetClose asChild>
