@@ -28,7 +28,9 @@ export function RatingChips({ bfName, gfName, bfRating, gfRating }: RatingChipsP
       </Badge>
       <Badge
         variant="outline"
-        className={`${chipBase} border-border/60 bg-muted/40 text-foreground`}
+        // The label is smaller than the number, so centring their boxes would
+        // put the label's baseline higher. Line them up on the baseline.
+        className={`${chipBase} items-baseline border-border/60 bg-muted/40 text-foreground`}
       >
         <span className="text-[0.65rem] font-semibold tracking-wide">AVG</span>
         <strong>{combinedRating(bfRating, gfRating)}</strong>
