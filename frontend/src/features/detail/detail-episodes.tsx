@@ -221,8 +221,11 @@ export function DetailEpisodes({ showId }: DetailEpisodesProps) {
                             <div className="truncate text-sm">
                               {ep.title ?? `Episode ${ep.episode_number}`}
                             </div>
-                            <div className="flex gap-3 text-[10px] text-muted-foreground">
+                            <div className="flex gap-1.5 text-[10px] text-muted-foreground">
                               {ep.air_date && <span>{ep.air_date}</span>}
+                              {ep.air_date && ep.runtime != null && ep.runtime > 0 && (
+                                <span aria-hidden="true">·</span>
+                              )}
                               {ep.runtime != null && ep.runtime > 0 && <span>{ep.runtime}m</span>}
                             </div>
                           </div>
