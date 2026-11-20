@@ -21,7 +21,7 @@ export function TmdbRatingBadge({ rating, votes, className }: TmdbRatingBadgePro
   return (
     <Badge
       variant="outline"
-      className={cn("gap-0.5 px-1.5 tracking-tight", tmdbRatingTone(rating), className)}
+      className={cn("gap-0.5 px-[7px] tracking-tight", tmdbRatingTone(rating), className)}
     >
       <span>{formatScore(rating)}</span>
       {votes ? (

@@ -8,7 +8,7 @@ export function InLibraryLink({ libraryId }: { libraryId: number }) {
     <ShowLink showId={libraryId} className="block w-full">
       <Badge
         variant="outline"
-        className="h-8 w-full justify-center gap-1 rounded-md border-primary/40 bg-primary/15 px-3 text-xs text-primary hover:bg-primary/20"
+        className="inset-ring-primary/40 h-8 w-full justify-center gap-1 rounded-md bg-primary/15 px-[13px] text-xs text-primary hover:bg-primary/20"
       >
         In library
       </Badge>
