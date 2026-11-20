@@ -27,7 +27,15 @@ export function InfoHint({ label, children }: InfoHintProps) {
       <PopoverTrigger
         aria-label={label}
         onPointerEnter={hover(true)}
-        onPointerLeave={hover(false)}
+        // A press that leaves the button never becomes a click, so forget it;
+        // otherwise a later Enter would look like a mouse click.
+        onPointerLeave={(event) => {
+          pressedBy.current = null;
+          hover(false)(event);
+        }}
+        onPointerCancel={() => {
+          pressedBy.current = null;
+        }}
         onPointerDown={(event) => {
           pressedBy.current = event.pointerType;
         }}

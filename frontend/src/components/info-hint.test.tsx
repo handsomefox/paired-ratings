@@ -43,6 +43,16 @@ describe("InfoHint", () => {
     expect(button).toHaveAttribute("data-state", "open");
   });
 
+  it("forgets a mouse press that left the button before a later keypress", () => {
+    const button = renderHint();
+
+    fireEvent.pointerDown(button, { pointerType: "mouse" });
+    fireEvent.pointerLeave(button, { pointerType: "mouse" });
+    clickAs(button, "");
+
+    expect(button).toHaveAttribute("data-state", "open");
+  });
+
   it("opens from the keyboard, which presses no pointer", () => {
     const button = renderHint();
 
