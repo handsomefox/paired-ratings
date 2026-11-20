@@ -5,6 +5,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -116,6 +117,7 @@ export function DetailHero({
                   </div>
                 </div>
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={onRequestDelete}
                 className="text-destructive focus:bg-destructive/10 focus:text-destructive"
