@@ -75,8 +75,9 @@ export function DetailRatingPanel({
         </Badge>
         <span className={cn(isBf ? "text-bf" : "text-gf")}>{name}</span>
       </div>
-      {/* Capped with the stars, so the number sits at their end. */}
-      <div className="max-w-sm space-y-2">
+      {/* The stars span the panel, so the number sits at their end and at the
+          edge of the panel, on a phone and on a wide screen alike. */}
+      <div className="space-y-2">
         <div className="flex items-baseline justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Rating
           <span className="normal-case tabular-nums">
