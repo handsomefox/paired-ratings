@@ -1,6 +1,6 @@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Info } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 type InfoHintProps = {
   /** Names the button, such as "About Refresh TMDB". */
@@ -15,6 +15,9 @@ type InfoHintProps = {
  */
 export function InfoHint({ label, children }: InfoHintProps) {
   const [open, setOpen] = useState(false);
+  // What pressed the button last. The click's own pointerType cannot tell:
+  // Safari on iOS reports a tap's click as "mouse".
+  const pressedBy = useRef<string | null>(null);
   const hover = (next: boolean) => (event: React.PointerEvent) => {
     if (event.pointerType === "mouse") setOpen(next);
   };
@@ -25,10 +28,15 @@ export function InfoHint({ label, children }: InfoHintProps) {
         aria-label={label}
         onPointerEnter={hover(true)}
         onPointerLeave={hover(false)}
+        onPointerDown={(event) => {
+          pressedBy.current = event.pointerType;
+        }}
         // Hovering already opened it, so a mouse click would only toggle it
-        // shut under the pointer. Taps and the keyboard still toggle.
+        // shut under the pointer. A tap, a pen, or the keyboard, which
+        // presses no pointer at all, still toggles it.
         onClick={(event) => {
-          if ((event.nativeEvent as PointerEvent).pointerType === "mouse") event.preventDefault();
+          if (pressedBy.current === "mouse") event.preventDefault();
+          pressedBy.current = null;
         }}
         className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
