@@ -59,6 +59,19 @@ export function OptionLabel({
   );
 }
 
+// The check sits in a slot on the left, as in a Radix select, so every row's
+// code lines up at the right edge whether or not the row is selected.
+const itemClass = "relative pl-8";
+
+function SelectedCheck({ selected }: { selected: boolean }) {
+  return (
+    <Check
+      aria-hidden="true"
+      className={cn("absolute left-2 h-4 w-4", selected ? "opacity-100" : "opacity-0")}
+    />
+  );
+}
+
 export function GenericCombobox({
   id,
   value,
@@ -96,7 +109,7 @@ export function GenericCombobox({
         <Command>
           {isDesktop ? <CommandInput placeholder={searchPlaceholder} /> : null}
           <CommandList
-            className="max-h-[min(15rem,calc(100svh-12rem))] touch-pan-y overflow-y-auto overscroll-contain pr-2"
+            className="max-h-[min(15rem,calc(100svh-12rem))] touch-pan-y overflow-y-auto overscroll-contain"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             <CommandEmpty>{emptyText}</CommandEmpty>
@@ -108,12 +121,10 @@ export function GenericCombobox({
                   onValueChange("");
                   setOpen(false);
                 }}
-                className="flex items-center"
+                className={itemClass}
               >
+                <SelectedCheck selected={!value} />
                 <span className="min-w-0 flex-1 truncate">{ANY_LABEL}</span>
-                <Check
-                  className={cn("ml-2 h-4 w-4 shrink-0", value ? "opacity-0" : "opacity-100")}
-                />
               </CommandItem>
 
               {options.map((option) => (
@@ -124,15 +135,10 @@ export function GenericCombobox({
                     onValueChange(option.code);
                     setOpen(false);
                   }}
-                  className="flex items-center"
+                  className={itemClass}
                 >
+                  <SelectedCheck selected={value === option.code} />
                   <span className="min-w-0 flex-1 truncate">{renderLabel(option)}</span>
-                  <Check
-                    className={cn(
-                      "ml-2 h-4 w-4 shrink-0",
-                      value === option.code ? "opacity-100" : "opacity-0",
-                    )}
-                  />
                 </CommandItem>
               ))}
             </CommandGroup>
