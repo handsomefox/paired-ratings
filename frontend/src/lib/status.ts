@@ -13,22 +13,25 @@ export function isShowStatus(value: string | undefined): value is ShowStatus {
 type StatusStyle = {
   /** Solid ribbon on a library card poster. */
   ribbon: string;
-  /** Tinted chip, such as the status picker on the detail page. */
+  /**
+   * Tinted chip, such as the status picker on the detail page. The outline is
+   * an inset ring, as on Badge, so the chip needs inset-ring and no border.
+   */
   chip: string;
 };
 
 const statusStyles: Record<ShowStatus, StatusStyle> = {
   planned: {
     ribbon: "bg-gf/75",
-    chip: "border-gf/40 bg-gf/10 text-gf hover:bg-gf/20",
+    chip: "inset-ring-gf/40 bg-gf/10 text-gf hover:bg-gf/20",
   },
   watching: {
     ribbon: "bg-amber-500/75",
-    chip: "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20",
+    chip: "inset-ring-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20",
   },
   watched: {
     ribbon: "bg-bf/75",
-    chip: "border-bf/40 bg-bf/10 text-bf hover:bg-bf/20",
+    chip: "inset-ring-bf/40 bg-bf/10 text-bf hover:bg-bf/20",
   },
 };
 

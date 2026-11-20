@@ -84,11 +84,6 @@ export function formatScore(value?: number | null) {
   return value.toFixed(1);
 }
 
-export function formatVotes(value?: number | null) {
-  if (!value || value <= 0) return "";
-  return String(value);
-}
-
 // A fixed locale keeps the suffixes the same on every device: "4.5K", not
 // "4,5 тыс.".
 const compactNumber = new Intl.NumberFormat("en", { notation: "compact" });

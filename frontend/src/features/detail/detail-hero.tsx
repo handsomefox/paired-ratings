@@ -1,5 +1,12 @@
 import { OriginCountriesChip } from "@/components/origin-countries-chip";
+import { TmdbRatingBadge } from "@/components/tmdb-rating-badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -10,9 +17,16 @@ import {
 import type { ApiShow } from "@/lib/api";
 import type { SearchPageSearch } from "@/features/search/search-utils";
 import { displayStatus, showStatusOptions, statusStyle } from "@/lib/status";
-import { cn, formatScore, formatVotes } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
-import { ExternalLink, ListOrdered, Telescope, RotateCcw, Trash2 } from "lucide-react";
+import {
+  ExternalLink,
+  ListOrdered,
+  MoreHorizontal,
+  RotateCcw,
+  Telescope,
+  Trash2,
+} from "lucide-react";
 
 // Taller on phones, where the buttons sit in a two-column grid under a thumb,
 // and a long label wraps rather than overflowing its half of the row.
@@ -53,21 +67,6 @@ export function DetailHero({
   const inWatchOrder = show.watch_priority != null;
   const showWatchOrderButton = show.status !== "watched";
   const status = displayStatus(show.status);
-  const tmdbScore = (
-    <span className="whitespace-nowrap font-normal normal-case text-muted-foreground">
-      {show.tmdb_rating ? (
-        <>
-          {formatScore(show.tmdb_rating)}
-          {/* A narrow phone has room for the score but not the vote count. */}
-          {show.tmdb_votes ? (
-            <span className="max-sm:sr-only"> ({formatVotes(show.tmdb_votes)})</span>
-          ) : null}
-        </>
-      ) : (
-        "—"
-      )}
-    </span>
-  );
   return (
     // On a phone the poster sits beside the title at thumbnail size, so the
     // title, status and actions are on the first screen. From lg up it is a
@@ -89,16 +88,50 @@ export function DetailHero({
         </div>
       </div>
       <div className="min-w-0 space-y-3 lg:pr-8 lg:pt-8">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="text-xl sm:text-2xl">{show.title}</h1>
-          {show.year ? <span className="text-sm text-muted-foreground">{show.year}</span> : null}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h1 className="text-xl sm:text-2xl">{show.title}</h1>
+            {show.year ? <span className="text-sm text-muted-foreground">{show.year}</span> : null}
+          </div>
+          {/* The rare actions, out of the row of everyday ones, so Delete is
+              never one slip away from Find Similar. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="-mr-2 h-8 w-8 shrink-0 rounded-full p-0 text-muted-foreground"
+                aria-label="More actions for this show"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuItem onSelect={onRefresh} disabled={refreshPending}>
+                <RotateCcw className="h-4 w-4" />
+                <div>
+                  <div>Refresh TMDB</div>
+                  <div className="text-xs text-muted-foreground">
+                    Pull the poster, TMDB rating, and details again
+                  </div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={onRequestDelete}
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete show
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <Select value={status} onValueChange={onSetStatus} disabled={statusPending}>
             <SelectTrigger
               aria-label="Status"
               className={cn(
-                "h-8 w-auto cursor-pointer rounded-md border px-2.5 text-xs font-semibold uppercase tracking-wide shadow-none focus:ring-0 [&>svg]:ml-1 [&>svg]:h-3 [&>svg]:w-3",
+                "inset-ring h-8 w-auto cursor-pointer rounded-md border-0 px-[11px] text-xs font-semibold uppercase tracking-wide shadow-none focus:ring-0 [&>svg]:ml-1 [&>svg]:h-3 [&>svg]:w-3",
                 statusStyle(status).chip,
               )}
             >
@@ -116,7 +149,14 @@ export function DetailHero({
               ))}
             </SelectContent>
           </Select>
-          <OriginCountriesChip codes={show.origin_country} />
+          {/* The same score badge as on the cards, rather than a number
+              tucked inside the TMDB link. */}
+          <TmdbRatingBadge
+            rating={show.tmdb_rating}
+            votes={show.tmdb_votes}
+            className="h-8 px-[11px] text-xs"
+          />
+          <OriginCountriesChip codes={show.origin_country} badgeClassName="h-8 px-[11px]" />
         </div>
         {show.genres.length > 0 ? (
           <div className="text-xs text-muted-foreground sm:text-sm">{show.genres.join(", ")}</div>
@@ -148,20 +188,9 @@ export function DetailHero({
               <a href={tmdbUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-3 w-3" />
                 TMDB
-                {tmdbScore}
               </a>
             </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled
-              className={cn(actionClass, "font-semibold uppercase tracking-wide")}
-            >
-              TMDB
-              {tmdbScore}
-            </Button>
-          )}
+          ) : null}
           {showWatchOrderButton ? (
             inWatchOrder ? (
               <Button
@@ -194,28 +223,6 @@ export function DetailHero({
               <Telescope className="h-3.5 w-3.5" />
               Find Similar
             </Link>
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className={actionClass}
-            onClick={onRefresh}
-            disabled={refreshPending}
-            title="Pull this title's poster, TMDB rating and details again"
-          >
-            <RotateCcw className="h-3 w-3" />
-            Refresh TMDB
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className={cn(actionClass, "text-destructive hover:text-destructive")}
-            onClick={onRequestDelete}
-          >
-            <Trash2 className="h-3 w-3" />
-            Delete show
           </Button>
         </div>
 
