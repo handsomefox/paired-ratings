@@ -7,8 +7,8 @@ search, posters, and metadata. The library lives in a SQLite file.
 
 - Search TMDB, or discover titles by type, genre, year, rating, vote count,
   country, and language. Leave out genres you never want to see.
-- Save a title as planned, watching, or watched. Each person rates it from half a
-  star to 10 stars and leaves a comment.
+- Save a title as planned, watching, or watched. Each person rates it from
+  half a star to 10 stars and leaves a comment.
 - Track watched episodes of a TV show, one at a time or a season at once.
 - Keep a shared watch order and reorder it by dragging.
 - See the rest of a movie's collection, or TMDB's recommendations, on its page.
