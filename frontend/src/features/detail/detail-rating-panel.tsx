@@ -133,7 +133,8 @@ export function DetailRatingPanel({
 }: DetailRatingPanelProps) {
   const isBf = tone === "bf";
   return (
-    <Card variant={tone} className="space-y-4 p-4">
+    // 17px: the tinted card has no border, so 1px of padding takes its place.
+    <Card variant={tone} className="space-y-4 p-[17px]">
       <div className="flex items-center gap-2 text-sm font-semibold">
         <Badge
           variant={tone}

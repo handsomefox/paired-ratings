@@ -7,8 +7,11 @@ const cardVariants = cva("rounded-xl border text-card-foreground shadow", {
   variants: {
     variant: {
       default: "bg-card",
-      bf: "border-bf/40 bg-bf/5 shadow-[0_0_0_1px_hsl(var(--bf)/0.25)]",
-      gf: "border-gf/40 bg-gf/5 shadow-[0_0_0_1px_hsl(var(--gf)/0.25)]",
+      // The tinted cards draw their outline as an inset ring, as Badge does,
+      // so the corners are not jagged at a fractional display scale. With
+      // no border, a caller adds 1px to its padding to keep the same size.
+      bf: "border-0 bg-bf/5 shadow-[0_0_0_1px_hsl(var(--bf)/0.25)] inset-ring inset-ring-bf/40",
+      gf: "border-0 bg-gf/5 shadow-[0_0_0_1px_hsl(var(--gf)/0.25)] inset-ring inset-ring-gf/40",
     },
   },
   defaultVariants: {

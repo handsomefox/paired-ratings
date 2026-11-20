@@ -9,8 +9,11 @@ const textareaVariants = cva(
     variants: {
       variant: {
         default: "border-input focus-visible:ring-ring",
-        bf: "border-bf/40 focus-visible:ring-bf/60",
-        gf: "border-gf/40 focus-visible:ring-gf/60",
+        // An inset ring rather than a border, as on Badge, so the corners are
+        // not jagged at a fractional display scale. The padding is 1px larger
+        // where the border was, so the box keeps its size.
+        bf: "border-0 px-[13px] py-[9px] inset-ring inset-ring-bf/40 focus-visible:ring-bf/60",
+        gf: "border-0 px-[13px] py-[9px] inset-ring inset-ring-gf/40 focus-visible:ring-gf/60",
       },
     },
     defaultVariants: {
