@@ -85,18 +85,41 @@ type Show struct {
 	UpdatedAt     string
 }
 
+// Rated selects shows by which of the two people have rated them. The zero
+// value matches every show.
+type Rated string
+
+const (
+	RatedBoth      Rated = "both"
+	RatedMissing   Rated = "missing"
+	RatedMissingBf Rated = "missing_bf"
+	RatedMissingGf Rated = "missing_gf"
+)
+
+func (r Rated) Valid() bool {
+	switch r {
+	case "", RatedBoth, RatedMissing, RatedMissingBf, RatedMissingGf:
+		return true
+	}
+	return false
+}
+
 // ListFilters selects and orders library shows. Empty fields match everything,
 // and a zero PageSize returns every match.
 type ListFilters struct {
-	Status   Status
-	YearFrom *int64
-	YearTo   *int64
-	Genre    string
-	Country  string
-	Unrated  bool
-	Sort     Sort
-	Page     int
-	PageSize int
+	Status    Status
+	MediaType MediaType
+	// Query matches a part of the title, ignoring the case of ASCII letters.
+	Query         string
+	YearFrom      *int64
+	YearTo        *int64
+	Genre         string
+	Country       string
+	MinTMDBRating *float64
+	Rated         Rated
+	Sort          Sort
+	Page          int
+	PageSize      int
 }
 
 // Change replaces a stored value when Set is true. A nil Value clears it.

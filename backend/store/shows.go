@@ -136,34 +136,35 @@ func (s *Store) ListShows(ctx context.Context, f *ListFilters) (shows []Show, to
 		limit = int64(f.PageSize)
 		offset = int64(max(f.Page, 1)-1) * limit
 	}
-	unrated := int64(0)
-	if f.Unrated {
-		unrated = 1
-	}
-
 	total, err = s.q.CountShows(ctx, db.CountShowsParams{
-		Sort:     string(f.Sort),
-		Status:   string(f.Status),
-		YearFrom: f.YearFrom,
-		YearTo:   f.YearTo,
-		Genre:    f.Genre,
-		Country:  f.Country,
-		Unrated:  unrated,
+		Sort:          string(f.Sort),
+		Status:        string(f.Status),
+		YearFrom:      f.YearFrom,
+		YearTo:        f.YearTo,
+		Genre:         f.Genre,
+		Country:       f.Country,
+		MediaType:     string(f.MediaType),
+		TitleQuery:    f.Query,
+		MinTMDBRating: f.MinTMDBRating,
+		Rated:         string(f.Rated),
 	})
 	if err != nil {
 		return nil, 0, err
 	}
 
 	rows, err := s.q.ListShows(ctx, db.ListShowsParams{
-		Sort:      string(f.Sort),
-		Status:    string(f.Status),
-		YearFrom:  f.YearFrom,
-		YearTo:    f.YearTo,
-		Genre:     f.Genre,
-		Country:   f.Country,
-		Unrated:   unrated,
-		RowLimit:  limit,
-		RowOffset: offset,
+		Sort:          string(f.Sort),
+		Status:        string(f.Status),
+		YearFrom:      f.YearFrom,
+		YearTo:        f.YearTo,
+		Genre:         f.Genre,
+		Country:       f.Country,
+		MediaType:     string(f.MediaType),
+		TitleQuery:    f.Query,
+		MinTMDBRating: f.MinTMDBRating,
+		Rated:         string(f.Rated),
+		RowLimit:      limit,
+		RowOffset:     offset,
 	})
 	if err != nil {
 		return nil, 0, err

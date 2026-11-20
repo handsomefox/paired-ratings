@@ -3,7 +3,7 @@ import { FilterField } from "@/components/filter-field";
 import { GenreCombobox } from "@/components/genre-combobox";
 import { YearRangeFields } from "@/components/year-range-fields";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -12,10 +12,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import type { LibrarySort } from "@/features/library/library-search";
+import {
+  pageSizes,
+  type LibrarySort,
+  type PageSize,
+  type RatedFilter,
+} from "@/features/library/library-search";
 import type { ApiCountry } from "@/lib/api";
 import { showStatusOptions, type ShowStatus } from "@/lib/status";
-import { useId } from "react";
 
 const statusOptions = [{ value: "all", label: "All" }, ...showStatusOptions] as const;
 
@@ -30,10 +34,15 @@ type LibraryFiltersProps = {
   onYearFromChange: (value: string) => void;
   yearTo: string;
   onYearToChange: (value: string) => void;
+  minRating: string;
+  onMinRatingChange: (value: string) => void;
+  rated: RatedFilter | "any";
+  onRatedChange: (value: RatedFilter | "any") => void;
+  ratedOptions: Array<{ value: RatedFilter | "any"; label: string }>;
   sort: LibrarySort;
   onSortChange: (value: LibrarySort) => void;
-  unrated: boolean;
-  onUnratedChange: (value: boolean) => void;
+  pageSize: PageSize;
+  onPageSizeChange: (value: PageSize) => void;
   sortOptions: Array<{ value: LibrarySort; label: string }>;
   genres: string[];
   countries: ApiCountry[];
@@ -52,18 +61,21 @@ export function LibraryFilters({
   onYearFromChange,
   yearTo,
   onYearToChange,
+  minRating,
+  onMinRatingChange,
+  rated,
+  onRatedChange,
+  ratedOptions,
   sort,
   onSortChange,
-  unrated,
-  onUnratedChange,
+  pageSize,
+  onPageSizeChange,
   sortOptions,
   genres,
   countries,
   onRefresh,
   refreshPending,
 }: LibraryFiltersProps) {
-  const unratedId = useId();
-
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 [&>*]:min-w-0">
@@ -78,6 +90,26 @@ export function LibraryFilters({
               </SelectTrigger>
               <SelectContent>
                 {statusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </FilterField>
+
+        <FilterField label="Ratings">
+          {(id) => (
+            <Select
+              value={rated}
+              onValueChange={(value) => onRatedChange(value as RatedFilter | "any")}
+            >
+              <SelectTrigger id={id}>
+                <SelectValue placeholder="Ratings" />
+              </SelectTrigger>
+              <SelectContent>
+                {ratedOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -115,6 +147,21 @@ export function LibraryFilters({
           onYearToChange={onYearToChange}
         />
 
+        <FilterField label="Min TMDB rating">
+          {(id) => (
+            <Input
+              id={id}
+              type="number"
+              inputMode="decimal"
+              min={0}
+              max={10}
+              step={0.1}
+              value={minRating}
+              onChange={(event) => onMinRatingChange(event.target.value)}
+            />
+          )}
+        </FilterField>
+
         <FilterField label="Sort">
           {(id) => (
             <Select value={sort} onValueChange={(value) => onSortChange(value as LibrarySort)}>
@@ -131,23 +178,26 @@ export function LibraryFilters({
             </Select>
           )}
         </FilterField>
-      </div>
 
-      <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
-        <Checkbox
-          id={unratedId}
-          checked={unrated}
-          onCheckedChange={(value) => onUnratedChange(value === true)}
-          aria-describedby={`${unratedId}-hint`}
-        />
-        <div>
-          <label htmlFor={unratedId} className="cursor-pointer text-sm font-medium">
-            Unrated only
-          </label>
-          <div id={`${unratedId}-hint`} className="text-xs text-muted-foreground">
-            Hide anything with ratings.
-          </div>
-        </div>
+        <FilterField label="Per page">
+          {(id) => (
+            <Select
+              value={String(pageSize)}
+              onValueChange={(value) => onPageSizeChange(Number(value) as PageSize)}
+            >
+              <SelectTrigger id={id}>
+                <SelectValue placeholder="Per page" />
+              </SelectTrigger>
+              <SelectContent>
+                {pageSizes.map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </FilterField>
       </div>
 
       <Separator />

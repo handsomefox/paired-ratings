@@ -81,6 +81,28 @@ describe("LibraryPage", () => {
     expect(pageSearch(router)).toEqual({});
   });
 
+  it("searches by title and media type, and Reset keeps both", async () => {
+    const user = userEvent.setup();
+    const { router } = renderApp("/?status=watched");
+    await screen.findByText("Show 1");
+
+    await user.type(screen.getByRole("searchbox", { name: "Search the library" }), "heat");
+    await waitFor(() => expect(pageSearch(router)).toEqual({ q: "heat", status: "watched" }));
+
+    const mediaType = screen.getByRole("group", { name: "Media type" });
+    expect(within(mediaType).getByRole("button", { name: "All" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.click(within(mediaType).getByRole("button", { name: "TV Shows" }));
+    await waitFor(() =>
+      expect(listShows).toHaveBeenLastCalledWith("status=watched&q=heat&media_type=tv"),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Reset (1)" }));
+    await waitFor(() => expect(pageSearch(router)).toEqual({ q: "heat", media_type: "tv" }));
+  });
+
   // Going back in history, rather than pushing the library again, returns to
   // the entry whose scroll position the router saved.
   it("returns to the same history entry from a show's Back button", async () => {

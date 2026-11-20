@@ -1,18 +1,21 @@
 import { FiltersPane } from "@/components/filters-pane";
+import { MediaTypeToggle } from "@/components/media-type-toggle";
 import { Paginator } from "@/components/paginator";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { LibraryFilters } from "@/features/library/library-filters";
 import { LibraryResults } from "@/features/library/library-results";
 import {
   DEFAULT_PAGE_SIZE,
   DEFAULT_SORT,
   libraryApiParams,
-  pageSizes,
   type LibrarySearch,
   type LibrarySort,
   type PageSize,
+  type RatedFilter,
 } from "@/features/library/library-search";
+import { cleanRating } from "@/features/search/search-utils";
 import { api } from "@/lib/api";
 import { listState, queryKeys, useCountryName, useSession } from "@/lib/queries";
 import { pageNumber } from "@/lib/search-params";
@@ -23,7 +26,13 @@ import { getRouteApi } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
-const YEAR_DELAY = 250;
+const TYPING_DELAY = 250;
+
+const mediaTypeOptions = [
+  { value: "all", label: "All" },
+  { value: "movie", label: "Movies" },
+  { value: "tv", label: "TV Shows" },
+] as const;
 
 const route = getRouteApi("/authed/");
 
@@ -48,15 +57,25 @@ export function LibraryPage() {
       viewTransition: false,
     });
 
+  const [queryText, setQueryText] = useTypedSearchValue(
+    search.q ?? "",
+    (value) => void updateSearch({ q: value || undefined }),
+    { delay: TYPING_DELAY },
+  );
   const [yearFrom, setYearFrom] = useTypedSearchValue(
     search.year_from ?? "",
     (value) => void updateSearch({ year_from: value || undefined }),
-    { delay: YEAR_DELAY, clean: usableYear },
+    { delay: TYPING_DELAY, clean: usableYear },
   );
   const [yearTo, setYearTo] = useTypedSearchValue(
     search.year_to ?? "",
     (value) => void updateSearch({ year_to: value || undefined }),
-    { delay: YEAR_DELAY, clean: usableYear },
+    { delay: TYPING_DELAY, clean: usableYear },
+  );
+  const [minRating, setMinRating] = useTypedSearchValue(
+    search.min_rating ?? "",
+    (value) => void updateSearch({ min_rating: value || undefined }),
+    { delay: TYPING_DELAY, clean: cleanRating },
   );
 
   const paramsString = libraryApiParams(search).toString();
@@ -115,26 +134,42 @@ export function LibraryPage() {
     { value: "title", label: "Title" },
   ];
 
+  const ratedOptions: Array<{ value: RatedFilter | "any"; label: string }> = [
+    { value: "any", label: "Any" },
+    { value: "both", label: "Rated by both" },
+    { value: "missing", label: "Missing a rating" },
+    { value: "missing_bf", label: `Not rated by ${bfName}` },
+    { value: "missing_gf", label: `Not rated by ${gfName}` },
+  ];
+
   const countryOptions = (showsQuery.data?.countries ?? []).map((code) => ({
     code,
     name: countryName(code),
   }));
 
   // Sort and page size are view preferences, not filters, so they neither count
-  // towards Reset being available nor get reset by it. The years count as soon
-  // as something is typed, because Reset also clears the text.
+  // towards Reset being available nor get reset by it. The search text and the
+  // media type sit outside the pane, as on the search page, so Reset keeps
+  // them too. The typed fields count as soon as something is typed, because
+  // Reset also clears the text.
   const activeFilterCount = [
     search.status,
+    search.rated,
     search.genre,
     search.origin_country,
     yearFrom.trim(),
     yearTo.trim(),
-    search.unrated,
+    minRating.trim(),
   ].filter(Boolean).length;
 
   const handleResetFilters = () =>
     navigate({
-      search: { sort: search.sort, page_size: search.page_size },
+      search: {
+        q: search.q,
+        media_type: search.media_type,
+        sort: search.sort,
+        page_size: search.page_size,
+      },
       replace: true,
       resetScroll: false,
       viewTransition: false,
@@ -154,10 +189,19 @@ export function LibraryPage() {
       onYearFromChange={setYearFrom}
       yearTo={yearTo}
       onYearToChange={setYearTo}
+      minRating={minRating}
+      onMinRatingChange={setMinRating}
+      rated={search.rated ?? "any"}
+      onRatedChange={(rated) => void updateSearch({ rated: rated === "any" ? undefined : rated })}
+      ratedOptions={ratedOptions}
       sort={search.sort ?? DEFAULT_SORT}
       onSortChange={(sort) => void updateSearch({ sort: sort === DEFAULT_SORT ? undefined : sort })}
-      unrated={search.unrated === "1"}
-      onUnratedChange={(unrated) => void updateSearch({ unrated: unrated ? "1" : undefined })}
+      pageSize={pageSize}
+      onPageSizeChange={(size) =>
+        void updateSearch({
+          page_size: size === DEFAULT_PAGE_SIZE ? undefined : (String(size) as "50" | "100"),
+        })
+      }
       sortOptions={sortOptions}
       genres={showsQuery.data?.genres ?? []}
       countries={countryOptions}
@@ -182,35 +226,22 @@ export function LibraryPage() {
   const { isInitialLoading, isEmpty, isError } = listState(showsQuery, shows.length);
 
   const toolbar = (
-    <div className="flex items-center justify-between gap-2">
-      <div className="text-sm text-muted-foreground">
-        {isInitialLoading ? "" : `Shows (${totalCount})`}
-      </div>
-      {!isInitialLoading && totalCount > 0 && (
-        <div role="group" aria-label="Shows per page" className="flex items-center gap-1">
-          {pageSizes.map((size) => (
-            <button
-              key={size}
-              type="button"
-              aria-pressed={pageSize === size}
-              onClick={() =>
-                void updateSearch({
-                  page_size:
-                    size === DEFAULT_PAGE_SIZE ? undefined : (String(size) as "50" | "100"),
-                })
-              }
-              className={`h-8 min-w-9 cursor-pointer rounded-md px-2 text-xs transition-colors ${
-                pageSize === size
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              {size}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <form
+      role="search"
+      className="flex w-full justify-center"
+      onSubmit={(event) => event.preventDefault()}
+    >
+      <Input
+        type="search"
+        name="q"
+        aria-label="Search the library"
+        placeholder="Search the library"
+        enterKeyHint="search"
+        value={queryText}
+        onChange={(event) => setQueryText(event.target.value)}
+        className="w-full lg:max-w-xl"
+      />
+    </form>
   );
 
   return (
@@ -221,6 +252,20 @@ export function LibraryPage() {
         activeCount={activeFilterCount}
         toolbar={toolbar}
       >
+        {/* The same row as on the search page, so the cards line up on both. */}
+        <div className="flex items-center justify-between gap-4">
+          <MediaTypeToggle
+            options={mediaTypeOptions}
+            value={search.media_type ?? "all"}
+            onChange={(value) =>
+              void updateSearch({ media_type: value === "all" ? undefined : value })
+            }
+          />
+          <div className="text-right text-sm text-muted-foreground">
+            {isInitialLoading ? "" : `${totalCount} ${totalCount === 1 ? "show" : "shows"}`}
+          </div>
+        </div>
+
         <LibraryResults
           shows={shows}
           imageBase={imageBase}
@@ -229,7 +274,7 @@ export function LibraryPage() {
           isInitialLoading={isInitialLoading}
           isEmpty={isEmpty}
           isError={isError}
-          hasFilters={activeFilterCount > 0}
+          hasFilters={activeFilterCount > 0 || Boolean(search.q || search.media_type)}
         />
 
         <Paginator

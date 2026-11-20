@@ -1,4 +1,5 @@
 import { FiltersPane } from "@/components/filters-pane";
+import { MediaTypeToggle } from "@/components/media-type-toggle";
 import { Paginator } from "@/components/paginator";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { Button } from "@/components/ui/button";
@@ -291,27 +292,11 @@ export function SearchPage() {
         }
       >
         <div className="flex items-center justify-between gap-4">
-          <div
-            role="group"
-            aria-label="Media type"
-            className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-1"
-          >
-            {mediaTypeOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={mediaType === option.value}
-                onClick={() => handleMediaTypeChange(option.value)}
-                className={`cursor-pointer whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-                  mediaType === option.value
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <MediaTypeToggle
+            options={mediaTypeOptions}
+            value={mediaType}
+            onChange={handleMediaTypeChange}
+          />
           <div className="text-right text-sm text-muted-foreground">{resultsCount}</div>
         </div>
 

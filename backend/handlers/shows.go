@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"log/slog"
+	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -67,11 +68,23 @@ func (h *Handler) getShows(w http.ResponseWriter, r *http.Request) error {
 func parseListFilters(r *http.Request) (*store.ListFilters, error) {
 	q := r.URL.Query()
 	f := store.ListFilters{
+		Query:    strings.TrimSpace(q.Get("q")),
 		Genre:    q.Get("genre"),
 		Country:  strings.ToUpper(strings.TrimSpace(q.Get("origin_country"))),
-		Unrated:  q.Get("unrated") == "1",
+		Rated:    store.Rated(q.Get("rated")),
 		Page:     1,
 		PageSize: 20,
+	}
+	if !f.Rated.Valid() {
+		return nil, badRequest("invalid rated: use both, missing, missing_bf, or missing_gf")
+	}
+
+	switch mediaType := store.MediaType(q.Get("media_type")); {
+	case mediaType == "" || mediaType == "all":
+	case mediaType.Valid():
+		f.MediaType = mediaType
+	default:
+		return nil, badRequest("invalid media_type")
 	}
 
 	switch status := store.Status(q.Get("status")); {
@@ -93,6 +106,13 @@ func parseListFilters(r *http.Request) (*store.ListFilters, error) {
 	}
 	if f.YearTo, err = optionalInt(q.Get("year_to")); err != nil {
 		return nil, badRequest("invalid year_to")
+	}
+	if raw := strings.TrimSpace(q.Get("min_rating")); raw != "" {
+		rating, err := strconv.ParseFloat(raw, 64)
+		if err != nil || math.IsNaN(rating) || rating < 0 || rating > 10 {
+			return nil, badRequest("invalid min_rating: use a number from 0 to 10")
+		}
+		f.MinTMDBRating = &rating
 	}
 	if raw := q.Get("page"); raw != "" {
 		if f.Page, err = strconv.Atoi(raw); err != nil || f.Page < 1 {

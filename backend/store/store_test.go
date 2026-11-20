@@ -141,12 +141,15 @@ func TestListShowsFiltersAndPages(t *testing.T) {
 
 	// TV lists "Sci-Fi & Fantasy" and movies list "Fantasy". A genre filter
 	// must match the whole name.
-	sciFi := addShow(t, st, &Metadata{TMDBID: 1, MediaType: MediaTV, Year: new(int64(2001)), Genres: []string{"Sci-Fi & Fantasy"}, Countries: []string{"GB", "US"}}, StatusWatched)
-	fantasy := addShow(t, st, &Metadata{TMDBID: 2, Year: new(int64(2010)), Genres: []string{"Fantasy"}, Countries: []string{"US"}}, StatusPlanned)
-	plain := addShow(t, st, &Metadata{TMDBID: 3, Year: new(int64(2020))}, StatusPlanned)
+	sciFi := addShow(t, st, &Metadata{TMDBID: 1, MediaType: MediaTV, Title: "Doctor Who", Year: new(int64(2001)), TMDBRating: new(8.2), Genres: []string{"Sci-Fi & Fantasy"}, Countries: []string{"GB", "US"}}, StatusWatched)
+	fantasy := addShow(t, st, &Metadata{TMDBID: 2, Title: "The Princess Bride", Year: new(int64(2010)), TMDBRating: new(7.5), Genres: []string{"Fantasy"}, Countries: []string{"US"}}, StatusPlanned)
+	plain := addShow(t, st, &Metadata{TMDBID: 3, Title: "100% Wolf", Year: new(int64(2020))}, StatusPlanned)
 	require.NoError(t, st.UpdateRatings(ctx, sciFi, &RatingsUpdate{
 		BfRating: Change[int64]{Set: true, Value: new(int64(5))},
 		GfRating: Change[int64]{Set: true, Value: new(int64(5))},
+	}))
+	require.NoError(t, st.UpdateRatings(ctx, plain, &RatingsUpdate{
+		BfRating: Change[int64]{Set: true, Value: new(int64(6))},
 	}))
 
 	ids := func(f ListFilters) []int64 {
@@ -167,7 +170,18 @@ func TestListShowsFiltersAndPages(t *testing.T) {
 	assert.Equal(t, []int64{sciFi}, ids(ListFilters{Country: "GB"}))
 	assert.ElementsMatch(t, []int64{sciFi, fantasy}, ids(ListFilters{Country: "US"}))
 	assert.ElementsMatch(t, []int64{fantasy, plain}, ids(ListFilters{Status: StatusPlanned}))
-	assert.ElementsMatch(t, []int64{fantasy, plain}, ids(ListFilters{Unrated: true}))
+	assert.Equal(t, []int64{sciFi}, ids(ListFilters{MediaType: MediaTV}))
+	assert.ElementsMatch(t, []int64{fantasy, plain}, ids(ListFilters{MediaType: MediaMovie}))
+	assert.Equal(t, []int64{fantasy}, ids(ListFilters{Query: "PRINCESS"}))
+	// The query is plain text: % and _ are not wildcards.
+	assert.Equal(t, []int64{plain}, ids(ListFilters{Query: "0% w"}))
+	assert.Empty(t, ids(ListFilters{Query: "_"}))
+	assert.Equal(t, []int64{sciFi}, ids(ListFilters{MinTMDBRating: new(8.0)}))
+	assert.ElementsMatch(t, []int64{sciFi, fantasy}, ids(ListFilters{MinTMDBRating: new(7.5)}))
+	assert.Equal(t, []int64{sciFi}, ids(ListFilters{Rated: RatedBoth}))
+	assert.ElementsMatch(t, []int64{fantasy, plain}, ids(ListFilters{Rated: RatedMissing}))
+	assert.Equal(t, []int64{fantasy}, ids(ListFilters{Rated: RatedMissingBf}))
+	assert.ElementsMatch(t, []int64{fantasy, plain}, ids(ListFilters{Rated: RatedMissingGf}))
 	assert.Equal(t, []int64{fantasy}, ids(ListFilters{YearFrom: new(int64(2005)), YearTo: new(int64(2015))}))
 	assert.Equal(t, []int64{plain, fantasy, sciFi}, ids(ListFilters{Sort: SortYear}))
 	assert.Empty(t, ids(ListFilters{Sort: SortPriority}))

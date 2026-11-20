@@ -9,15 +9,18 @@ describe("validateLibrarySearch", () => {
   it("keeps every valid filter", () => {
     expect(
       fromUrl(
-        "?status=watched&genre=Drama&origin_country=de&year_from=2010&year_to=2020&unrated=1&sort=title&page=3&page_size=50",
+        "?q=heat&media_type=tv&status=watched&genre=Drama&origin_country=de&year_from=2010&year_to=2020&min_rating=7.5&rated=missing_bf&sort=title&page=3&page_size=50",
       ),
     ).toEqual({
+      q: "heat",
+      media_type: "tv",
       status: "watched",
       genre: "Drama",
       origin_country: "DE",
       year_from: "2010",
       year_to: "2020",
-      unrated: "1",
+      min_rating: "7.5",
+      rated: "missing_bf",
       sort: "title",
       page: "3",
       page_size: "50",
@@ -28,12 +31,19 @@ describe("validateLibrarySearch", () => {
   // otherwise show an error instead of the library.
   it("falls back to the defaults for values the backend rejects", () => {
     expect(
-      fromUrl("?status=dropped&sort=rating&page=0&page_size=7&year_from=20&unrated=yes"),
+      fromUrl(
+        "?status=dropped&sort=rating&page=0&page_size=7&year_from=20&unrated=yes&media_type=anime&rated=some&min_rating=11&q=%20",
+      ),
     ).toEqual({});
   });
 
   it("leaves out values that are the defaults", () => {
     expect(fromUrl("?sort=created&page=1&page_size=20")).toEqual({});
+  });
+
+  it("reads the old Unrated only checkbox as missing a rating", () => {
+    expect(fromUrl("?unrated=1")).toEqual({ rated: "missing" });
+    expect(fromUrl("?unrated=1&rated=both")).toEqual({ rated: "both" });
   });
 
   it("never sends the watch-order sort from the library", () => {

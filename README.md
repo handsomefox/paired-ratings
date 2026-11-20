@@ -12,8 +12,9 @@ search, posters, and metadata. The library lives in a SQLite file.
 - Track watched episodes of a TV show, one at a time or a season at once.
 - Keep a shared watch order and reorder it by dragging.
 - See the rest of a movie's collection, or TMDB's recommendations, on its page.
-- Filter the library by status, genre, country, year range, and missing
-  ratings. Sort by either rating, the average, year, title, or recent changes.
+- Search the library by title, and filter it by movies or TV shows, status,
+  genre, country, year range, minimum TMDB rating, and who has rated a title.
+  Sort by either rating, the average, year, title, or recent changes.
 - Refresh TMDB metadata for one title or the whole library.
 - Export the library as JSON, or download the whole database.
 

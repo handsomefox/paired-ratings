@@ -81,7 +81,17 @@ WHERE (CAST(sqlc.arg(status) AS TEXT) = '' OR shows.status = sqlc.arg(status))
 		SELECT 1 FROM show_genres g WHERE g.show_id = shows.id AND g.name = sqlc.arg(genre)))
 	AND (CAST(sqlc.arg(country) AS TEXT) = '' OR EXISTS (
 		SELECT 1 FROM show_countries c WHERE c.show_id = shows.id AND c.code = sqlc.arg(country)))
-	AND (CAST(sqlc.arg(unrated) AS INTEGER) = 0 OR shows.bf_rating IS NULL OR shows.gf_rating IS NULL)
+	AND (CAST(sqlc.arg(media_type) AS TEXT) = '' OR shows.media_type = sqlc.arg(media_type))
+	-- lower() folds ASCII letters only, so other scripts match case-sensitively.
+	AND (CAST(sqlc.arg(title_query) AS TEXT) = '' OR instr(lower(shows.title), lower(sqlc.arg(title_query))) > 0)
+	AND (CAST(sqlc.narg(min_tmdb_rating) AS REAL) IS NULL OR shows.tmdb_rating >= sqlc.narg(min_tmdb_rating))
+	AND CASE CAST(sqlc.arg(rated) AS TEXT)
+		WHEN 'both' THEN shows.bf_rating IS NOT NULL AND shows.gf_rating IS NOT NULL
+		WHEN 'missing' THEN shows.bf_rating IS NULL OR shows.gf_rating IS NULL
+		WHEN 'missing_bf' THEN shows.bf_rating IS NULL
+		WHEN 'missing_gf' THEN shows.gf_rating IS NULL
+		ELSE 1
+	END
 	AND (params.sort != 'priority' OR shows.watch_priority IS NOT NULL)
 ORDER BY
 	CASE WHEN params.sort = 'avg' THEN
@@ -108,7 +118,17 @@ WHERE (CAST(sqlc.arg(status) AS TEXT) = '' OR shows.status = sqlc.arg(status))
 		SELECT 1 FROM show_genres g WHERE g.show_id = shows.id AND g.name = sqlc.arg(genre)))
 	AND (CAST(sqlc.arg(country) AS TEXT) = '' OR EXISTS (
 		SELECT 1 FROM show_countries c WHERE c.show_id = shows.id AND c.code = sqlc.arg(country)))
-	AND (CAST(sqlc.arg(unrated) AS INTEGER) = 0 OR shows.bf_rating IS NULL OR shows.gf_rating IS NULL)
+	AND (CAST(sqlc.arg(media_type) AS TEXT) = '' OR shows.media_type = sqlc.arg(media_type))
+	-- lower() folds ASCII letters only, so other scripts match case-sensitively.
+	AND (CAST(sqlc.arg(title_query) AS TEXT) = '' OR instr(lower(shows.title), lower(sqlc.arg(title_query))) > 0)
+	AND (CAST(sqlc.narg(min_tmdb_rating) AS REAL) IS NULL OR shows.tmdb_rating >= sqlc.narg(min_tmdb_rating))
+	AND CASE CAST(sqlc.arg(rated) AS TEXT)
+		WHEN 'both' THEN shows.bf_rating IS NOT NULL AND shows.gf_rating IS NOT NULL
+		WHEN 'missing' THEN shows.bf_rating IS NULL OR shows.gf_rating IS NULL
+		WHEN 'missing_bf' THEN shows.bf_rating IS NULL
+		WHEN 'missing_gf' THEN shows.gf_rating IS NULL
+		ELSE 1
+	END
 	AND (params.sort != 'priority' OR shows.watch_priority IS NOT NULL);
 
 -- name: ListDistinctGenres :many

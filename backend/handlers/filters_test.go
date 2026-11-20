@@ -114,22 +114,31 @@ func TestParseListFilters(t *testing.T) {
 		return f
 	}
 
-	f := parse("status=planned&origin_country=us&unrated=1&page=3&page_size=50&sort=avg&year_from=2000")
+	f := parse("status=planned&origin_country=us&rated=missing_gf&media_type=tv&q=+who+&min_rating=7.5&page=3&page_size=50&sort=avg&year_from=2000")
 	assert.Equal(t, store.StatusPlanned, f.Status)
 	assert.Equal(t, "US", f.Country)
-	assert.True(t, f.Unrated)
+	assert.Equal(t, store.RatedMissingGf, f.Rated)
+	assert.Equal(t, store.MediaTV, f.MediaType)
+	assert.Equal(t, "who", f.Query)
+	assert.Equal(t, new(7.5), f.MinTMDBRating)
 	assert.Equal(t, 3, f.Page)
 	assert.Equal(t, 50, f.PageSize)
 	assert.Equal(t, store.SortAverage, f.Sort)
 	assert.Equal(t, new(int64(2000)), f.YearFrom)
 
-	f = parse("status=all&page_size=all&sort=created")
+	f = parse("status=all&media_type=all&page_size=all&sort=created")
 	assert.Empty(t, f.Status)
+	assert.Empty(t, f.MediaType)
+	assert.Empty(t, f.Rated)
+	assert.Nil(t, f.MinTMDBRating)
 	assert.Zero(t, f.PageSize)
 	assert.Equal(t, store.SortCreated, f.Sort)
 	assert.Equal(t, 1, f.Page)
 
-	for _, query := range []string{"sort=chaos", "page=0", "page=two", "page_size=7", "status=dropped", "year_to=soon"} {
+	for _, query := range []string{
+		"sort=chaos", "page=0", "page=two", "page_size=7", "status=dropped", "year_to=soon",
+		"media_type=anime", "rated=yes", "min_rating=11", "min_rating=-1", "min_rating=NaN", "min_rating=high",
+	} {
 		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/shows?"+query, http.NoBody)
 		_, err := parseListFilters(r)
 		assert.Error(t, err, query)

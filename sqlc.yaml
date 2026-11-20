@@ -17,4 +17,5 @@ sql:
           imdb_id: IMDbID
           tmdb_rating: TMDBRating
           tmdb_votes: TMDBVotes
+          min_tmdb_rating: MinTMDBRating
           tmdb_refreshed_at: TMDBRefreshedAt

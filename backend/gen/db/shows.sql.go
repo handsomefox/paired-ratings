@@ -52,7 +52,7 @@ func (q *Queries) ClearRatings(ctx context.Context, arg ClearRatingsParams) (int
 }
 
 const countShows = `-- name: CountShows :one
-WITH params AS (SELECT CAST(?7 AS TEXT) AS sort)
+WITH params AS (SELECT CAST(?10 AS TEXT) AS sort)
 SELECT count(*) FROM shows, params
 WHERE (CAST(?1 AS TEXT) = '' OR shows.status = ?1)
 	AND (CAST(?2 AS INTEGER) IS NULL OR shows.year >= ?2)
@@ -61,18 +61,31 @@ WHERE (CAST(?1 AS TEXT) = '' OR shows.status = ?1)
 		SELECT 1 FROM show_genres g WHERE g.show_id = shows.id AND g.name = ?4))
 	AND (CAST(?5 AS TEXT) = '' OR EXISTS (
 		SELECT 1 FROM show_countries c WHERE c.show_id = shows.id AND c.code = ?5))
-	AND (CAST(?6 AS INTEGER) = 0 OR shows.bf_rating IS NULL OR shows.gf_rating IS NULL)
+	AND (CAST(?6 AS TEXT) = '' OR shows.media_type = ?6)
+	-- lower() folds ASCII letters only, so other scripts match case-sensitively.
+	AND (CAST(?7 AS TEXT) = '' OR instr(lower(shows.title), lower(?7)) > 0)
+	AND (CAST(?8 AS REAL) IS NULL OR shows.tmdb_rating >= ?8)
+	AND CASE CAST(?9 AS TEXT)
+		WHEN 'both' THEN shows.bf_rating IS NOT NULL AND shows.gf_rating IS NOT NULL
+		WHEN 'missing' THEN shows.bf_rating IS NULL OR shows.gf_rating IS NULL
+		WHEN 'missing_bf' THEN shows.bf_rating IS NULL
+		WHEN 'missing_gf' THEN shows.gf_rating IS NULL
+		ELSE 1
+	END
 	AND (params.sort != 'priority' OR shows.watch_priority IS NOT NULL)
 `
 
 type CountShowsParams struct {
-	Status   string
-	YearFrom *int64
-	YearTo   *int64
-	Genre    string
-	Country  string
-	Unrated  int64
-	Sort     string
+	Status        string
+	YearFrom      *int64
+	YearTo        *int64
+	Genre         string
+	Country       string
+	MediaType     string
+	TitleQuery    string
+	MinTMDBRating *float64
+	Rated         string
+	Sort          string
 }
 
 func (q *Queries) CountShows(ctx context.Context, arg CountShowsParams) (int64, error) {
@@ -82,7 +95,10 @@ func (q *Queries) CountShows(ctx context.Context, arg CountShowsParams) (int64, 
 		arg.YearTo,
 		arg.Genre,
 		arg.Country,
-		arg.Unrated,
+		arg.MediaType,
+		arg.TitleQuery,
+		arg.MinTMDBRating,
+		arg.Rated,
 		arg.Sort,
 	)
 	var count int64
@@ -327,7 +343,7 @@ func (q *Queries) ListGenresForShows(ctx context.Context, showIds []int64) ([]Li
 
 const listShows = `-- name: ListShows :many
 
-WITH params AS (SELECT CAST(?9 AS TEXT) AS sort)
+WITH params AS (SELECT CAST(?12 AS TEXT) AS sort)
 SELECT shows.id, shows.tmdb_id, shows.media_type, shows.title, shows.year, shows.overview, shows.poster_path, shows.imdb_id, shows.tmdb_rating, shows.tmdb_votes, shows.collection_id, shows.collection_name, shows.status, shows.watch_priority, shows.bf_rating, shows.gf_rating, shows.bf_comment, shows.gf_comment, shows.created_at, shows.updated_at, shows.tmdb_refreshed_at FROM shows, params
 WHERE (CAST(?1 AS TEXT) = '' OR shows.status = ?1)
 	AND (CAST(?2 AS INTEGER) IS NULL OR shows.year >= ?2)
@@ -336,7 +352,17 @@ WHERE (CAST(?1 AS TEXT) = '' OR shows.status = ?1)
 		SELECT 1 FROM show_genres g WHERE g.show_id = shows.id AND g.name = ?4))
 	AND (CAST(?5 AS TEXT) = '' OR EXISTS (
 		SELECT 1 FROM show_countries c WHERE c.show_id = shows.id AND c.code = ?5))
-	AND (CAST(?6 AS INTEGER) = 0 OR shows.bf_rating IS NULL OR shows.gf_rating IS NULL)
+	AND (CAST(?6 AS TEXT) = '' OR shows.media_type = ?6)
+	-- lower() folds ASCII letters only, so other scripts match case-sensitively.
+	AND (CAST(?7 AS TEXT) = '' OR instr(lower(shows.title), lower(?7)) > 0)
+	AND (CAST(?8 AS REAL) IS NULL OR shows.tmdb_rating >= ?8)
+	AND CASE CAST(?9 AS TEXT)
+		WHEN 'both' THEN shows.bf_rating IS NOT NULL AND shows.gf_rating IS NOT NULL
+		WHEN 'missing' THEN shows.bf_rating IS NULL OR shows.gf_rating IS NULL
+		WHEN 'missing_bf' THEN shows.bf_rating IS NULL
+		WHEN 'missing_gf' THEN shows.gf_rating IS NULL
+		ELSE 1
+	END
 	AND (params.sort != 'priority' OR shows.watch_priority IS NOT NULL)
 ORDER BY
 	CASE WHEN params.sort = 'avg' THEN
@@ -351,19 +377,22 @@ ORDER BY
 	CASE WHEN params.sort = 'updated' THEN shows.updated_at END DESC,
 	shows.created_at DESC,
 	shows.id DESC
-LIMIT ?8 OFFSET ?7
+LIMIT ?11 OFFSET ?10
 `
 
 type ListShowsParams struct {
-	Status    string
-	YearFrom  *int64
-	YearTo    *int64
-	Genre     string
-	Country   string
-	Unrated   int64
-	RowOffset int64
-	RowLimit  int64
-	Sort      string
+	Status        string
+	YearFrom      *int64
+	YearTo        *int64
+	Genre         string
+	Country       string
+	MediaType     string
+	TitleQuery    string
+	MinTMDBRating *float64
+	Rated         string
+	RowOffset     int64
+	RowLimit      int64
+	Sort          string
 }
 
 // ListShows and CountShows share one WHERE clause. Change both together;
@@ -377,7 +406,10 @@ func (q *Queries) ListShows(ctx context.Context, arg ListShowsParams) ([]Show, e
 		arg.YearTo,
 		arg.Genre,
 		arg.Country,
-		arg.Unrated,
+		arg.MediaType,
+		arg.TitleQuery,
+		arg.MinTMDBRating,
+		arg.Rated,
 		arg.RowOffset,
 		arg.RowLimit,
 		arg.Sort,
