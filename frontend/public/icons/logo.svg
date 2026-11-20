@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="navy" cx="50%" cy="43%" r="61%">
+      <stop offset="0" stop-color="#293958"/>
+      <stop offset="1" stop-color="#151D30"/>
+    </radialGradient>
+    <linearGradient id="purple" x2="0" y2="1">
+      <stop offset="0" stop-color="#9A5FE0"/>
+      <stop offset="0.35" stop-color="#9A5FE0"/>
+      <stop offset="1" stop-color="#8951CF"/>
+    </linearGradient>
+    <clipPath id="star">
+      <path d="M32 9.5
+               C33.4 9.5 34.4 10.6 35.2 12.2 L40.3 22
+               Q41 23.5 42.7 23.6 L53.9 24.4
+               C57.1 24.6 58.2 27.2 55.6 29.5 L47.2 37.2
+               Q46 38.3 46.4 40 L48.8 50.5
+               C49.5 53.8 47.1 55.2 44.2 53.6 L34.1 48.1
+               Q32 47 29.9 48.1 L19.8 53.6
+               C16.9 55.2 14.5 53.8 15.2 50.5 L17.6 40
+               Q18 38.3 16.8 37.2 L8.4 29.5
+               C5.8 27.2 6.9 24.6 10.1 24.4 L21.3 23.6
+               Q23 23.5 23.7 22 L28.8 12.2
+               C29.6 10.6 30.6 9.5 32 9.5Z"/>
+    </clipPath>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#navy)"/>
+  <g clip-path="url(#star)">
+    <rect width="64" height="64" fill="#4F8FE3"/>
+    <rect x="32" y="9.5" width="32" height="45" fill="url(#purple)"/>
+  </g>
+</svg>

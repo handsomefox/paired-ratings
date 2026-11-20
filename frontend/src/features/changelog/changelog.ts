@@ -34,6 +34,7 @@ export const changelog: ChangelogEntry[] = [
       },
     ],
     changes: [
+      "A new app icon: a star split into your two colors, in place of the Christmas picture. An installed app may keep the old icon until it is reinstalled.",
       "On the show page, Refresh TMDB and Delete show moved into the ••• menu next to the title.",
       "The show page shows the TMDB score as a colored badge next to the status, as the cards do.",
       "“Clear” on the show page sits next to the average and asks before it removes both ratings and comments.",

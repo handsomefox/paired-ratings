@@ -144,16 +144,15 @@ export function Navbar() {
             className="flex items-center gap-3"
             onClick={scrollTopWhenCurrent("/")}
           >
-            <div className="relative h-8 w-8 overflow-hidden rounded-2xl shadow-lg sm:h-9 sm:w-9">
-              <div className="absolute inset-0 z-0 bg-gradient-to-br from-bf/40 via-bf/10 to-gf/40" />
-              <img
-                src="/icons/logo.png"
-                alt=""
-                className="absolute inset-0 z-10 h-full w-full object-cover"
-              />
-            </div>
-            <div>
-              <div className="text-sm sm:text-base">Show Ratings</div>
+            {/* The icon is its own rounded tile, so it needs no frame; the
+                hairline ring keeps its edge visible on the dark header. */}
+            <img
+              src="/icons/logo.svg"
+              alt=""
+              className="h-8 w-8 rounded-[22%] shadow-md ring-1 ring-white/10 sm:h-9 sm:w-9"
+            />
+            <div className="leading-tight">
+              <div className="text-sm font-semibold tracking-tight sm:text-base">Show Ratings</div>
               <div className="hidden text-xs text-muted-foreground sm:block">
                 Shared watchlist + ratings
               </div>

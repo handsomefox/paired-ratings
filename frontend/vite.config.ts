@@ -15,7 +15,12 @@ export default defineConfig({
       // Prompt instead of reloading on its own, so an update never discards
       // unsaved edits. main.tsx shows the prompt.
       registerType: "prompt",
-      includeAssets: ["favicon.ico", "icons/apple-touch-icon.png", "icons/logo.png"],
+      includeAssets: [
+        "favicon.ico",
+        "icons/apple-touch-icon.png",
+        "icons/logo.png",
+        "icons/logo.svg",
+      ],
       manifest: {
         name: "Paired Ratings",
         short_name: "Paired Ratings",
@@ -23,7 +28,8 @@ export default defineConfig({
         start_url: "/",
         scope: "/",
         display: "standalone",
-        theme_color: "#0B3B38",
+        // The page background, so an installed app's title bar blends in.
+        theme_color: "#0E131D",
         background_color: "#0E131D",
         icons: [
           { src: "/icons/pwa-192x192.png", sizes: "192x192", type: "image/png" },
