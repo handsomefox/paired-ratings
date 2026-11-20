@@ -35,6 +35,12 @@ describe("validateLibrarySearch", () => {
         "?status=dropped&sort=rating&page=0&page_size=7&year_from=20&unrated=yes&media_type=anime&rated=some&min_rating=11&q=%20",
       ),
     ).toEqual({});
+    // Number() reads these, but the backend's parser does not.
+    for (const rating of ["0x5", "0b1", "0o7", "+7", "1e1", "Infinity"]) {
+      expect(fromUrl(`?min_rating=${encodeURIComponent(rating)}`)).toEqual({});
+    }
+    expect(fromUrl("?min_rating=7.").min_rating).toBe("7.");
+    expect(fromUrl("?min_rating=.5").min_rating).toBe(".5");
   });
 
   it("leaves out values that are the defaults", () => {

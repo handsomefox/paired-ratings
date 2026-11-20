@@ -49,11 +49,17 @@ export function formatExcludedGenres(excluded: string[]): string | undefined {
   return excluded.length ? excluded.join(",") : undefined;
 }
 
-/** A TMDB rating from 0 to 10, or "" for anything else. */
+/**
+ * A TMDB rating from 0 to 10 written as a plain decimal, or "" for anything
+ * else. Number() also reads "0x5" and "1e1", which the backend's parser
+ * rejects or a person would not mean, so the pattern comes first. "7." stays,
+ * because it is "7.5" halfway through being typed.
+ */
 export function cleanRating(raw: string): string {
   const value = raw.trim();
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(value)) return "";
   const rating = Number(value);
-  return value && Number.isFinite(rating) && rating >= 0 && rating <= 10 ? value : "";
+  return rating >= 0 && rating <= 10 ? value : "";
 }
 
 /** A whole, non-negative vote count, or "" for anything else. */
