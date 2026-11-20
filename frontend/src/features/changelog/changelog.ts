@@ -29,12 +29,14 @@ export const changelog: ChangelogEntry[] = [
   {
     date: "2026-10-26",
     changes: [
-      "Every search result shows its original language.",
-      "The show and watch order pages keep a readable width on large screens, and a show's related titles show ten at first.",
-      "The library fits more cards on a desktop screen.",
+      "Search results show the language as a short code, such as JA, instead of a name that was cut off. Point at it for the full name.",
+      "The show and watch order pages keep a readable width on large screens. A show's related titles start with ten, and “Show all” shows the rest.",
+      "The library fits more cards on a desktop screen, and text no longer grows on large screens.",
       "Password managers can save the login.",
       "The show page, the library, and the search results fit phone screens better.",
       "On phones, the navigation moved to a tab bar at the bottom of the screen.",
+      "Back returns to the same scroll position in the library and the search results.",
+      "The watch order can be rearranged with the keyboard.",
     ],
   },
 ];
