@@ -28,10 +28,19 @@ describe("WhatsNewPage", () => {
     expect(screen.getByText(newest.changes[0])).toBeInTheDocument();
 
     await waitFor(() => expect(moreButton()).toHaveAccessibleName("More"));
-    expect(localStorage.getItem("changelog-seen")).toBe(newest.date);
+    expect(localStorage.getItem("changelog-seen")).toMatch(new RegExp(`^${newest.date}:\\d+$`));
   });
 
   it("marks the More button while there are changes this browser has not shown", async () => {
+    renderApp("/watch-order");
+
+    await waitFor(() => expect(moreButton()).toHaveAccessibleName("More, new changes to the app"));
+  });
+
+  // Only the date used to be stored, so a change added later the same day
+  // stayed hidden.
+  it("counts a change added later on the same day as new", async () => {
+    localStorage.setItem("changelog-seen", changelog[0].date);
     renderApp("/watch-order");
 
     await waitFor(() => expect(moreButton()).toHaveAccessibleName("More, new changes to the app"));

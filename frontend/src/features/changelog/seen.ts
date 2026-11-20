@@ -1,9 +1,19 @@
 import { useSyncExternalStore } from "react";
 import { changelog } from "./changelog";
 
-// The date of the newest entry this browser has shown. It is per device, not
+// The version of the changelog this browser has shown. It is per device, not
 // per person: the two people share one login.
 const STORAGE_KEY = "changelog-seen";
+
+/**
+ * The newest entry's date and how many changes it lists, so a change added
+ * later on the same day counts as new too.
+ */
+function currentVersion(): string {
+  const newest = changelog[0];
+  if (!newest) return "";
+  return `${newest.date}:${(newest.highlights?.length ?? 0) + newest.changes.length}`;
+}
 
 const listeners = new Set<() => void>();
 
@@ -13,7 +23,7 @@ function readSeen(): string {
   } catch {
     // Storage can be off, for example in a private window. Then nothing is
     // marked as new.
-    return changelog[0]?.date ?? "";
+    return currentVersion();
   }
 }
 
@@ -26,20 +36,18 @@ function subscribe(listener: () => void) {
   };
 }
 
-/** Whether the changelog has an entry newer than the last one shown here. */
+/** Whether the changelog has changed since this browser last showed it. */
 export function useHasUnseenChanges(): boolean {
   const seen = useSyncExternalStore(subscribe, readSeen);
-  const newest = changelog[0]?.date ?? "";
-  // The dates are YYYY-MM-DD, which compare in time order as text.
-  return newest > seen;
+  return seen !== currentVersion();
 }
 
 /** Records that every entry has been shown. */
 export function markChangesSeen() {
-  const newest = changelog[0]?.date;
-  if (!newest || readSeen() >= newest) return;
+  const version = currentVersion();
+  if (!version || readSeen() === version) return;
   try {
-    localStorage.setItem(STORAGE_KEY, newest);
+    localStorage.setItem(STORAGE_KEY, version);
   } catch {
     return;
   }

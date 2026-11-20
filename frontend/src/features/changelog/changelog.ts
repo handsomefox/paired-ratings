@@ -34,7 +34,9 @@ export const changelog: ChangelogEntry[] = [
       },
     ],
     changes: [
-      "“Clear ratings” on the show page sits next to the average and asks before it removes both ratings and comments.",
+      "On the show page, Refresh TMDB and Delete show moved into the ••• menu next to the title.",
+      "The show page shows the TMDB score as a colored badge next to the status, as the cards do.",
+      "“Clear” on the show page sits next to the average and asks before it removes both ratings and comments.",
       "The number of shows per page moved into the library filters.",
       "The (i) next to Refresh TMDB explains what it does.",
       "TMDB vote counts on cards are shorter, such as 4.5K instead of 4509.",
