@@ -18,6 +18,15 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-11-21",
+    changes: [
+      "The app is called Paired Ratings everywhere, and the header shows just the name.",
+      "The (i) next to Refresh TMDB opens on an iPhone.",
+      "“What's new” in the menu has the same dot as the menu button while there is something to read.",
+      "The ••• menu on the show page has a line between Refresh TMDB and Delete show.",
+    ],
+  },
+  {
     date: "2026-11-20",
     highlights: [
       {
