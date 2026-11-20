@@ -151,12 +151,9 @@ export function Navbar() {
               alt=""
               className="h-8 w-8 rounded-[22%] shadow-md ring-1 ring-white/10 sm:h-9 sm:w-9"
             />
-            <div className="leading-tight">
-              <div className="text-sm font-semibold tracking-tight sm:text-base">Show Ratings</div>
-              <div className="hidden text-xs text-muted-foreground sm:block">
-                Shared watchlist + ratings
-              </div>
-            </div>
+            <span className="text-sm font-semibold tracking-tight sm:text-base">
+              Paired Ratings
+            </span>
           </Link>
         </div>
 
