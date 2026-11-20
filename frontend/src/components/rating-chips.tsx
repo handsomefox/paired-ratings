@@ -13,16 +13,27 @@ type RatingChipsProps = {
 const chipBase =
   "min-w-0 flex-auto justify-center gap-0.5 rounded-full px-[5px] py-[5px] text-xs font-semibold tracking-tight sm:px-[7px]";
 
+// The star's ink is centred on the digits' ink, but a five-pointed star looks
+// lower than that: its middle is below the middle of its box. Half a pixel up
+// makes it look centred.
+function Star() {
+  return (
+    <span aria-hidden="true" className="-translate-y-[0.5px]">
+      ★
+    </span>
+  );
+}
+
 export function RatingChips({ bfName, gfName, bfRating, gfRating }: RatingChipsProps) {
   return (
     <div className="flex w-full gap-1 text-xs sm:gap-2">
       <Badge variant="bf" className={chipBase}>
-        <span aria-hidden="true">★</span>
+        <Star />
         <span className="sr-only">{bfName}'s rating</span>
         <strong>{ratingText(bfRating)}</strong>
       </Badge>
       <Badge variant="gf" className={chipBase}>
-        <span aria-hidden="true">★</span>
+        <Star />
         <span className="sr-only">{gfName}'s rating</span>
         <strong>{ratingText(gfRating)}</strong>
       </Badge>
