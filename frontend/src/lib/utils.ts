@@ -89,6 +89,16 @@ export function formatVotes(value?: number | null) {
   return String(value);
 }
 
+// A fixed locale keeps the suffixes the same on every device: "4.5K", not
+// "4,5 тыс.".
+const compactNumber = new Intl.NumberFormat("en", { notation: "compact" });
+
+/** A vote count short enough for a card badge: 4509 is "4.5K". */
+export function compactVotes(value?: number | null) {
+  if (!value || value <= 0) return "";
+  return compactNumber.format(value);
+}
+
 export function tmdbRatingTone(value?: number | null) {
   if (!value || value <= 0) return "border-border/60 bg-muted/40 text-muted-foreground";
   if (value >= 8.0) return "border-amber-300/50 bg-amber-400/20 text-amber-100";

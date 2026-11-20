@@ -1,5 +1,6 @@
 import {
   combinedRating,
+  compactVotes,
   flagEmoji,
   flagEmojiFromLanguageCode,
   shortGenres,
@@ -91,5 +92,21 @@ describe("shortGenres", () => {
   it("keeps the first two genres", () => {
     expect(shortGenres(["Drama", "Crime", "Mystery"])).toBe("Drama, Crime");
     expect(shortGenres([])).toBe("");
+  });
+});
+
+describe("compactVotes", () => {
+  it.each([
+    [999, "999"],
+    [4509, "4.5K"],
+    [13213, "13K"],
+    [1234567, "1.2M"],
+  ])("shortens %d to %s", (votes, text) => {
+    expect(compactVotes(votes)).toBe(text);
+  });
+
+  it("is empty without votes", () => {
+    expect(compactVotes(0)).toBe("");
+    expect(compactVotes(undefined)).toBe("");
   });
 });

@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { cn, formatScore, formatVotes, tmdbRatingTone } from "@/lib/utils";
+import { cn, compactVotes, formatScore, tmdbRatingTone } from "@/lib/utils";
 
 type TmdbRatingBadgeProps = {
   rating?: number | null;
@@ -16,10 +16,17 @@ export function TmdbRatingBadge({ rating, votes, className }: TmdbRatingBadgePro
     );
   }
 
+  // On a phone the badge is half a card wide. Inter has no condensed width,
+  // so tighter tracking and padding, and "4.5K" for 4509, keep the text in.
   return (
-    <Badge variant="outline" className={cn("gap-1", tmdbRatingTone(rating), className)}>
+    <Badge
+      variant="outline"
+      className={cn("gap-0.5 px-1.5 tracking-tight", tmdbRatingTone(rating), className)}
+    >
       <span>{formatScore(rating)}</span>
-      {votes ? <span>({formatVotes(votes)})</span> : null}
+      {votes ? (
+        <span title={`${votes.toLocaleString()} votes`}>({compactVotes(votes)})</span>
+      ) : null}
     </Badge>
   );
 }
