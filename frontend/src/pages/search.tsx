@@ -10,7 +10,9 @@ import { SearchResults } from "@/features/search/search-results";
 import {
   cleanRating,
   cleanVotes,
+  formatExcludedGenres,
   formatGenres,
+  parseExcludedGenres,
   parseGenres,
   resultKey,
   searchApiParams,
@@ -52,6 +54,7 @@ export function SearchPage() {
 
   const mediaType: MediaType = search.media_type ?? "movie";
   const genres = parseGenres(search.genres);
+  const excludedGenres = parseExcludedGenres(search.without_genres);
   const page = pageNumber(search.page);
 
   // Every change replaces the history entry, so Back leaves the search rather
@@ -163,7 +166,11 @@ export function SearchPage() {
 
   const handleMediaTypeChange = (value: MediaType) =>
     // Movie and TV genre ids differ, so a selection does not carry over.
-    void updateSearch({ media_type: value === "tv" ? "tv" : undefined, genres: undefined });
+    void updateSearch({
+      media_type: value === "tv" ? "tv" : undefined,
+      genres: undefined,
+      without_genres: undefined,
+    });
 
   const handleOpenExternal = async (item: SearchResult) => {
     // Open the tab now, inside the click. A window.open after the await is no
@@ -198,6 +205,7 @@ export function SearchPage() {
   // something is typed, because Reset also clears the text.
   const activeFilterCount = [
     search.genres,
+    search.without_genres,
     search.origin_country,
     search.original_language,
     yearFromText.trim(),
@@ -234,8 +242,12 @@ export function SearchPage() {
         void updateSearch({ genres: formatGenres(mode, genres.selected) })
       }
       selectedGenres={genres.selected}
-      onSelectedGenresChange={(selected) =>
-        void updateSearch({ genres: formatGenres(genres.mode, selected) })
+      excludedGenres={excludedGenres}
+      onGenresChange={({ selected, excluded }) =>
+        void updateSearch({
+          genres: formatGenres(genres.mode, selected),
+          without_genres: formatExcludedGenres(excluded),
+        })
       }
       availableGenres={
         (mediaType === "movie" ? genreLists?.movie_genres : genreLists?.tv_genres) ?? []

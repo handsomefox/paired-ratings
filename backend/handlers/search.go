@@ -50,7 +50,9 @@ type searchFilters struct {
 	// GenreMatchAny matches a title with any listed genre instead of all.
 	GenreMatchAny bool
 	// Genres is the genre filter in TMDB's with_genres syntax.
-	Genres           string
+	Genres string
+	// ExcludedGenreIDs leaves out a title with any of these genres.
+	ExcludedGenreIDs []int
 	OriginCountry    string
 	OriginalLanguage string
 	Sort             searchSort
@@ -130,6 +132,7 @@ func (h *Handler) discover(ctx context.Context, f *searchFilters) (searchPage, e
 		MinRating:        f.MinRating,
 		MinVotes:         f.MinVotes,
 		Genres:           f.Genres,
+		WithoutGenres:    joinInts(f.ExcludedGenreIDs, ","),
 		OriginCountry:    f.OriginCountry,
 		OriginalLanguage: f.OriginalLanguage,
 	}
@@ -229,7 +232,27 @@ func parseSearchFilters(q url.Values) searchFilters {
 		f.MinRating = &v
 	}
 	f.GenreIDs, f.GenreMatchAny, f.Genres = parseGenreFilter(q.Get("genres"))
+	f.ExcludedGenreIDs = parseIDList(q.Get("without_genres"))
 	return f
+}
+
+// parseIDList reads comma-separated positive ids and skips anything else.
+func parseIDList(raw string) []int {
+	var ids []int
+	for part := range strings.SplitSeq(raw, ",") {
+		if id, err := strconv.Atoi(strings.TrimSpace(part)); err == nil && id > 0 && !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func joinInts(values []int, separator string) string {
+	parts := make([]string, len(values))
+	for i, v := range values {
+		parts[i] = strconv.Itoa(v)
+	}
+	return strings.Join(parts, separator)
 }
 
 func positiveInt(s string) *int {
@@ -264,7 +287,7 @@ func parseGenreFilter(raw string) (ids []int, matchAny bool, normalized string) 
 // narrows reports a filter beyond the media type and the sort.
 func (f *searchFilters) narrows() bool {
 	return f.YearFrom != nil || f.YearTo != nil || f.MinRating != nil || f.MinVotes != nil ||
-		len(f.GenreIDs) > 0 || f.OriginCountry != "" || f.OriginalLanguage != ""
+		len(f.GenreIDs) > 0 || len(f.ExcludedGenreIDs) > 0 || f.OriginCountry != "" || f.OriginalLanguage != ""
 }
 
 func (f *searchFilters) matches(item *tmdb.SearchResult) bool {
@@ -286,6 +309,9 @@ func (f *searchFilters) matches(item *tmdb.SearchResult) bool {
 		return false
 	}
 	if len(f.GenreIDs) > 0 && !matchesGenres(item.GenreIDs, f.GenreIDs, f.GenreMatchAny) {
+		return false
+	}
+	if len(f.ExcludedGenreIDs) > 0 && matchesGenres(item.GenreIDs, f.ExcludedGenreIDs, true) {
 		return false
 	}
 	if f.YearFrom != nil || f.YearTo != nil {

@@ -16,6 +16,14 @@ window.matchMedia = (query: string) =>
     dispatchEvent: () => false,
   }) satisfies MediaQueryList;
 
+// jsdom has no ResizeObserver either, and Radix's ScrollArea needs one once
+// it has content. Nothing in jsdom has a size, so nothing ever resizes.
+window.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();

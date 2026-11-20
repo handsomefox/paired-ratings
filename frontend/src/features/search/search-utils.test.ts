@@ -64,7 +64,7 @@ describe("validateSearchPageSearch", () => {
   it("keeps a full set of filters", () => {
     expect(
       fromUrl(
-        "?q=dune&media_type=tv&year_from=2000&min_rating=7&min_votes=50&sort=rating&genres=18|35&origin_country=gb&original_language=EN&page=2",
+        "?q=dune&media_type=tv&year_from=2000&min_rating=7&min_votes=50&sort=rating&genres=18|35&without_genres=16,99&origin_country=gb&original_language=EN&page=2",
       ),
     ).toEqual({
       q: "dune",
@@ -74,6 +74,7 @@ describe("validateSearchPageSearch", () => {
       min_votes: "50",
       sort: "rating",
       genres: "18|35",
+      without_genres: "16,99",
       origin_country: "GB",
       original_language: "en",
       page: "2",
@@ -82,7 +83,9 @@ describe("validateSearchPageSearch", () => {
 
   it("drops defaults and junk from an old link", () => {
     expect(
-      fromUrl("?media_type=movie&sort=relevance&page=1&year_from=20&min_rating=x&sort=price"),
+      fromUrl(
+        "?media_type=movie&sort=relevance&page=1&year_from=20&min_rating=x&sort=price&without_genres=x,",
+      ),
     ).toEqual({});
   });
 

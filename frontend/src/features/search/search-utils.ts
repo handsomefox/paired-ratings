@@ -36,6 +36,19 @@ export function formatGenres(mode: GenreMode, selected: string[]): string | unde
   return selected.length ? selected.join(mode === "any" ? "|" : ",") : undefined;
 }
 
+/** "16,99" leaves out a title with either genre. */
+export function parseExcludedGenres(raw: string | undefined): string[] {
+  const ids = (raw ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => /^\d+$/.test(part));
+  return [...new Set(ids)];
+}
+
+export function formatExcludedGenres(excluded: string[]): string | undefined {
+  return excluded.length ? excluded.join(",") : undefined;
+}
+
 /** A TMDB rating from 0 to 10, or "" for anything else. */
 export function cleanRating(raw: string): string {
   const value = raw.trim();
@@ -62,6 +75,7 @@ export type SearchPageSearch = {
   min_votes?: string;
   sort?: Exclude<Sort, "relevance">;
   genres?: string;
+  without_genres?: string;
   // Genre names from "Find similar" on a detail page. The search page swaps
   // them for TMDB genre ids once the genre list loads.
   genre_names?: string;
@@ -86,6 +100,9 @@ export function validateSearchPageSearch(search: Record<string, unknown>): Searc
     min_votes: cleanString(search.min_votes, cleanVotes),
     sort: sort === "relevance" ? undefined : sort,
     genres: formatGenres(genres.mode, genres.selected),
+    without_genres: formatExcludedGenres(
+      parseExcludedGenres(parseSearchString(search.without_genres)),
+    ),
     genre_names: parseSearchString(search.genre_names),
     origin_country: parseSearchString(search.origin_country)?.toUpperCase(),
     original_language: parseSearchString(search.original_language)?.toLowerCase(),

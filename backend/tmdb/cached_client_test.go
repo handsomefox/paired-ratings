@@ -3,6 +3,7 @@ package tmdb_test
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -42,6 +43,39 @@ func TestDiscoverCachesEqualFilters(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, page.TotalResults)
 	require.Equal(t, 2, calls)
+}
+
+// A filter left out of the cache key would serve one filter's results for
+// another, so every field must change the key.
+func TestDiscoverCacheKeyCoversEveryFilter(t *testing.T) {
+	calls := 0
+	c := tmdb.NewCachedClient(&tmdbtest.Mock{
+		DiscoverPageFunc: func(context.Context, string, *tmdb.DiscoverFilters, int) (tmdb.SearchPage, error) {
+			calls++
+			return tmdb.SearchPage{}, nil
+		},
+	})
+	_, err := c.DiscoverPage(t.Context(), "movie", &tmdb.DiscoverFilters{}, 1)
+	require.NoError(t, err)
+
+	fields := reflect.TypeFor[tmdb.DiscoverFilters]().NumField()
+	for i := range fields {
+		var filters tmdb.DiscoverFilters
+		field := reflect.ValueOf(&filters).Elem().Field(i)
+		switch field.Kind() {
+		case reflect.String:
+			field.SetString("1")
+		case reflect.Pointer:
+			value := reflect.New(field.Type().Elem())
+			value.Elem().Set(reflect.ValueOf(1).Convert(field.Type().Elem()))
+			field.Set(value)
+		default:
+			t.Fatalf("set a value for %s in this test", reflect.TypeFor[tmdb.DiscoverFilters]().Field(i).Name)
+		}
+		_, err := c.DiscoverPage(t.Context(), "movie", &filters, 1)
+		require.NoError(t, err)
+		require.Equal(t, i+2, calls, "%s is not part of the cache key", reflect.TypeFor[tmdb.DiscoverFilters]().Field(i).Name)
+	}
 }
 
 func TestRefreshReplacesCachedMetadata(t *testing.T) {

@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { sortOptions, type Sort } from "@/features/search/search-constants";
+import { cn } from "@/lib/utils";
+import { Ban } from "lucide-react";
 import type { GenreMode } from "@/features/search/search-utils";
 import type { ApiCountry, ApiGenre, ApiLanguage } from "@/lib/api";
 
@@ -20,7 +22,9 @@ type SearchFiltersProps = {
   genreMode: GenreMode;
   onGenreModeChange: (value: GenreMode) => void;
   selectedGenres: string[];
-  onSelectedGenresChange: (next: string[]) => void;
+  excludedGenres: string[];
+  /** A genre is either selected, excluded, or neither, so both lists change together. */
+  onGenresChange: (next: { selected: string[]; excluded: string[] }) => void;
   availableGenres: ApiGenre[];
   genresLoading: boolean;
   originCountry: string;
@@ -45,7 +49,8 @@ export function SearchFilters({
   genreMode,
   onGenreModeChange,
   selectedGenres,
-  onSelectedGenresChange,
+  excludedGenres,
+  onGenresChange,
   availableGenres,
   genresLoading,
   originCountry,
@@ -93,17 +98,46 @@ export function SearchFilters({
               {availableGenres.map((genre) => {
                 const id = String(genre.id);
                 const checked = selectedGenres.includes(id);
+                const excluded = excludedGenres.includes(id);
+                const without = (list: string[]) => list.filter((value) => value !== id);
                 return (
-                  <label key={genre.id} className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={(value) => {
-                        if (value === true) onSelectedGenresChange([...selectedGenres, id]);
-                        else onSelectedGenresChange(selectedGenres.filter((val) => val !== id));
-                      }}
-                    />
-                    <span>{genre.name}</span>
-                  </label>
+                  <div key={genre.id} className="flex items-center gap-2">
+                    <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(value) =>
+                          onGenresChange({
+                            selected:
+                              value === true ? [...selectedGenres, id] : without(selectedGenres),
+                            excluded: without(excludedGenres),
+                          })
+                        }
+                      />
+                      <span className={cn(excluded && "text-muted-foreground line-through")}>
+                        {genre.name}
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      aria-pressed={excluded}
+                      aria-label={`Exclude ${genre.name}`}
+                      title={`Exclude ${genre.name}`}
+                      onClick={() =>
+                        onGenresChange({
+                          selected: without(selectedGenres),
+                          excluded: excluded ? without(excludedGenres) : [...excludedGenres, id],
+                        })
+                      }
+                      className={cn(
+                        "shrink-0 cursor-pointer rounded-md p-1 transition-colors",
+                        excluded
+                          ? "bg-destructive/15 text-destructive"
+                          : "text-muted-foreground/60 hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      <Ban className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
                 );
               })}
             </div>

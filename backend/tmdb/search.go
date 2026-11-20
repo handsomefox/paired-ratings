@@ -60,6 +60,9 @@ func (c *Client) DiscoverPage(ctx context.Context, mediaType string, filters *Di
 	if strings.TrimSpace(filters.Genres) != "" {
 		values.Set("with_genres", strings.TrimSpace(filters.Genres))
 	}
+	if strings.TrimSpace(filters.WithoutGenres) != "" {
+		values.Set("without_genres", strings.TrimSpace(filters.WithoutGenres))
+	}
 	if strings.TrimSpace(filters.OriginCountry) != "" {
 		values.Set("with_origin_country", strings.TrimSpace(filters.OriginCountry))
 	}

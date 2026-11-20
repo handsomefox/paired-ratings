@@ -6,7 +6,7 @@ you can disagree about a film without overwriting each other. TMDB supplies
 search, posters, and metadata. The library lives in a SQLite file.
 
 - Search TMDB, or discover titles by type, genre, year, rating, vote count,
-  country, and language.
+  country, and language. Leave out genres you never want to see.
 - Save a title as planned, watching, or watched. Each person rates it 1 to 10
   and leaves a comment.
 - Track watched episodes of a TV show, one at a time or a season at once.

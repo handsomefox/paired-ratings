@@ -184,6 +184,7 @@ func (f *DiscoverFilters) cacheKey() string {
 		optional(f.MinRating),
 		optional(f.MinVotes),
 		strconv.Quote(f.Genres),
+		strconv.Quote(f.WithoutGenres),
 		strconv.Quote(f.Sort),
 		strconv.Quote(f.OriginCountry),
 		strconv.Quote(f.OriginalLanguage),

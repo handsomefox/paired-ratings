@@ -83,6 +83,24 @@ describe("SearchPage", () => {
     expect(screen.queryByText("No results found")).not.toBeInTheDocument();
   });
 
+  it("excludes a genre instead of selecting it, and switching types clears both", async () => {
+    const user = userEvent.setup();
+    const { router } = renderApp("/search?genres=18");
+    const drama = await screen.findByRole("checkbox", { name: "Drama" });
+    expect(drama).toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "Exclude Drama" }));
+    await waitFor(() => expect(pageSearch(router)).toEqual({ without_genres: "18" }));
+    expect(drama).not.toBeChecked();
+    expect(search).toHaveBeenLastCalledWith("media_type=movie&without_genres=18");
+
+    await user.click(screen.getByRole("button", { name: "Exclude Comedy" }));
+    await waitFor(() => expect(pageSearch(router)).toEqual({ without_genres: "18,35" }));
+
+    await user.click(screen.getByRole("button", { name: "TV Shows" }));
+    await waitFor(() => expect(pageSearch(router)).toEqual({ media_type: "tv" }));
+  });
+
   it("turns the genre names from Find similar into ids before it searches", async () => {
     const { router } = renderApp("/search?genre_names=Drama,Comedy");
 

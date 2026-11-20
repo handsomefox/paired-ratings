@@ -46,6 +46,7 @@ func TestParseSearchFilters(t *testing.T) {
 		"min_votes":         {"100"},
 		"sort":              {"year"},
 		"genres":            {"12|16"},
+		"without_genres":    {"99, x,10751,99"},
 		"origin_country":    {"us"},
 		"original_language": {"EN"},
 		"page":              {"2"},
@@ -59,6 +60,7 @@ func TestParseSearchFilters(t *testing.T) {
 	assert.Equal(t, sortYear, f.Sort)
 	assert.Equal(t, []int{12, 16}, f.GenreIDs)
 	assert.True(t, f.GenreMatchAny)
+	assert.Equal(t, []int{99, 10751}, f.ExcludedGenreIDs)
 	assert.Equal(t, "US", f.OriginCountry)
 	assert.Equal(t, "en", f.OriginalLanguage)
 	assert.Equal(t, 2, f.Page)
@@ -70,6 +72,11 @@ func TestParseSearchFilters(t *testing.T) {
 	assert.Equal(t, tmdb.MaxPage, f.Page)
 	assert.Nil(t, f.MinVotes)
 	assert.False(t, f.narrows())
+
+	excluding := parseSearchFilters(url.Values{"without_genres": {"16"}})
+	assert.True(t, excluding.narrows())
+	assert.False(t, excluding.matches(&tmdb.SearchResult{GenreIDs: []int{18, 16}}))
+	assert.True(t, excluding.matches(&tmdb.SearchResult{GenreIDs: []int{18}}))
 }
 
 func TestSortResults(t *testing.T) {

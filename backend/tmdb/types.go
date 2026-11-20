@@ -45,11 +45,13 @@ type Detail struct {
 }
 
 type DiscoverFilters struct {
-	YearFrom         *int
-	YearTo           *int
-	MinRating        *float64
-	MinVotes         *int
-	Genres           string
+	YearFrom  *int
+	YearTo    *int
+	MinRating *float64
+	MinVotes  *int
+	Genres    string
+	// WithoutGenres is a comma-separated list of genre ids to leave out.
+	WithoutGenres    string
 	Sort             string
 	OriginCountry    string
 	OriginalLanguage string
