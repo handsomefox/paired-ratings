@@ -20,6 +20,7 @@ import {
 } from "@/features/library/library-search";
 import type { ApiCountry } from "@/lib/api";
 import { showStatusOptions, type ShowStatus } from "@/lib/status";
+import { useId } from "react";
 
 const statusOptions = [{ value: "all", label: "All" }, ...showStatusOptions] as const;
 
@@ -76,6 +77,8 @@ export function LibraryFilters({
   onRefresh,
   refreshPending,
 }: LibraryFiltersProps) {
+  const refreshHintId = useId();
+
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 [&>*]:min-w-0">
@@ -202,16 +205,22 @@ export function LibraryFilters({
 
       <Separator />
 
-      <div className="flex flex-wrap items-center gap-3">
+      {/* A hint rather than a tooltip, because a tooltip never shows on a phone. */}
+      <div className="space-y-2">
         <Button
           type="button"
           variant="outline"
           className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
           onClick={onRefresh}
           disabled={refreshPending}
+          aria-describedby={refreshHintId}
         >
           {refreshPending ? "Refreshing..." : "Refresh TMDB"}
         </Button>
+        <p id={refreshHintId} className="text-xs text-muted-foreground">
+          Pulls posters, TMDB ratings, and episode lists again for every title not updated in the
+          last day. Your ratings and comments stay as they are.
+        </p>
       </div>
     </div>
   );

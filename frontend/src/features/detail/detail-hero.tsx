@@ -202,6 +202,7 @@ export function DetailHero({
             className={actionClass}
             onClick={onRefresh}
             disabled={refreshPending}
+            title="Pull this title's poster, TMDB rating and details again"
           >
             <RotateCcw className="h-3 w-3" />
             Refresh TMDB
