@@ -4,8 +4,8 @@
 
 /* Windows has no flag emoji, so Chromium there shows the two letters of a
    country code instead. This font holds only the flags, and the
-   unicode-range keeps every other character on the normal font. Browsers
-   download it the first time a flag is on screen. The flags are Twemoji,
+   unicode-range keeps every other character on the normal font. The service
+   worker precaches it with the other fonts, 78 KB. The flags are Twemoji,
    under CC BY 4.0. */
 @font-face {
   font-family: "Twemoji Country Flags";
