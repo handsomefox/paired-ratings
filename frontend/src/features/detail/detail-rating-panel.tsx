@@ -88,10 +88,14 @@ function StarRating({ value, onChange, tone, label }: StarRatingProps) {
                 aria-label={starLabel(rating)}
                 tabIndex={rating === tabStop ? 0 : -1}
                 onClick={() => onChange(rating)}
-                // Moving between halves leaves one radio and enters the next in
-                // the same frame, so the preview does not flicker.
-                onMouseEnter={() => setHovered(rating)}
-                onMouseLeave={() => setHovered(null)}
+                // Only a mouse previews: a tap would leave the preview behind,
+                // for example after Clear ratings. Moving between halves leaves
+                // one radio and enters the next in the same frame, so the
+                // preview does not flicker.
+                onPointerEnter={(event) => {
+                  if (event.pointerType === "mouse") setHovered(rating);
+                }}
+                onPointerLeave={() => setHovered(null)}
                 onKeyDown={(event) => handleKeyDown(event, rating)}
                 className={cn(
                   "absolute inset-y-0 w-1/2 cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
