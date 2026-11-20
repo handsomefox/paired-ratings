@@ -20,7 +20,7 @@ export const changelog: ChangelogEntry[] = [
       "The number of shows per page moved into the library filters.",
       "Leave genres out of the Add page with the button next to each genre.",
       "TMDB vote counts on cards are shorter, such as 4.5K instead of 4509.",
-      "Country flags show as flags in Chrome and Edge on Windows, not as two letters.",
+      "Country flags show as flags in Chrome and Edge on Windows, not as two letters, and have the same size and spacing on every card.",
       "Opening a dropdown no longer shifts the page sideways.",
       "On the show page, the rating stars span the whole panel on wider screens.",
       "This “What's new” page.",

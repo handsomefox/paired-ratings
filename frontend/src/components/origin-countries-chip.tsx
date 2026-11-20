@@ -30,10 +30,22 @@ export function OriginCountriesChip({
     <div className={className}>
       <Popover>
         <PopoverTrigger
-          className={cn(badgeVariants({ variant: "outline" }), "cursor-pointer", badgeClassName)}
+          className={cn(
+            badgeVariants({ variant: "outline" }),
+            "cursor-pointer gap-1",
+            badgeClassName,
+          )}
         >
-          <span aria-hidden="true">{flagEmoji(primary)}</span> {primary}
-          {extra > 0 ? ` +${extra}` : ""}
+          {/* The badge is a flex container, where a space between the flag and
+              the code collapses, so the gap separates them. The flag matches
+              the size on the language badge. */}
+          <span aria-hidden="true" className="text-base leading-none">
+            {flagEmoji(primary)}
+          </span>
+          <span>
+            {primary}
+            {extra > 0 ? ` +${extra}` : ""}
+          </span>
           {/* Added to the visible text, not replacing it, so the name a
               screen reader announces still contains what is on screen. */}
           <span className="sr-only">
