@@ -16,6 +16,7 @@ import { LibraryPage } from "./pages/library";
 import { LoginPage } from "./pages/login";
 import { SearchPage } from "./pages/search";
 import { WatchOrderPage } from "./pages/watch-order";
+import { WhatsNewPage } from "./pages/whats-new";
 
 type AppContext = {
   queryClient: QueryClient;
@@ -72,6 +73,12 @@ const detailRoute = createRoute({
   component: DetailPage,
 });
 
+const whatsNewRoute = createRoute({
+  getParentRoute: () => authedRoute,
+  path: "/whats-new",
+  component: WhatsNewPage,
+});
+
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
@@ -85,7 +92,7 @@ const loginRoute = createRoute({
 });
 
 const routeTree = rootRoute.addChildren([
-  authedRoute.addChildren([libraryRoute, watchOrderRoute, searchRoute, detailRoute]),
+  authedRoute.addChildren([libraryRoute, watchOrderRoute, searchRoute, detailRoute, whatsNewRoute]),
   loginRoute,
 ]);
 

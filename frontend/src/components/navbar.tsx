@@ -1,3 +1,4 @@
+import { useHasUnseenChanges } from "@/features/changelog/seen";
 import { api } from "@/lib/api";
 import { downloadResponse } from "@/lib/download";
 import { queryKeys } from "@/lib/queries";
@@ -11,6 +12,7 @@ import {
   LogOut,
   MoreHorizontal,
   Plus,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import type { MouseEvent, ReactNode } from "react";
@@ -97,6 +99,16 @@ function useAccountActions() {
   return { exportJSON, exportDB, logout };
 }
 
+/** A dot on the button that opens the menu holding "What's new". */
+function UnseenDot() {
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute right-0 top-0 h-2 w-2 rounded-full bg-primary ring-2 ring-background"
+    />
+  );
+}
+
 function NavLink({ to, children }: { to: NavTarget; children: ReactNode }) {
   return (
     <Link
@@ -120,6 +132,7 @@ function NavLink({ to, children }: { to: NavTarget; children: ReactNode }) {
 export function Navbar() {
   const { exportJSON, exportDB, logout } = useAccountActions();
   const scrollTopWhenCurrent = useScrollTopWhenCurrent();
+  const hasUnseenChanges = useHasUnseenChanges();
 
   return (
     <header className="z-30 border-b border-border/60 bg-background/75 pt-[env(safe-area-inset-top)] backdrop-blur md:sticky md:top-0">
@@ -162,13 +175,22 @@ export function Navbar() {
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-full"
-                aria-label="More actions"
+                className="relative rounded-full"
+                aria-label={
+                  hasUnseenChanges ? "More actions, new changes to the app" : "More actions"
+                }
               >
                 <MoreHorizontal className="h-4 w-4" />
+                {hasUnseenChanges ? <UnseenDot /> : null}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link to="/whats-new">
+                  <Sparkles className="h-4 w-4" />
+                  What's new
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={exportJSON}>
                 <Download className="h-4 w-4" />
                 Export JSON
@@ -198,6 +220,7 @@ const sheetItemClass =
 export function TabBar() {
   const { exportJSON, exportDB, logout } = useAccountActions();
   const scrollTopWhenCurrent = useScrollTopWhenCurrent();
+  const hasUnseenChanges = useHasUnseenChanges();
 
   return (
     <nav
@@ -222,8 +245,12 @@ export function TabBar() {
         <Sheet>
           <SheetTrigger asChild>
             <button type="button" className={cn(tabClass, "text-muted-foreground")}>
-              <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+              <span className="relative">
+                <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+                {hasUnseenChanges ? <UnseenDot /> : null}
+              </span>
               <span>More</span>
+              {hasUnseenChanges ? <span className="sr-only">, new changes to the app</span> : null}
             </button>
           </SheetTrigger>
           <SheetContent
@@ -232,9 +259,15 @@ export function TabBar() {
           >
             <SheetHeader className="text-left">
               <SheetTitle>More</SheetTitle>
-              <SheetDescription>Export your data or log out.</SheetDescription>
+              <SheetDescription>See what changed, export your data, or log out.</SheetDescription>
             </SheetHeader>
             <div className="mt-5 grid gap-2">
+              <SheetClose asChild>
+                <Link to="/whats-new" className={sheetItemClass}>
+                  <Sparkles className="h-4 w-4" />
+                  What's new
+                </Link>
+              </SheetClose>
               <SheetClose asChild>
                 <button type="button" className={sheetItemClass} onClick={exportJSON}>
                   <Download className="h-4 w-4" />

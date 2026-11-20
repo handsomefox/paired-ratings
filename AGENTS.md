@@ -101,6 +101,13 @@ password or deleting the key file signs everyone out. `BF_NAME` and `GF_NAME`
 are display labels on the two rating columns, not accounts. Do not add per-user
 state keyed on them.
 
+## Users read the changelog
+
+`frontend/src/features/changelog/changelog.ts` feeds the "What's new" page.
+When a change is something the two people can see, add a line under today's
+date, newest date first, and write it for them, not for developers. The page
+shows the month up to the newest entry, so leave older entries in place.
+
 ## Before you commit
 
 Run `make fmt`, `make lint`, and `make test` once after a coherent set of edits.

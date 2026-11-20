@@ -24,6 +24,23 @@ window.ResizeObserver ??= class {
   disconnect() {}
 };
 
+// Node's own localStorage global hides jsdom's, and Node leaves it undefined
+// unless it runs with --localstorage-file. Use an in-memory one instead.
+if (typeof globalThis.localStorage?.getItem !== "function") {
+  const items = new Map<string, string>();
+  const storage: Storage = {
+    get length() {
+      return items.size;
+    },
+    clear: () => items.clear(),
+    getItem: (key) => items.get(key) ?? null,
+    key: (index) => [...items.keys()][index] ?? null,
+    removeItem: (key) => void items.delete(key),
+    setItem: (key, value) => void items.set(key, String(value)),
+  };
+  Object.defineProperty(globalThis, "localStorage", { value: storage, configurable: true });
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
