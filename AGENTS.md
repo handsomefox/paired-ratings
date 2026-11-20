@@ -105,8 +105,10 @@ state keyed on them.
 
 `frontend/src/features/changelog/changelog.ts` feeds the "What's new" page.
 When a change is something the two people can see, add a line under today's
-date, newest date first, and write it for them, not for developers. The page
-shows the month up to the newest entry, so leave older entries in place.
+date, newest date first, and write it for them, not for developers. Put the
+one to three changes they will care about most under `highlights`, with a
+short title. The page shows the month up to the newest entry, so leave older
+entries in place.
 
 ## Before you commit
 

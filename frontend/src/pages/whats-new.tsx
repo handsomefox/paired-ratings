@@ -1,5 +1,6 @@
 import { formatChangelogDate, recentEntries } from "@/features/changelog/changelog";
 import { markChangesSeen } from "@/features/changelog/seen";
+import { Sparkles } from "lucide-react";
 import { useEffect } from "react";
 
 export function WhatsNewPage() {
@@ -25,6 +26,29 @@ export function WhatsNewPage() {
             <h2 className="text-sm font-semibold tabular-nums text-muted-foreground">
               <time dateTime={entry.date}>{formatChangelogDate(entry.date)}</time>
             </h2>
+            {entry.highlights?.length ? (
+              <>
+                <ul className="mt-3 grid gap-3 sm:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]">
+                  {entry.highlights.map((highlight) => (
+                    <li
+                      key={highlight.title}
+                      className="rounded-xl border border-primary/25 bg-gradient-to-br from-bf/15 via-card/40 to-gf/15 p-4"
+                    >
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                        {highlight.title}
+                      </div>
+                      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                        {highlight.text}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Also
+                </h3>
+              </>
+            ) : null}
             <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed marker:text-primary/70">
               {entry.changes.map((change) => (
                 <li key={change}>{change}</li>

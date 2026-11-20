@@ -7,34 +7,60 @@
 export type ChangelogEntry = {
   /** The day the change shipped, as YYYY-MM-DD. */
   date: string;
+  /**
+   * The few changes worth knowing about, shown first and set apart. Each has
+   * a short title and a sentence on what it does.
+   */
+  highlights?: Array<{ title: string; text: string }>;
+  /** Everything else, as one sentence each. */
   changes: string[];
 };
 
 export const changelog: ChangelogEntry[] = [
   {
     date: "2026-11-20",
+    highlights: [
+      {
+        title: "Half stars",
+        text: "Rate a show 9.5 instead of choosing between 9 and 10. Tap the left half of a star for the half.",
+      },
+      {
+        title: "Search the library",
+        text: "Find a title by name, and switch between all titles, movies, and TV shows.",
+      },
+      {
+        title: "Better filters",
+        text: "Filter the library by TMDB rating and by who has rated a title, and leave genres you never want out of the Add page.",
+      },
+    ],
     changes: [
-      "Ratings take half stars, so a show can get 9.5 instead of 9 or 10. Tap the left half of a star for the half.",
-      "Search the library by title, and switch it between all titles, movies, and TV shows.",
-      "Filter the library by a minimum TMDB rating, and by who has rated a title, which replaces “Unrated only”.",
+      "“Clear ratings” on the show page sits next to the average and asks before it removes both ratings and comments.",
       "The number of shows per page moved into the library filters.",
-      "Leave genres out of the Add page with the button next to each genre.",
+      "The (i) next to Refresh TMDB explains what it does.",
       "TMDB vote counts on cards are shorter, such as 4.5K instead of 4509.",
       "Country flags show as flags in Chrome and Edge on Windows, not as two letters, and have the same size and spacing on every card.",
+      "Chip and checkbox outlines stay smooth on screens that scale the page, such as Windows at 125%.",
+      "The genre, country, and language lists line up their codes at the edge, and the page no longer shows through them.",
       "Opening a dropdown no longer shifts the page sideways.",
       "On the show page, the rating stars span the whole panel on wider screens.",
+      "An episode's air date and length have a dot between them.",
+      "The star and the AVG label line up with the numbers on rating chips.",
       "This “What's new” page.",
     ],
   },
   {
     date: "2026-10-26",
+    highlights: [
+      {
+        title: "Made for phones",
+        text: "The navigation moved to a tab bar at the bottom of the screen, and the show page, the library, and the search results fit a phone.",
+      },
+    ],
     changes: [
       "Search results show the language as a short code, such as JA, instead of a name that was cut off. Point at it for the full name.",
       "The show and watch order pages keep a readable width on large screens. A show's related titles start with ten, and “Show all” shows the rest.",
       "The library fits more cards on a desktop screen, and text no longer grows on large screens.",
       "Password managers can save the login.",
-      "The show page, the library, and the search results fit phone screens better.",
-      "On phones, the navigation moved to a tab bar at the bottom of the screen.",
       "Back returns to the same scroll position in the library and the search results.",
       "The watch order can be rearranged with the keyboard.",
     ],
