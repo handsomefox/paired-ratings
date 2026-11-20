@@ -15,8 +15,12 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        bf: "border border-bf/40 bg-bf/10 text-bf shadow-sm hover:bg-bf/20",
-        gf: "border border-gf/40 bg-gf/10 text-gf shadow-sm hover:bg-gf/20",
+        // The tinted variants draw their outline as an inset ring, as Badge
+        // does: a bright border's curves look jagged next to its pixel-snapped
+        // straight edges at a fractional display scale. The compound variants
+        // below add the 1px of padding the border took, so sizes stay the same.
+        bf: "bg-bf/10 text-bf shadow-sm inset-ring inset-ring-bf/40 hover:bg-bf/20",
+        gf: "bg-gf/10 text-gf shadow-sm inset-ring inset-ring-gf/40 hover:bg-gf/20",
       },
       size: {
         default: "h-9 px-4 py-2",
@@ -25,6 +29,11 @@ const buttonVariants = cva(
         icon: "h-9 w-9",
       },
     },
+    compoundVariants: [
+      { variant: ["bf", "gf"], size: "default", className: "px-[17px]" },
+      { variant: ["bf", "gf"], size: "sm", className: "px-[13px]" },
+      { variant: ["bf", "gf"], size: "lg", className: "px-[33px]" },
+    ],
     defaultVariants: {
       variant: "default",
       size: "default",

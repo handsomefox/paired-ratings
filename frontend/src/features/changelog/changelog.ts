@@ -42,7 +42,7 @@ export const changelog: ChangelogEntry[] = [
       "The (i) next to Refresh TMDB explains what it does.",
       "TMDB vote counts on cards are shorter, such as 4.5K instead of 4509.",
       "Country flags show as flags in Chrome and Edge on Windows, not as two letters, and have the same size and spacing on every card.",
-      "Chip, checkbox, and pill-button outlines stay smooth on screens that scale the page, such as Windows at 125%.",
+      "Colored outlines on chips, checkboxes, buttons, and cards stay smooth on screens that scale the page, such as Windows at 125%.",
       "The genre, country, and language lists line up their codes at the edge, and the page no longer shows through them.",
       "Opening a dropdown no longer shifts the page sideways.",
       "On the show page, the rating stars span the whole panel on wider screens.",

@@ -32,7 +32,9 @@ export function WhatsNewPage() {
                   {entry.highlights.map((highlight) => (
                     <li
                       key={highlight.title}
-                      className="rounded-xl border border-primary/25 bg-gradient-to-br from-bf/15 via-card/40 to-gf/15 p-4"
+                      // An inset ring, as on badges, with 1px more padding
+                      // where the border was.
+                      className="inset-ring inset-ring-primary/25 rounded-xl bg-gradient-to-br from-bf/15 via-card/40 to-gf/15 p-[17px]"
                     >
                       <div className="flex items-center gap-2 text-sm font-semibold">
                         <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
