@@ -65,6 +65,14 @@
     scrollbar-color: hsl(var(--border)) transparent;
   }
 
+  /* Radix locks page scroll while a select, menu or dialog is open, and adds
+     a right margin the width of the scrollbar to make up for hiding it. The
+     stable gutter above already keeps that space, so the margin would push
+     the page sideways. A layered !important rule beats Radix's unlayered one. */
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
+  }
+
   input[type="number"] {
     appearance: textfield;
     -moz-appearance: textfield;
